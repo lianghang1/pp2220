@@ -24,9 +24,9 @@
 
 | 渠道 | 支付方式 | 退款 | 转账 | 分账 | 账单 | 回调验签 |
 |---|---|---|---|---|---|---|
-| wechat | JSAPI / Native / H5 / APP | ✓ | 商家转账 | ✓ | ✓ | 平台证书 + APIv3 解密 |
+| wechat | JSAPI(公众号) / LITE(小程序) / Native(WEB扫码) / H5 / APP / BAR(付款码)，V2/V3 双协议 | ✓ | 商家转账(V3)+企业付款(V2) | ✓ | ✓ | V3 平台证书验签 / V2 MD5 |
 | alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓（同步） | 单笔转账 | ✓（结算规则） | ✓ | RSA2 公钥 |
-| unionpay | 银联二维码 / 银联付款码 | ✓ | — | — | — | 平台公钥 |
+| unionpay | 银联二维码 / 银联付款码 / 转接微信 JSAPI·付款码 / 转接支付宝 JSAPI·付款码 | ✓ | — | — | — | 平台公钥 |
 | paypal | Orders v2（批准→捕获） | ✓（捕获单） | Payouts | — | — | Webhook 官方验签接口 |
 | mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
 
@@ -63,6 +63,8 @@ pay-gateway:
           merchantPrivateKey: "PEM 私钥文本（\n 转义换行）"
           apiV3Key: APIv3密钥
           appId: 微信AppID
+          wxApiVersion: v3            # v2/v3 双协议，缺省 v3
+          apiV2Key: V2商户支付密钥    # wxApiVersion=v2 或付款码/企业付款时必填
           notifyUrl: https://你的域名/callback/wechat
         alipay:
           appId: 支付宝AppID
