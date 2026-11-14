@@ -33,10 +33,8 @@ class UnionPayChannelTest {
         properties.put("notifyUrl", "http://127.0.0.1/callback/unionpay");
 
         UnionPayParams params = UnionPayParams.fromMap(properties);
-        assertThat(params.isSandbox()).isTrue();
         assertThat(params.getSerProvId()).isEqualTo("sp-001");
         assertThat(params.channelAppId()).isEqualTo("mch-001");
-        assertThat(params.gateway()).isEqualTo(UnionPayParams.SANDBOX_GATEWAY);
     }
 
     @Test

@@ -66,8 +66,8 @@ public class YsfQrPayMethod implements UnionPayMethod {
             requestParams.put("serProvId", params.getSerProvId());
         }
         requestParams.put("orderType", "upJs");
-        requestParams.put("backUrl", params.getNotifyUrl());
-        requestParams.put("frontUrl", params.getNotifyUrl());
+        requestParams.put("backUrl", config.getNotifyUrl());
+        requestParams.put("frontUrl", config.getNotifyUrl());
         requestParams.put("customerIp", StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
         requestParams.put("termInfo", "{\"ip\": \""
                 + StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1") + "\"}");

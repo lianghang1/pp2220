@@ -29,8 +29,6 @@ class PayPalChannelTest {
         properties.put("webhookId", "wh-001");
 
         PayPalParams params = PayPalParams.fromMap(properties);
-        assertThat(params.isSandbox()).isTrue();
-        assertThat(params.gateway()).isEqualTo(PayPalParams.SANDBOX_GATEWAY);
         assertThat(params.channelAppId()).isEqualTo("cid-001");
     }
 

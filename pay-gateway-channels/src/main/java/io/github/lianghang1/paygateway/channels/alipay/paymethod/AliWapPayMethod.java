@@ -31,7 +31,7 @@ public class AliWapPayMethod implements AlipayPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, ChannelConfig config, AlipayClientHolder holder) {
         AlipayTradeWapPayRequest request = new AlipayTradeWapPayRequest();
-        request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradeWapPayModel model = new AlipayTradeWapPayModel();
         model.setOutTradeNo(payment.getPaymentId());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));

@@ -36,7 +36,7 @@ public class WxNativePayMethod implements WechatPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
         if (WechatPartnerSupport.isIsv(config)) {
-            return WechatPartnerSupport.createPartnerPaymentV3(payment, params, service, TradeTypeEnum.NATIVE, null);
+            return WechatPartnerSupport.createPartnerPaymentV3(payment, config, params, service, TradeTypeEnum.NATIVE, null);
         }
         if (params.isV2()) {
             WxPayUnifiedOrderRequest request = new WxPayUnifiedOrderRequest();
@@ -44,7 +44,7 @@ public class WxNativePayMethod implements WechatPayMethod {
             request.setOutTradeNo(payment.getPaymentId());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
-            request.setNotifyUrl(params.getNotifyUrl());
+            request.setNotifyUrl(config.getNotifyUrl());
             request.setTradeType("NATIVE");
             WxPayNativeOrderResult result = WxJsapiPayMethod.wrap("Native V2 下单", () ->
                     service.createOrder(WxPayConstants.TradeType.Specific.NATIVE, request));
@@ -54,7 +54,7 @@ public class WxNativePayMethod implements WechatPayMethod {
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
         request.setOutTradeNo(payment.getPaymentId());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
-        request.setNotifyUrl(params.getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         request.setAmount(WxJsapiPayMethod.v3Amount(payment));
         String codeUrl = WxJsapiPayMethod.wrap("Native V3 下单", () ->
                 service.createOrderV3(TradeTypeEnum.NATIVE, request));

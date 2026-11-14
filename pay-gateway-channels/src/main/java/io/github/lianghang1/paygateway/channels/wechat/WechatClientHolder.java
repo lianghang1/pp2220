@@ -42,9 +42,9 @@ public class WechatClientHolder {
         WxPayConfig wxConfig = new WxPayConfig();
         wxConfig.setAppId(params.getAppId());
         wxConfig.setMchId(params.getMerchantId());
-        wxConfig.setNotifyUrl(params.getNotifyUrl());
+        wxConfig.setNotifyUrl(config.getNotifyUrl());
         // V2 仿真系统开关（V3 无官方沙箱）
-        wxConfig.setUseSandboxEnv(params.isSandbox());
+        wxConfig.setUseSandboxEnv(config.isSandbox());
         // V2 协议
         wxConfig.setMchKey(params.getApiV2Key());
         wxConfig.setEntPayKey(params.effectiveEntPayKey());

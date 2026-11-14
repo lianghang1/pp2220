@@ -42,19 +42,66 @@ public class PayGatewayProperties {
     }
 
     /**
-     * 单应用的渠道参数集合。
+     * 单应用的渠道配置集合：统一键（notifyUrl/sandbox/subMchNo）+ attrs 渠道个性键值包。
      */
     public static class AppProperties {
 
-        /** 渠道编码 → 渠道参数键值对 */
-        private Map<String, Map<String, String>> channels = new LinkedHashMap<String, Map<String, String>>();
+        /** 渠道编码 → 渠道配置 */
+        private Map<String, ChannelProperties> channels = new LinkedHashMap<String, ChannelProperties>();
 
-        public Map<String, Map<String, String>> getChannels() {
+        public Map<String, ChannelProperties> getChannels() {
             return channels;
         }
 
-        public void setChannels(Map<String, Map<String, String>> channels) {
+        public void setChannels(Map<String, ChannelProperties> channels) {
             this.channels = channels;
+        }
+    }
+
+    /**
+     * 单渠道配置：统一基础键 + attrs 渠道个性键值包。
+     */
+    public static class ChannelProperties {
+
+        /** 渠道异步通知地址（统一键） */
+        private String notifyUrl;
+        /** 沙箱开关（统一键，有官方沙箱的渠道据此切换网关） */
+        private boolean sandbox;
+        /** 服务商模式特约商户号（统一键，微信/云闪付等子商户场景） */
+        private String subMchNo;
+        /** 渠道个性键值包（键名由各渠道定义，经 ChannelProvider.parseParams 解析为渠道参数对象） */
+        private Map<String, String> attrs = new LinkedHashMap<String, String>();
+
+        public String getNotifyUrl() {
+            return notifyUrl;
+        }
+
+        public void setNotifyUrl(String notifyUrl) {
+            this.notifyUrl = notifyUrl;
+        }
+
+        public boolean isSandbox() {
+            return sandbox;
+        }
+
+        public void setSandbox(boolean sandbox) {
+            this.sandbox = sandbox;
+        }
+
+        public String getSubMchNo() {
+            return subMchNo;
+        }
+
+        public void setSubMchNo(String subMchNo) {
+            this.subMchNo = subMchNo;
+        }
+
+        public Map<String, String> getAttrs() {
+            return attrs;
+        }
+
+        public void setAttrs(Map<String, String> attrs) {
+            this.attrs = attrs;
         }
     }
 

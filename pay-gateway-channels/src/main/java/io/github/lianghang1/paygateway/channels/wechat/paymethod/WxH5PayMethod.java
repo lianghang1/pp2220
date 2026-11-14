@@ -36,7 +36,7 @@ public class WxH5PayMethod implements WechatPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
         if (WechatPartnerSupport.isIsv(config)) {
-            return WechatPartnerSupport.createPartnerPaymentV3(payment, params, service, TradeTypeEnum.H5, null);
+            return WechatPartnerSupport.createPartnerPaymentV3(payment, config, params, service, TradeTypeEnum.H5, null);
         }
         if (params.isV2()) {
             WxPayUnifiedOrderRequest request = new WxPayUnifiedOrderRequest();
@@ -44,7 +44,7 @@ public class WxH5PayMethod implements WechatPayMethod {
             request.setOutTradeNo(payment.getPaymentId());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
-            request.setNotifyUrl(params.getNotifyUrl());
+            request.setNotifyUrl(config.getNotifyUrl());
             request.setTradeType("MWEB");
             WxPayMwebOrderResult result = WxJsapiPayMethod.wrap("H5 V2 下单", () ->
                     service.createOrder(WxPayConstants.TradeType.Specific.MWEB, request));
@@ -54,7 +54,7 @@ public class WxH5PayMethod implements WechatPayMethod {
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
         request.setOutTradeNo(payment.getPaymentId());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
-        request.setNotifyUrl(params.getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         request.setAmount(WxJsapiPayMethod.v3Amount(payment));
         WxPayUnifiedOrderV3Request.SceneInfo sceneInfo = new WxPayUnifiedOrderV3Request.SceneInfo();
         sceneInfo.setPayerClientIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));

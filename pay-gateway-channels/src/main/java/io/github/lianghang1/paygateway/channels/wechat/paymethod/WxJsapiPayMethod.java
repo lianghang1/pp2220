@@ -55,7 +55,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
                     "JSAPI 支付需在 channelExtras 中提供 openid");
         }
         if (WechatPartnerSupport.isIsv(config)) {
-            return WechatPartnerSupport.createPartnerPaymentV3(payment, params, service,
+            return WechatPartnerSupport.createPartnerPaymentV3(payment, config, params, service,
                     TradeTypeEnum.JSAPI, openid);
         }
         if (params.isV2()) {
@@ -64,7 +64,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
             request.setOutTradeNo(payment.getPaymentId());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
-            request.setNotifyUrl(params.getNotifyUrl());
+            request.setNotifyUrl(config.getNotifyUrl());
             request.setTradeType(WxPayConstants.TradeType.JSAPI);
             request.setOpenid(openid);
             WxPayMpOrderResult result = wrap("JSAPI V2 下单", () ->
@@ -75,7 +75,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
         request.setOutTradeNo(payment.getPaymentId());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
-        request.setNotifyUrl(params.getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         request.setAmount(v3Amount(payment));
         WxPayUnifiedOrderV3Request.Payer payer = new WxPayUnifiedOrderV3Request.Payer();
         payer.setOpenid(openid);

@@ -32,7 +32,7 @@ public class AlipayChannelUserHandler implements ChannelUserHandler {
     @Override
     public String buildUserRedirectUrl(ChannelConfig config, String redirectUri, String state) {
         AlipayParams params = AlipayClientHolder.paramsOf(config);
-        String target = StringUtils.defaultIfBlank(redirectUri, params.getNotifyUrl());
+        String target = StringUtils.defaultIfBlank(redirectUri, config.getNotifyUrl());
         try {
             return AUTHORIZE_URL
                     + "?app_id=" + params.getAppId()

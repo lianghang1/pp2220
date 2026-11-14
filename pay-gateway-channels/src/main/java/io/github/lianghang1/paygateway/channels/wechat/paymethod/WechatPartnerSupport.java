@@ -42,7 +42,7 @@ final class WechatPartnerSupport {
      *
      * @param openid JSAPI 场景的付款用户 openid（可空）
      */
-    static PaymentInvocation createPartnerPaymentV3(Payment payment, WechatParams params,
+    static PaymentInvocation createPartnerPaymentV3(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params,
                                                     WxPayService service, TradeTypeEnum tradeType,
                                                     String openid) {
         WxPayPartnerUnifiedOrderV3Request request = new WxPayPartnerUnifiedOrderV3Request();
@@ -51,7 +51,7 @@ final class WechatPartnerSupport {
         request.setSubAppid(params.getSubAppId());
         request.setOutTradeNo(payment.getPaymentId());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
-        request.setNotifyUrl(params.getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         WxPayPartnerUnifiedOrderV3Request.Amount amount = new WxPayPartnerUnifiedOrderV3Request.Amount();
         amount.setTotal(payment.getAmount().intValue());
         amount.setCurrency("CNY");

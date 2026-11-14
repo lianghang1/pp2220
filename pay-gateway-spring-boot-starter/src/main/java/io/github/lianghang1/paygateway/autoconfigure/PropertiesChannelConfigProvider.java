@@ -47,16 +47,17 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
         }
         for (Map.Entry<String, PayGatewayProperties.AppProperties> appEntry : properties.getApps().entrySet()) {
             String appId = appEntry.getKey();
-            for (Map.Entry<String, Map<String, String>> channelEntry : appEntry.getValue().getChannels().entrySet()) {
+            for (Map.Entry<String, PayGatewayProperties.ChannelProperties> channelEntry
+                    : appEntry.getValue().getChannels().entrySet()) {
                 String channelCode = channelEntry.getKey();
-                Map<String, String> channelProps = channelEntry.getValue() == null
-                        ? new HashMap<String, String>() : channelEntry.getValue();
+                PayGatewayProperties.ChannelProperties channelProps = channelEntry.getValue() == null
+                        ? new PayGatewayProperties.ChannelProperties() : channelEntry.getValue();
                 ChannelProvider provider = providerByCode.get(channelCode);
                 if (provider == null) {
                     log.warn("渠道[{}]未注册，跳过应用[{}]的该渠道配置", channelCode, appId);
                     continue;
                 }
-                ChannelParams params = provider.parseParams(channelProps);
+                ChannelParams params = provider.parseParams(channelProps.getAttrs());
                 if (params == null) {
                     log.warn("渠道[{}]不支持声明式配置，跳过应用[{}]的该渠道配置", channelCode, appId);
                     continue;
@@ -64,7 +65,9 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
                 ChannelConfig config = new ChannelConfig()
                         .setAppId(appId)
                         .setChannelCode(channelCode)
-                        .setSubMchNo(channelProps.get("subMchNo"))
+                        .setNotifyUrl(channelProps.getNotifyUrl())
+                        .setSandbox(channelProps.isSandbox())
+                        .setSubMchNo(channelProps.getSubMchNo())
                         .setParams(params);
                 byApp.put(appKey(appId, channelCode), config);
                 if (params.channelAppId() != null) {

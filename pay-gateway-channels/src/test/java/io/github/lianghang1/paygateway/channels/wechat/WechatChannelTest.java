@@ -26,7 +26,6 @@ class WechatChannelTest {
         properties.put("apiV3Key", "v3-key-001");
         properties.put("merchantSerialNumber", "serial-001");
         properties.put("merchantPrivateKey", "-----BEGIN PRIVATE KEY-----\\nMIIB\\n-----END PRIVATE KEY-----");
-        properties.put("notifyUrl", "http://127.0.0.1/callback/wechat");
         return properties;
     }
 
@@ -37,7 +36,6 @@ class WechatChannelTest {
         assertThat(params.getAppId()).isEqualTo("wx-app-001");
         assertThat(params.channelAppId()).isEqualTo("wx-app-001");
         assertThat(params.isV2()).isFalse();
-        assertThat(params.getNotifyUrl()).isEqualTo("http://127.0.0.1/callback/wechat");
     }
 
     @Test
@@ -65,7 +63,6 @@ class WechatChannelTest {
         Map<String, String> partial = new HashMap<String, String>();
         partial.put("merchantId", "mch-001");
         partial.put("appId", "wx-app-001");
-        partial.put("notifyUrl", "http://127.0.0.1/callback/wechat");
         assertThatThrownBy(() -> WechatParams.fromMap(partial))
                 .isInstanceOf(GatewayException.class);
         // V2 模式缺 V2 密钥

@@ -48,7 +48,7 @@ public class AlipayTransferHandler implements TransferHandler {
         payee.setIdentityType("ALIPAY_LOGON_ID");
         payee.setName(transfer.getPayeeName());
         model.setPayeeInfo(payee);
-        request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         request.setBizModel(model);
         AlipayFundTransUniTransferResponse response =
                 holder.execute("转账", config, (client, authToken) -> {

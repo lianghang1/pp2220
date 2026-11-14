@@ -49,7 +49,7 @@ public class UnionPayClient {
                                        Map<String, Object> requestParams) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
         Map<String, Object> signed = signer.sign(requestParams, params);
-        String url = params.gateway() + apiUri;
+        String url = params.gateway(config.isSandbox()) + apiUri;
         try (Response response = client.newCall(new Request.Builder()
                 .url(url)
                 .post(RequestBody.create(JsonUtils.toJsonBytes(signed), JSON))

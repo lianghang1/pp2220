@@ -47,14 +47,10 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
     private String merchantSerialNumber;
     /** V3 商户 API 私钥（PEM 文本） */
     private String merchantPrivateKey;
-    /** 微信回调地址 */
-    private String notifyUrl;
-    /** 沙箱开关（V2 仿真系统；V3 无官方沙箱，此开关仅影响 V2） */
-    private boolean sandbox;
     /** 协议版本（v2/v3，缺省 v3） */
     private String wxApiVersion = API_VERSION_V3;
 
-    /** 从配置键值对构建；按版本校验必填项。 */
+    /** 从配置键值对构建（attrs 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；按版本校验必填项。 */
     public static WechatParams fromMap(Map<String, String> properties) {
         WechatParams params = new WechatParams();
         if (properties != null) {
@@ -64,19 +60,16 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
             params.setApiV2Key(properties.get("apiV2Key"));
             params.setEntPayKey(properties.get("entPayKey"));
             params.setAppSecret(properties.get("appSecret"));
-            params.setSandbox("true".equalsIgnoreCase(properties.get("sandbox")));
             params.setApiV3Key(properties.get("apiV3Key"));
             params.setMerchantSerialNumber(properties.get("merchantSerialNumber"));
             params.setMerchantPrivateKey(properties.get("merchantPrivateKey"));
-            params.setNotifyUrl(properties.get("notifyUrl"));
             if (StringUtils.isNotBlank(properties.get("wxApiVersion"))) {
                 params.setWxApiVersion(properties.get("wxApiVersion").toLowerCase());
             }
         }
-        if (StringUtils.isBlank(params.getMerchantId()) || StringUtils.isBlank(params.getAppId())
-                || StringUtils.isBlank(params.getNotifyUrl())) {
+        if (StringUtils.isBlank(params.getMerchantId()) || StringUtils.isBlank(params.getAppId())) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "微信渠道参数不完整，必填键: merchantId/appId/notifyUrl");
+                    "微信渠道参数不完整，必填键: merchantId/appId");
         }
         if (API_VERSION_V2.equals(params.getWxApiVersion())) {
             if (StringUtils.isBlank(params.getApiV2Key())) {

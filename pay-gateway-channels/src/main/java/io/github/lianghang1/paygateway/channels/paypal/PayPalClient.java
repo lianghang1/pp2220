@@ -44,7 +44,7 @@ public class PayPalClient {
     public Map<String, Object> execute(String action, ChannelConfig config, String method,
                                        String path, Map<String, Object> requestBody) {
         PayPalParams params = PayPalClient.paramsOf(config);
-        try (Response response = client.newCall(buildRequest(params, method, path, requestBody)).execute()) {
+        try (Response response = client.newCall(buildRequest(config, params, method, path, requestBody)).execute()) {
             ResponseBody body = response.body();
             String text = body == null ? "" : body.string();
             if (!response.isSuccessful()) {
@@ -61,10 +61,10 @@ public class PayPalClient {
         }
     }
 
-    private Request buildRequest(PayPalParams params, String method, String path, Map<String, Object> requestBody) {
+    private Request buildRequest(ChannelConfig config, PayPalParams params, String method, String path, Map<String, Object> requestBody) {
         Request.Builder builder = new Request.Builder()
-                .url(params.gateway() + path)
-                .header("Authorization", "Bearer " + accessToken(params));
+                .url(params.gateway(config.isSandbox()) + path)
+                .header("Authorization", "Bearer " + accessToken(config, params));
         boolean hasBody = requestBody != null;
         switch (method) {
             case "POST":
@@ -82,7 +82,7 @@ public class PayPalClient {
     }
 
     /** 获取有效令牌（缓存未过期直接复用，否则刷新）。 */
-    private String accessToken(PayPalParams params) {
+    private String accessToken(ChannelConfig config, PayPalParams params) {
         CachedToken cached = tokens.get(params);
         if (cached != null && cached.validBefore.isAfter(LocalDateTime.now().plusSeconds(TOKEN_REFRESH_MARGIN_SECONDS))) {
             return cached.token;
@@ -92,17 +92,17 @@ public class PayPalClient {
             if (cached != null && cached.validBefore.isAfter(LocalDateTime.now().plusSeconds(TOKEN_REFRESH_MARGIN_SECONDS))) {
                 return cached.token;
             }
-            CachedToken fresh = requestToken(params);
+            CachedToken fresh = requestToken(config, params);
             tokens.put(params, fresh);
             return fresh.token;
         }
     }
 
-    private CachedToken requestToken(PayPalParams params) {
+    private CachedToken requestToken(ChannelConfig config, PayPalParams params) {
         String credentials = Base64.getEncoder().encodeToString(
                 (params.getClientId() + ":" + params.getClientSecret()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         Request request = new Request.Builder()
-                .url(params.gateway() + "/v1/oauth2/token")
+                .url(params.gateway(config.isSandbox()) + "/v1/oauth2/token")
                 .header("Authorization", "Basic " + credentials)
                 .post(RequestBody.create("grant_type=client_credentials",
                         MediaType.parse("application/x-www-form-urlencoded")))

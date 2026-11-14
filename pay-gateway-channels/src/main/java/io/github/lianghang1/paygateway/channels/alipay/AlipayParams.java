@@ -34,24 +34,20 @@ public class AlipayParams implements ChannelParams {
     private String alipayPublicKey;
     /** 签名类型（RSA2/RSA） */
     private String signType = DEFAULT_SIGN_TYPE;
-    /** 网关地址（显式配置优先于 sandbox 开关） */
+    /** 网关地址（显式配置优先于沙箱开关；沙箱开关由 ChannelConfig 统一键承载） */
     private String gateway = DEFAULT_GATEWAY;
-    /** 沙箱开关（true 走沙箱网关；gateway 显式配置时以 gateway 为准） */
-    private boolean sandbox;
-    /** 支付宝异步通知地址 */
-    private String notifyUrl;
     /** ISV 代商户调用的授权令牌（服务商模式选填；非空时所有接口自动携带） */
     private String appAuthToken;
 
-    /** 生效网关：显式 gateway 优先，否则按 sandbox 开关切换。 */
-    public String effectiveGateway() {
+    /** 生效网关：显式 gateway 优先，否则按沙箱开关切换。 */
+    public String effectiveGateway(boolean sandbox) {
         if (!DEFAULT_GATEWAY.equals(gateway)) {
             return gateway;
         }
         return sandbox ? SANDBOX_GATEWAY : gateway;
     }
 
-    /** 从配置键值对构建；必填项缺失抛参数异常。 */
+    /** 从配置键值对构建（attrs 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；必填项缺失抛参数异常。 */
     public static AlipayParams fromMap(Map<String, String> properties) {
         AlipayParams params = new AlipayParams();
         if (properties != null) {
@@ -60,10 +56,8 @@ public class AlipayParams implements ChannelParams {
             params.setAlipayPublicKey(properties.get("alipayPublicKey"));
             params.setSignType(StringUtils.isBlank(properties.get("signType"))
                     ? DEFAULT_SIGN_TYPE : properties.get("signType"));
-            params.setSandbox("true".equalsIgnoreCase(properties.get("sandbox")));
             params.setGateway(StringUtils.isBlank(properties.get("gateway"))
                     ? DEFAULT_GATEWAY : properties.get("gateway"));
-            params.setNotifyUrl(properties.get("notifyUrl"));
             params.setAppAuthToken(properties.get("appAuthToken"));
         }
         if (StringUtils.isBlank(params.getAppId()) || StringUtils.isBlank(params.getPrivateKey())

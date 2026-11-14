@@ -23,5 +23,8 @@ pay-gateway:
     demo:
       channels:
         mock:
-          appKey: demo-app-key
-          payOutcome: paying
+          notifyUrl: http://127.0.0.1:8088/callback/mock
+          sandbox: false
+          attrs:
+            appKey: demo-app-key
+            payOutcome: paying

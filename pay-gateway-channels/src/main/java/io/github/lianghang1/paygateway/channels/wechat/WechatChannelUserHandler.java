@@ -35,7 +35,7 @@ public class WechatChannelUserHandler implements ChannelUserHandler {
     @Override
     public String buildUserRedirectUrl(ChannelConfig config, String redirectUri, String state) {
         WechatParams params = WechatClientHolder.paramsOf(config);
-        String target = StringUtils.defaultIfBlank(redirectUri, params.getNotifyUrl());
+        String target = StringUtils.defaultIfBlank(redirectUri, config.getNotifyUrl());
         try {
             return AUTHORIZE_URL
                     + "?appid=" + params.getAppId()

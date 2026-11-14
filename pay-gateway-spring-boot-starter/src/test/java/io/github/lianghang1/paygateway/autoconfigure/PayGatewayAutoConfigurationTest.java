@@ -26,8 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author lianghang
  */
 @SpringBootTest(classes = PayGatewayAutoConfigurationTest.TestApp.class, properties = {
-        "pay-gateway.apps.demo.channels.mock.appKey=demo-app-key",
-        "pay-gateway.apps.demo.channels.mock.payOutcome=paying"
+        "pay-gateway.apps.demo.channels.mock.notifyUrl=http://127.0.0.1/callback/mock",
+        "pay-gateway.apps.demo.channels.mock.sandbox=true",
+        "pay-gateway.apps.demo.channels.mock.attrs.appKey=demo-app-key",
+        "pay-gateway.apps.demo.channels.mock.attrs.payOutcome=paying"
 })
 class PayGatewayAutoConfigurationTest {
 
@@ -44,7 +46,10 @@ class PayGatewayAutoConfigurationTest {
 
     @Test
     void propertiesConfigProviderShouldResolveBothDirections() {
-        assertThat(configProvider.getConfig("demo", "mock").getAppId()).isEqualTo("demo");
+        io.github.lianghang1.paygateway.channel.ChannelConfig config = configProvider.getConfig("demo", "mock");
+        assertThat(config.getAppId()).isEqualTo("demo");
+        assertThat(config.getNotifyUrl()).isEqualTo("http://127.0.0.1/callback/mock");
+        assertThat(config.isSandbox()).isTrue();
         assertThat(configProvider.getByChannelApp("mock", "demo-app-key").getAppId()).isEqualTo("demo");
     }
 

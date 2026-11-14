@@ -47,7 +47,7 @@ public class WechatRefundHandler implements RefundHandler {
             request.setOutRefundNo(refund.getRefundId());
             request.setTotalFee(payment.getAmount().intValue());
             request.setRefundFee(refund.getAmount().intValue());
-            request.setNotifyUrl(params.getNotifyUrl());
+            request.setNotifyUrl(config.getNotifyUrl());
             WxPayRefundResult result = wrap("V2 退款", () -> service.refund(request));
             return new RefundInvocation()
                     .setChannelRefundNo(result.getRefundId())
@@ -57,7 +57,7 @@ public class WechatRefundHandler implements RefundHandler {
         request.setOutTradeNo(payment.getPaymentId());
         request.setOutRefundNo(refund.getRefundId());
         request.setReason(StringUtils.defaultIfBlank(refund.getReason(), "退款"));
-        request.setNotifyUrl(params.getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         if (StringUtils.isNotBlank(config.getSubMchNo())) {
             request.setSubMchid(config.getSubMchNo());
         }

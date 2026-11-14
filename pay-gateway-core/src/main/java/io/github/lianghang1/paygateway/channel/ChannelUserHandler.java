@@ -1,6 +1,6 @@
 package io.github.lianghang1.paygateway.channel;
 
-import io.github.lianghang1.paygateway.channel.ChannelConfig;
+
 
 import java.util.Map;
 

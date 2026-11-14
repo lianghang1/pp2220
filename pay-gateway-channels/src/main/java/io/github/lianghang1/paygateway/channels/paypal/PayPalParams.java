@@ -11,10 +11,10 @@ import java.util.Map;
 /**
  * PayPal 渠道参数（REST API v2，client credentials 认证）。
  *
- * <p>声明式配置键：{@code sandbox}（true 接沙箱 api-m.sandbox.paypal.com，
- * 缺省 false 走生产）、{@code clientId}/{@code clientSecret}（应用凭据）、
- * {@code webhookId}（Webhook 订阅 ID，回调验签用）。回调配置反查以 clientId
- * 为渠道侧应用标识；Webhook 事件需在 PayPal 开发者平台订阅并配置回调地址。</p>
+ * <p>声明式配置键（attrs 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）：
+ * {@code clientId}/{@code clientSecret}（应用凭据）、{@code webhookId}（Webhook 订阅 ID，
+ * 回调验签用）。回调配置反查以 clientId 为渠道侧应用标识；Webhook 事件需在
+ * PayPal 开发者平台订阅并配置回调地址。</p>
  *
  * @author lianghang
  */
@@ -26,26 +26,20 @@ public class PayPalParams implements ChannelParams {
     /** 沙箱 API 网关 */
     public static final String SANDBOX_GATEWAY = "https://api-m.sandbox.paypal.com";
 
-    /** 是否沙箱环境 */
-    private boolean sandbox;
     /** 应用 Client ID */
     private String clientId;
     /** 应用 Client Secret */
     private String clientSecret;
     /** Webhook 订阅 ID（回调验签用，可空则跳过验签） */
     private String webhookId;
-    /** 回调地址（记录用；Webhook 地址实际在开发者平台配置） */
-    private String notifyUrl;
 
-    /** 从配置键值对构建；必填项缺失抛参数异常。 */
+    /** 从配置键值对构建（attrs 渠道个性键）；必填项缺失抛参数异常。 */
     public static PayPalParams fromMap(Map<String, String> properties) {
         PayPalParams params = new PayPalParams();
         if (properties != null) {
-            params.setSandbox("true".equalsIgnoreCase(properties.get("sandbox")));
             params.setClientId(properties.get("clientId"));
             params.setClientSecret(properties.get("clientSecret"));
             params.setWebhookId(properties.get("webhookId"));
-            params.setNotifyUrl(properties.get("notifyUrl"));
         }
         if (StringUtils.isBlank(params.getClientId()) || StringUtils.isBlank(params.getClientSecret())) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
@@ -54,8 +48,8 @@ public class PayPalParams implements ChannelParams {
         return params;
     }
 
-    /** API 网关地址（按环境切换）。 */
-    public String gateway() {
+    /** API 网关地址（按沙箱开关切换；开关由 ChannelConfig 统一键承载）。 */
+    public String gateway(boolean sandbox) {
         return sandbox ? SANDBOX_GATEWAY : PROD_GATEWAY;
     }
 
@@ -74,13 +68,12 @@ public class PayPalParams implements ChannelParams {
             return false;
         }
         PayPalParams that = (PayPalParams) other;
-        return sandbox == that.sandbox
-                && clientId.equals(that.clientId)
+        return clientId.equals(that.clientId)
                 && clientSecret.equals(that.clientSecret);
     }
 
     @Override
     public int hashCode() {
-        return clientId.hashCode() * 31 + (sandbox ? 1 : 0);
+        return clientId.hashCode();
     }
 }

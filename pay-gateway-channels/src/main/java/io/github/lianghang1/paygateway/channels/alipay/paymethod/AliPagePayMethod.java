@@ -30,7 +30,7 @@ public class AliPagePayMethod implements AlipayPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, ChannelConfig config, AlipayClientHolder holder) {
         AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
-        request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePagePayModel model = new AlipayTradePagePayModel();
         model.setOutTradeNo(payment.getPaymentId());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));

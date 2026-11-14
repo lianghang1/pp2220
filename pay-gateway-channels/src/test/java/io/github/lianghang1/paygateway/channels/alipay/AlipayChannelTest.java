@@ -25,7 +25,6 @@ class AlipayChannelTest {
         properties.put("appId", "2021000000000001");
         properties.put("privateKey", "-----BEGIN RSA PRIVATE KEY-----\nMIIB\n-----END RSA PRIVATE KEY-----");
         properties.put("alipayPublicKey", "MIIBIjANBgkq");
-        properties.put("notifyUrl", "http://127.0.0.1/callback/alipay");
 
         AlipayParams params = AlipayParams.fromMap(properties);
         assertThat(params.getAppId()).isEqualTo("2021000000000001");

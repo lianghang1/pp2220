@@ -46,7 +46,7 @@ public class AliBarPayMethod implements AlipayPayMethod {
                     "付款码支付需在 channelExtras 中提供 authCode");
         }
         AlipayTradePayRequest request = new AlipayTradePayRequest();
-        request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePayModel model = new AlipayTradePayModel();
         model.setOutTradeNo(payment.getPaymentId());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));

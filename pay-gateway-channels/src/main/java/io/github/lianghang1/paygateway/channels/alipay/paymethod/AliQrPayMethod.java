@@ -32,7 +32,7 @@ public class AliQrPayMethod implements AlipayPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, ChannelConfig config, AlipayClientHolder holder) {
         AlipayTradePrecreateRequest request = new AlipayTradePrecreateRequest();
-        request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
+        request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePrecreateModel model = new AlipayTradePrecreateModel();
         model.setOutTradeNo(payment.getPaymentId());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
