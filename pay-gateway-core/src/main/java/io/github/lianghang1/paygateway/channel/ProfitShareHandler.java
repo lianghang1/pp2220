@@ -1,0 +1,22 @@
+package io.github.lianghang1.paygateway.channel;
+
+import io.github.lianghang1.paygateway.model.ProfitShare;
+
+/**
+ * 渠道分账能力：发起分账、查询分账。
+ *
+ * <p>分账明细的接收方结果（成功/失败、失败原因）由实现方回填到
+ * {@code ProfitShare.receivers} 各项的状态字段上。</p>
+ *
+ * @author lianghang
+ */
+public interface ProfitShareHandler {
+
+    /**
+     * 发起渠道分账；返回渠道分账单号与当前状态。
+     */
+    ProfitShareInvocation createProfitShare(ProfitShare share, ChannelConfig config);
+
+    /** 查询渠道侧分账状态：用于分账单补单。 */
+    ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config);
+}

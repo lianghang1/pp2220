@@ -1,0 +1,27 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: pay-example
+  datasource:
+    url: jdbc:h2:file:./data/example;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+pay-gateway:
+  notify:
+    retry-seconds: [10, 10, 20]
+    secret: demo-notify-secret
+    timeout-millis: 3000
+  apps:
+    demo:
+      channels:
+        mock:
+          appKey: demo-app-key
+          payOutcome: paying
