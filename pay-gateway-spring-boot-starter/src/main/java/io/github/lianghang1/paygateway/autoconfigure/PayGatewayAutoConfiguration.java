@@ -53,6 +53,13 @@ public class PayGatewayAutoConfiguration {
         return new io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider();
     }
 
+    @Bean
+    @ConditionalOnMissingBean(io.github.lianghang1.paygateway.channels.alipay.AlipayChannelProvider.class)
+    @ConditionalOnClass(name = "com.alipay.api.AlipayClient")
+    public io.github.lianghang1.paygateway.channels.alipay.AlipayChannelProvider alipayChannelProvider() {
+        return new io.github.lianghang1.paygateway.channels.alipay.AlipayChannelProvider();
+    }
+
     // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean
