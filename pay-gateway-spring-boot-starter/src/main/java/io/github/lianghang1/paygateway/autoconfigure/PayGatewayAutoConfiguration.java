@@ -60,6 +60,12 @@ public class PayGatewayAutoConfiguration {
         return new io.github.lianghang1.paygateway.channels.alipay.AlipayChannelProvider();
     }
 
+    @Bean
+    @ConditionalOnMissingBean(io.github.lianghang1.paygateway.channels.unionpay.UnionPayChannelProvider.class)
+    public io.github.lianghang1.paygateway.channels.unionpay.UnionPayChannelProvider unionPayChannelProvider() {
+        return new io.github.lianghang1.paygateway.channels.unionpay.UnionPayChannelProvider();
+    }
+
     // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean

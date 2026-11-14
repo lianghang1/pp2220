@@ -42,6 +42,7 @@ public final class PayMethod {
 
     // ---- 云闪付 ----
     public static final PayMethod UNION_QR = register("UNION_QR", ChannelCode.UNIONPAY);
+    public static final PayMethod UNION_BAR = register("UNION_BAR", ChannelCode.UNIONPAY);
     public static final PayMethod UNION_TRANS = register("UNION_TRANS", ChannelCode.UNIONPAY);
 
     // ---- PayPal ----
