@@ -62,10 +62,6 @@ public class AlipayPaymentHandler implements PaymentHandler {
 
     @Override
     public PaymentInvocation createPayment(Payment payment, ChannelConfig config) {
-        if (StringUtils.isNotBlank(config.getSubMchNo())) {
-            throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
-                    "支付宝服务商模式支付暂未支持，请以普通商户模式接入");
-        }
         AlipayPayMethod payMethod = payMethodOf(payment);
         return payMethod.createPayment(payment, config, holder);
     }
@@ -76,7 +72,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
         AlipayTradeQueryModel model = new AlipayTradeQueryModel();
         model.setOutTradeNo(payment.getPaymentId());
         request.setBizModel(model);
-        AlipayTradeQueryResponse response = holder.execute("查单", config, client -> client.execute(request));
+        AlipayTradeQueryResponse response = holder.execute("查单", config, (client, authToken) -> client.execute(request, authToken));
         // 交易不存在（用户尚未唤起支付）按支付中处理，等待补单确认
         if (!response.isSuccess() && "ACQ.TRADE_NOT_EXIST".equals(response.getSubCode())) {
             return new PaymentSnapshot().setState(PaymentState.PAYING).setRawMsg("ACQ.TRADE_NOT_EXIST");
@@ -95,7 +91,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
         AlipayTradeCloseModel model = new AlipayTradeCloseModel();
         model.setOutTradeNo(payment.getPaymentId());
         request.setBizModel(model);
-        AlipayTradeCloseResponse response = holder.execute("关单", config, client -> client.execute(request));
+        AlipayTradeCloseResponse response = holder.execute("关单", config, (client, authToken) -> client.execute(request, authToken));
         log.info("支付宝关单完成: paymentId={}, tradeNo={}", payment.getPaymentId(), response.getTradeNo());
     }
 

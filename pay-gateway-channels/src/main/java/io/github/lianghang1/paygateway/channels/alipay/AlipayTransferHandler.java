@@ -49,7 +49,7 @@ public class AlipayTransferHandler implements TransferHandler {
         model.setPayeeInfo(payee);
         request.setBizModel(model);
         AlipayFundTransUniTransferResponse response =
-                holder.execute("转账", config, client -> client.execute(request));
+                holder.execute("转账", config, (client, authToken) -> client.execute(request, authToken));
         log.info("支付宝转账已受理: transferId={}, payee={}, status={}",
                 transfer.getTransferId(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2), response.getStatus());
         return new TransferInvocation()
@@ -67,7 +67,7 @@ public class AlipayTransferHandler implements TransferHandler {
         model.setProductCode("TRANS_ACCOUNT_NO_PWD");
         request.setBizModel(model);
         com.alipay.api.response.AlipayFundTransCommonQueryResponse response =
-                holder.execute("转账查单", config, client -> client.execute(request));
+                holder.execute("转账查单", config, (client, authToken) -> client.execute(request, authToken));
         return new TransferSnapshot()
                 .setChannelTransferNo(response.getOrderId())
                 .setState(AlipayStateTranslator.toTransferState(response.getStatus()))

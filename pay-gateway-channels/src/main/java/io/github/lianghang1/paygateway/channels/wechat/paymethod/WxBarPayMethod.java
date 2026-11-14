@@ -31,7 +31,11 @@ public class WxBarPayMethod implements WechatPayMethod {
     }
 
     @Override
-    public PaymentInvocation createPayment(Payment payment, WechatParams params, WxPayService service) {
+    public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
+        if (WechatPartnerSupport.isIsv(config)) {
+            throw new GatewayException(GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
+                    "微信付款码服务商模式走 V2 子商户配置，暂未支持");
+        }
         Map<String, String> extras = StringUtils.isBlank(payment.getExtParams())
                 ? null : WxJsapiPayMethod.flatExtras(payment.getExtParams());
         String authCode = extras == null ? null : extras.get("authCode");

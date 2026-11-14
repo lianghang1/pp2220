@@ -33,7 +33,7 @@ public class AliWapPayMethod implements AlipayPayMethod {
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
         model.setProductCode("QUICK_WAP_WAY");
         request.setBizModel(model);
-        String body = holder.execute("H5 下单", config, client -> client.pageExecute(request)).getBody();
+        String body = holder.execute("H5 下单", config, (client, authToken) -> client.pageExecute(request, authToken)).getBody();
         return new PaymentInvocation().setPayload(PayPayload.redirect(body)).setState(PaymentState.PAYING);
     }
 }

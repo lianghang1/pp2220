@@ -20,7 +20,7 @@ public class WxLitePayMethod extends WxJsapiPayMethod {
     }
 
     @Override
-    public PaymentInvocation createPayment(Payment payment, WechatParams params, WxPayService service) {
-        return super.createPayment(payment, params, service);
+    public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
+        return super.createPayment(payment, config, params, service);
     }
 }

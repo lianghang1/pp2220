@@ -22,7 +22,7 @@ public interface WechatPayMethod {
     String method();
 
     /** 发起渠道支付。 */
-    PaymentInvocation createPayment(Payment payment, WechatParams params, WxPayService service);
+    PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service);
 
     /** 查询渠道侧订单快照（补单/对账）。 */
     PaymentSnapshot queryPayment(Payment payment, WechatParams params, WxPayService service);

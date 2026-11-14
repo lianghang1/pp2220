@@ -30,6 +30,11 @@
 | paypal | Orders v2（批准→捕获） | ✓（捕获单） | Payouts | — | — | Webhook 官方验签接口 |
 | mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
 
+## 联调
+
+真实账号（沙箱）到位后按 [docs/integration-checklist.md](docs/integration-checklist.md) 逐项联调；
+example 内置沙箱配置模板（application-sandbox.yml）。
+
 ## 快速开始（Spring Boot）
 
 ### 1. 引入依赖

@@ -36,6 +36,8 @@ public class AlipayParams implements ChannelParams {
     private String gateway = DEFAULT_GATEWAY;
     /** 支付宝异步通知地址 */
     private String notifyUrl;
+    /** ISV 代商户调用的授权令牌（服务商模式选填；非空时所有接口自动携带） */
+    private String appAuthToken;
 
     /** 从配置键值对构建；必填项缺失抛参数异常。 */
     public static AlipayParams fromMap(Map<String, String> properties) {
@@ -49,6 +51,7 @@ public class AlipayParams implements ChannelParams {
             params.setGateway(StringUtils.isBlank(properties.get("gateway"))
                     ? DEFAULT_GATEWAY : properties.get("gateway"));
             params.setNotifyUrl(properties.get("notifyUrl"));
+            params.setAppAuthToken(properties.get("appAuthToken"));
         }
         if (StringUtils.isBlank(params.getAppId()) || StringUtils.isBlank(params.getPrivateKey())
                 || StringUtils.isBlank(params.getAlipayPublicKey())) {

@@ -42,13 +42,17 @@ public class WxJsapiPayMethod implements WechatPayMethod {
     }
 
     @Override
-    public PaymentInvocation createPayment(Payment payment, WechatParams params, WxPayService service) {
+    public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
         Map<String, String> extras = StringUtils.isBlank(payment.getExtParams())
                 ? null : flatExtras(payment.getExtParams());
         String openid = extras == null ? null : extras.get("openid");
         if (StringUtils.isBlank(openid)) {
             throw new GatewayException(GatewayErrorCode.BAD_REQUEST,
                     "JSAPI 支付需在 channelExtras 中提供 openid");
+        }
+        if (WechatPartnerSupport.isIsv(config)) {
+            return WechatPartnerSupport.createPartnerPaymentV3(payment, params, service,
+                    TradeTypeEnum.JSAPI, openid);
         }
         if (params.isV2()) {
             WxPayUnifiedOrderRequest request = new WxPayUnifiedOrderRequest();

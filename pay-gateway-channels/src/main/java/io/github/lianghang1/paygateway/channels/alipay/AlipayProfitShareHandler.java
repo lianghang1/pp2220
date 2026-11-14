@@ -61,7 +61,7 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
         model.setRoyaltyParameters(royalties);
         request.setBizModel(model);
         AlipayTradeOrderSettleResponse response =
-                holder.execute("分账", config, client -> client.execute(request));
+                holder.execute("分账", config, (client, authToken) -> client.execute(request, authToken));
         return new ProfitShareInvocation()
                 .setChannelShareNo(response.getSettleNo())
                 .setState(ProfitShareState.FINISHED);
@@ -74,7 +74,7 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
         model.setOutRequestNo(share.getShareId());
         request.setBizModel(model);
         AlipayTradeOrderSettleQueryResponse response =
-                holder.execute("分账查单", config, client -> client.execute(request));
+                holder.execute("分账查单", config, (client, authToken) -> client.execute(request, authToken));
         ProfitShareState state = ProfitShareState.FINISHED;
         List<RoyaltyDetail> details = response.getRoyaltyDetailList();
         if (details != null) {

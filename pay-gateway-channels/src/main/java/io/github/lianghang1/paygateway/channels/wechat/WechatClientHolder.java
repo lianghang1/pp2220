@@ -47,9 +47,12 @@ public class WechatClientHolder {
         wxConfig.setMchKey(params.getApiV2Key());
         wxConfig.setEntPayKey(params.effectiveEntPayKey());
         wxConfig.setSignType("MD5");
-        // 服务商模式（特约商户号）
+        // 服务商模式（特约商户号/子应用ID）
         if (StringUtils.isNotBlank(config.getSubMchNo())) {
             wxConfig.setSubMchId(config.getSubMchNo());
+        }
+        if (StringUtils.isNotBlank(params.getSubAppId())) {
+            wxConfig.setSubAppId(params.getSubAppId());
         }
         // V3 协议
         wxConfig.setApiV3Key(params.getApiV3Key());

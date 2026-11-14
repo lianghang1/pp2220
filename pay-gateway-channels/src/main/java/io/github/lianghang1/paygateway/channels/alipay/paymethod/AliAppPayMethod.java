@@ -34,7 +34,7 @@ public class AliAppPayMethod implements AlipayPayMethod {
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
         model.setProductCode("QUICK_MSECURITY_PAY");
         request.setBizModel(model);
-        String body = holder.execute("APP 下单", config, client -> client.sdkExecute(request)).getBody();
+        String body = holder.execute("APP 下单", config, (client, authToken) -> client.execute(request, authToken)).getBody();
         return new PaymentInvocation().setPayload(PayPayload.app(body)).setState(PaymentState.PAYING);
     }
 }

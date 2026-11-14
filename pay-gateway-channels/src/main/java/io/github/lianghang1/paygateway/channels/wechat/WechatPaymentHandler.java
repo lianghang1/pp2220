@@ -57,7 +57,7 @@ public class WechatPaymentHandler implements PaymentHandler {
         WechatPayMethod payMethod = payMethodOf(payment);
         WechatParams params = WechatClientHolder.paramsOf(config);
         WxPayService service = holder.service(config);
-        return payMethod.createPayment(payment, params, service);
+        return payMethod.createPayment(payment, config, params, service);
     }
 
     @Override

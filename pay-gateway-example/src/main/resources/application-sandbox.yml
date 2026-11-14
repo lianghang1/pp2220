@@ -1,0 +1,43 @@
+# 沙箱联调配置示例：支付宝沙箱 + PayPal 沙箱均无需企业资质，
+# 申请后替换下方占位即可联调。详细步骤见 docs/integration-checklist.md。
+server:
+  port: 8088
+
+spring:
+  application:
+    name: pay-example
+  datasource:
+    url: jdbc:h2:file:./data/example;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+pay-gateway:
+  notify:
+    retry-seconds: [10, 10, 20]
+    secret: demo-notify-secret
+    timeout-millis: 3000
+  apps:
+    demo:
+      channels:
+        mock:
+          appKey: demo-app-key
+          payOutcome: paying
+        # 支付宝沙箱：open.alipay.com 控制台 → 沙箱环境
+        alipay:
+          appId: "沙箱AppID（2021xxx）"
+          privateKey: "沙箱应用私钥"
+          alipayPublicKey: "沙箱支付宝公钥"
+          gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+          notifyUrl: https://<穿透域名>/callback/alipay
+        # PayPal 沙箱：developer.paypal.com → Sandbox 应用
+        paypal:
+          sandbox: true
+          clientId: "沙箱clientId"
+          clientSecret: "沙箱clientSecret"
+          webhookId: "Webhook订阅ID"
+        # 微信需真实商户号（无沙箱），资质到位后按 README 配置

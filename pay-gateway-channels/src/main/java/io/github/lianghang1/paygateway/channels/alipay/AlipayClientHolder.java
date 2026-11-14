@@ -53,10 +53,10 @@ public class AlipayClientHolder {
                 "支付宝渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
     }
 
-    /** 统一接口调用包装：SDK 异常与业务失败（subCode 非空）收敛为网关渠道异常。 */
+    /** 统一接口调用包装：SDK 异常与业务失败（subCode 非空）收敛为网关渠道异常；ISV 授权令牌非空时自动携带。 */
     public <T extends AlipayResponse> T execute(String action, ChannelConfig config, RequestCaller<T> caller) {
         try {
-            T response = caller.call(client(config));
+            T response = caller.call(client(config), authTokenOf(config));
             if (response != null && !response.isSuccess()
                     && io.github.lianghang1.paygateway.util.StringUtils.isNotBlank(response.getSubCode())) {
                 throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
@@ -74,8 +74,14 @@ public class AlipayClientHolder {
         }
     }
 
-    /** 接口调用函数签名。 */
+    /** 渠道配置的 ISV 授权令牌（普通商户返回 null）。 */
+    private String authTokenOf(ChannelConfig config) {
+        return paramsOf(config).getAppAuthToken();
+    }
+
+    /** 接口调用函数签名：authToken 为 ISV 代商户授权令牌（普通商户为 null，
+     * 实现方据此决定调用 {@code execute(request)} 或 {@code execute(request, authToken)}）。 */
     public interface RequestCaller<T> {
-        T call(AlipayClient client) throws AlipayApiException;
+        T call(AlipayClient client, String authToken) throws AlipayApiException;
     }
 }

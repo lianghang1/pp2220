@@ -59,7 +59,7 @@ public class AlipayBillHandler implements BillHandler {
         model.setBillType("trade");
         request.setBizModel(model);
         AlipayDataDataserviceBillDownloadurlQueryResponse response =
-                holder.execute("账单地址获取", config, client -> client.execute(request));
+                holder.execute("账单地址获取", config, (client, authToken) -> client.execute(request, authToken));
         String csv = downloadCsv(response.getBillDownloadUrl());
         List<BillEntry> entries = parseCsv(csv, billDate);
         return new BillSheet()

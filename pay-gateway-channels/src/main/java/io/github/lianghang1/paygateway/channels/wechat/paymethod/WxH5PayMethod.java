@@ -31,7 +31,10 @@ public class WxH5PayMethod implements WechatPayMethod {
     }
 
     @Override
-    public PaymentInvocation createPayment(Payment payment, WechatParams params, WxPayService service) {
+    public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
+        if (WechatPartnerSupport.isIsv(config)) {
+            return WechatPartnerSupport.createPartnerPaymentV3(payment, params, service, TradeTypeEnum.H5, null);
+        }
         if (params.isV2()) {
             WxPayUnifiedOrderRequest request = new WxPayUnifiedOrderRequest();
             request.setBody(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
