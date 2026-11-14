@@ -33,7 +33,12 @@ public class AliPagePayMethod implements AlipayPayMethod {
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
         model.setProductCode("FAST_INSTANT_TRADE_PAY");
         request.setBizModel(model);
-        String body = holder.execute("电脑网站下单", config, (client, authToken) -> client.pageExecute(request, authToken)).getBody();
+        String body = holder.execute("电脑网站下单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.pageExecute(request);
+        }).getBody();
         return new PaymentInvocation().setPayload(PayPayload.redirect(body)).setState(PaymentState.PAYING);
     }
 }
