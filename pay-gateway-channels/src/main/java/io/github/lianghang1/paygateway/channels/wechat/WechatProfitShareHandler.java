@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 微信分账处理器：V3（profitSharingV3）与 V2（profitSharing）双路径，
@@ -26,7 +27,8 @@ import java.util.List;
  *
  * <p>接收方类型映射：MERCHANT → MERCHANT_ID，PERSONAL → PERSONAL_OPENID；
  * V2 分账接收方以 JSON 串承载（WxJava 契约），发起前提为订单分账已完成解冻
- * 或 unfreezeUnsplit 置 true。</p>
+ * 或 unfreezeUnsplit 置 true。终态确认：V3 分账结果查询（okhttp 直连 +
+ * 商户私钥签名 Authorization）或分账结果回调。</p>
  *
  * @author lianghang
  */
@@ -34,6 +36,12 @@ import java.util.List;
 public class WechatProfitShareHandler implements ProfitShareHandler {
 
     private final WechatClientHolder holder;
+    private final WechatAuthorizationBuilder authBuilder = new WechatAuthorizationBuilder();
+    private final okhttp3.OkHttpClient httpClient = new okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .build();
+
 
     public WechatProfitShareHandler(WechatClientHolder holder) {
         this.holder = holder;
@@ -87,8 +95,52 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
 
     @Override
     public ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config) {
-        throw new GatewayException(GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
-                "微信分账结果以回调/微信商户平台为准，暂不提供独立查询");
+        WechatParams params = WechatClientHolder.paramsOf(config);
+        WxPayService service = holder.service(config);
+        String transactionId = share.getChannelPayOrderNo();
+        if (StringUtils.isBlank(transactionId)) {
+            throw new GatewayException(GatewayErrorCode.STATE_ILLEGAL,
+                    "分账查询缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getShareId());
+        }
+        String urlPath = "/v3/profitsharing/orders/" + share.getShareId()
+                + "?transaction_id=" + transactionId;
+        Map<String, Object> result = directQuery(config, params, urlPath);
+        String state = result.get("state") == null ? null : String.valueOf(result.get("state"));
+        ProfitShareState profitShareState = "FINISHED".equals(state)
+                ? ProfitShareState.FINISHED : ProfitShareState.PROCESSING;
+        return new ProfitShareSnapshot()
+                .setChannelShareNo(result.get("order_id") == null
+                        ? share.getChannelShareNo() : String.valueOf(result.get("order_id")))
+                .setState(profitShareState)
+                .setFinishTime(WechatStateTranslator.toLocalDateTime(
+                        result.get("finish_time") == null ? null : String.valueOf(result.get("finish_time"))))
+                .setRawMsg(state);
+    }
+
+    /** 分账结果查询（WxJava 未封装该接口）：okhttp 直连 + 商户私钥签名 Authorization 头。 */
+    private Map<String, Object> directQuery(ChannelConfig config, WechatParams params, String urlPath) {
+        try {
+            String authorization = authBuilder.buildAuthorization(params, "GET", urlPath, "");
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(WechatApiBase.PAY_BASE_URL + urlPath)
+                    .header("Authorization", authorization)
+                    .header("Accept", "application/json")
+                    .get()
+                    .build();
+            try (okhttp3.Response response = httpClient.newCall(request).execute()) {
+                String body = response.body() == null ? "" : response.body().string();
+                if (!response.isSuccessful()) {
+                    throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
+                            "微信分账查询失败: status={}, body={}", response.code(), body);
+                }
+                return io.github.lianghang1.paygateway.util.JsonUtils.toMap(body);
+            }
+        } catch (GatewayException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
+                    "微信分账查询异常: {}", e.getMessage(), e);
+        }
     }
 
     /** V2 分账接收方 JSON 串（WxJava 契约：receivers 直接承载 JSON 文本）。 */

@@ -2,6 +2,7 @@ package io.github.lianghang1.paygateway.channels.wechat;
 
 import com.github.binarywang.wxpay.bean.notify.SignatureHeader;
 import com.github.binarywang.wxpay.bean.notify.WxPayNotifyV3Result;
+import com.github.binarywang.wxpay.bean.notify.WxPayTransferBatchesNotifyV3Result;
 import com.github.binarywang.wxpay.bean.notify.WxPayOrderNotifyResult;
 
 import com.github.binarywang.wxpay.bean.notify.WxPayRefundNotifyV3Result;
@@ -103,6 +104,37 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         if (StringUtils.isBlank(header.getSerial()) || StringUtils.isBlank(header.getNonce())
                 || StringUtils.isBlank(header.getSignature()) || StringUtils.isBlank(header.getTimeStamp())) {
             throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "缺少微信 V3 回调签名头");
+        }
+        // 商家转账批次通知：批次状态字段（batchStatus）与支付/退款报文互斥
+        WxPayTransferBatchesNotifyV3Result transferNotify = wrap("V3 转账通知", () ->
+                service.baseParseOrderNotifyV3Result(raw.getBody(), header,
+                        WxPayTransferBatchesNotifyV3Result.class,
+                        WxPayTransferBatchesNotifyV3Result.DecryptNotifyResult.class));
+        WxPayTransferBatchesNotifyV3Result.DecryptNotifyResult transferResult = transferNotify.getResult();
+        if (transferResult != null && StringUtils.isNotBlank(transferResult.getBatchStatus())) {
+            return new CallbackEvent()
+                    .setType(BizOrderType.TRANSFER)
+                    .setAppId(config.getAppId())
+                    .setBizOrderNo(transferResult.getOutBatchNo())
+                    .setChannelOrderNo(transferResult.getBatchId())
+                    .setSuccess("FINISH".equals(transferResult.getBatchStatus()))
+                    .setRaw(flatten(JsonUtils.toMap(JsonUtils.toJson(transferResult))));
+        }
+        // 分账结果通知：分账单状态字段（state）+ 商户分账单号（outOrderNo）
+        WechatProfitShareNotifyV3Result shareNotify = wrap("V3 分账通知", () ->
+                service.baseParseOrderNotifyV3Result(raw.getBody(), header,
+                        WechatProfitShareNotifyV3Result.class,
+                        WechatProfitShareNotifyV3Result.DecryptNotifyResult.class));
+        WechatProfitShareNotifyV3Result.DecryptNotifyResult shareResult = shareNotify.getResult();
+        if (shareResult != null && StringUtils.isNotBlank(shareResult.getState())) {
+            return new CallbackEvent()
+                    .setType(BizOrderType.PROFIT_SHARE)
+                    .setAppId(config.getAppId())
+                    .setBizOrderNo(shareResult.getOutOrderNo())
+                    .setChannelOrderNo(shareResult.getOrderId())
+                    .setSuccess("FINISHED".equals(shareResult.getState()))
+                    .setOccurTime(WechatStateTranslator.toLocalDateTime(shareResult.getFinishTime()))
+                    .setRaw(flatten(JsonUtils.toMap(JsonUtils.toJson(shareResult))));
         }
         WxPayNotifyV3Result paymentNotify = wrap("V3 支付通知", () ->
                 service.parseOrderNotifyV3Result(raw.getBody(), header));

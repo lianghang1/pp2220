@@ -58,6 +58,9 @@ public class WechatRefundHandler implements RefundHandler {
         request.setOutRefundNo(refund.getRefundId());
         request.setReason(StringUtils.defaultIfBlank(refund.getReason(), "退款"));
         request.setNotifyUrl(params.getNotifyUrl());
+        if (StringUtils.isNotBlank(config.getSubMchNo())) {
+            request.setSubMchid(config.getSubMchNo());
+        }
         WxPayRefundV3Request.Amount amount = new WxPayRefundV3Request.Amount();
         amount.setRefund(refund.getAmount().intValue());
         amount.setTotal(payment.getAmount().intValue());

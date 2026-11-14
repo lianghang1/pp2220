@@ -64,6 +64,7 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
                 ChannelConfig config = new ChannelConfig()
                         .setAppId(appId)
                         .setChannelCode(channelCode)
+                        .setSubMchNo(channelProps.get("subMchNo"))
                         .setParams(params);
                 byApp.put(appKey(appId, channelCode), config);
                 if (params.channelAppId() != null) {

@@ -2,8 +2,11 @@ package io.github.lianghang1.paygateway.channels.wechat;
 
 import com.github.binarywang.wxpay.bean.entpay.EntPayRequest;
 import com.github.binarywang.wxpay.bean.entpay.EntPayResult;
+import com.github.binarywang.wxpay.bean.merchanttransfer.BatchesQueryResult;
 import com.github.binarywang.wxpay.bean.merchanttransfer.TransferCreateRequest;
 import com.github.binarywang.wxpay.bean.merchanttransfer.TransferCreateResult;
+import com.github.binarywang.wxpay.bean.entpay.EntPayQueryResult;
+import com.github.binarywang.wxpay.bean.merchanttransfer.WxBatchesQueryRequest;
 import com.github.binarywang.wxpay.service.WxPayService;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.channel.TransferHandler;
@@ -17,15 +20,13 @@ import io.github.lianghang1.paygateway.util.MaskUtils;
 import io.github.lianghang1.paygateway.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
-
 /**
  * 微信转账处理器：V3 商家转账（MerchantTransferService.createTransfer，
  * 单明细批次）与 V2 企业付款到零钱（EntPayService.entPay），按 wxApiVersion 路由。
  *
  * <p>{@code payeeAccount} 为收款用户 openid；{@code payeeName} 为收款人实名
- * （V2 实名校验 FORCE_CHECK 时必填）。V3 受理返回批次号（PROCESSING），
- * V2 企业付款同步返回付款单号（SUCCEEDED 语义，终态以查询/回调确认）。</p>
+ * （V2 实名校验 FORCE_CHECK 时必填）。V3 受理返回批次号（终态经回调或批次查询确认），
+ * V2 企业付款同步返回付款单号。</p>
  *
  * @author lianghang
  */
@@ -57,7 +58,7 @@ public class WechatTransferHandler implements TransferHandler {
             EntPayResult result = wrap("V2 企业付款", () -> service.getEntPayService().entPay(request));
             return new TransferInvocation()
                     .setChannelTransferNo(result.getPaymentNo())
-                    .setState(TransferState.PROCESSING);
+                    .setState(TransferState.SUCCEEDED);
         }
         TransferCreateRequest request = new TransferCreateRequest();
         request.setAppid(params.getAppId());
@@ -72,7 +73,7 @@ public class WechatTransferHandler implements TransferHandler {
         detail.setOpenid(transfer.getPayeeAccount());
         detail.setUserName(transfer.getPayeeName());
         detail.setTransferRemark(StringUtils.defaultIfBlank(transfer.getRemark(), "转账"));
-        request.setTransferDetailList(Collections.singletonList(detail));
+        request.setTransferDetailList(java.util.Collections.singletonList(detail));
         TransferCreateResult result = wrap("V3 商家转账", () ->
                 service.getMerchantTransferService().createTransfer(request));
         log.info("微信商家转账已受理: transferId={}, payee={}, batchId={}",
@@ -85,11 +86,35 @@ public class WechatTransferHandler implements TransferHandler {
 
     @Override
     public TransferSnapshot queryTransfer(Transfer transfer, ChannelConfig config) {
-        throw new GatewayException(GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
-                "微信转账终态以回调/微信商户平台为准，暂不提供独立查询");
+        WechatParams params = WechatClientHolder.paramsOf(config);
+        WxPayService service = holder.service(config);
+        if (params.isV2()) {
+            EntPayQueryResult result = wrap("V2 企业付款查单", () ->
+                    service.getEntPayService().queryEntPay(transfer.getChannelTransferNo()));
+            TransferState state = "SUCCESS".equals(result.getStatus())
+                    ? TransferState.SUCCEEDED : TransferState.PROCESSING;
+            return new TransferSnapshot()
+                    .setChannelTransferNo(result.getDetailId())
+                    .setState(state)
+                    .setRawMsg(result.getStatus());
+        }
+        WxBatchesQueryRequest request = new WxBatchesQueryRequest();
+        request.setBatchId(transfer.getChannelTransferNo());
+        request.setNeedQueryDetail(true);
+        request.setOffset(0);
+        request.setLimit(1);
+        BatchesQueryResult result = wrap("V3 转账批次查询", () ->
+                service.getMerchantTransferService().queryWxBatches(request));
+        BatchesQueryResult.TransferBatch batch = result.getTransferBatch();
+        String batchStatus = batch == null ? null : batch.getBatchStatus();
+        TransferState state = WechatStateTranslator.toTransferState(batchStatus);
+        return new TransferSnapshot()
+                .setChannelTransferNo(batch == null ? null : batch.getBatchId())
+                .setState(state)
+                .setRawMsg(batchStatus);
     }
 
-    private <T> T wrap(String action, WechatCall<T> call) {
+    private <T> T wrap(String action, io.github.lianghang1.paygateway.channels.wechat.WechatCall<T> call) {
         try {
             return call.call();
         } catch (GatewayException e) {
