@@ -10,10 +10,14 @@ import com.github.binarywang.wxpay.bean.order.WxPayMpOrderResult;
 import com.github.binarywang.wxpay.bean.result.enums.TradeTypeEnum;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.service.WxPayService;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.wechat.WechatCall;
 import io.github.lianghang1.paygateway.api.PayPayload;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentSnapshot;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.wechat.WechatParams;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -38,7 +42,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
 
     @Override
     public String method() {
-        return "WECHAT_JSAPI";
+        return PayMethod.WECHAT_JSAPI.getCode();
     }
 
     @Override

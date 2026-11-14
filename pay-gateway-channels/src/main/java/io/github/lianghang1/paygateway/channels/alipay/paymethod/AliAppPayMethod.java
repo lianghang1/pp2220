@@ -3,9 +3,13 @@ package io.github.lianghang1.paygateway.channels.alipay.paymethod;
 import com.alipay.api.domain.AlipayTradeAppPayModel;
 import com.alipay.api.request.AlipayTradeAppPayRequest;
 import io.github.lianghang1.paygateway.api.PayPayload;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.alipay.AlipayClientHolder;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.alipay.AlipayStateTranslator;
 import io.github.lianghang1.paygateway.model.Payment;
 import io.github.lianghang1.paygateway.model.PaymentState;
@@ -21,7 +25,7 @@ public class AliAppPayMethod implements AlipayPayMethod {
 
     @Override
     public String method() {
-        return "ALI_APP";
+        return PayMethod.ALI_APP.getCode();
     }
 
     @Override

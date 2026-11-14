@@ -1,7 +1,9 @@
 package io.github.lianghang1.paygateway.channels.wechat.paymethod;
 
 import com.github.binarywang.wxpay.service.WxPayService;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.wechat.WechatParams;
 import io.github.lianghang1.paygateway.model.Payment;
 
@@ -16,7 +18,7 @@ public class WxLitePayMethod extends WxJsapiPayMethod {
 
     @Override
     public String method() {
-        return "WECHAT_LITE";
+        return PayMethod.WECHAT_LITE.getCode();
     }
 
     @Override

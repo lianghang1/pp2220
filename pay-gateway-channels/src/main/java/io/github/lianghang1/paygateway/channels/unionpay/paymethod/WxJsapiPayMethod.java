@@ -1,9 +1,13 @@
 package io.github.lianghang1.paygateway.channels.unionpay.paymethod;
 
 import io.github.lianghang1.paygateway.api.PayPayload;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.unionpay.UnionPayClient;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.unionpay.UnionPayParams;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -24,7 +28,7 @@ public class WxJsapiPayMethod implements UnionPayMethod {
 
     @Override
     public String method() {
-        return "UNION_WX_JSAPI";
+        return PayMethod.UNION_WX_JSAPI.getCode();
     }
 
     @Override

@@ -8,8 +8,11 @@ import com.github.binarywang.wxpay.bean.result.enums.TradeTypeEnum;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.service.WxPayService;
 import io.github.lianghang1.paygateway.api.PayPayload;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentSnapshot;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.wechat.WechatParams;
 import io.github.lianghang1.paygateway.model.Payment;
 import io.github.lianghang1.paygateway.model.PaymentState;
@@ -27,7 +30,7 @@ public class WxH5PayMethod implements WechatPayMethod {
 
     @Override
     public String method() {
-        return "WECHAT_H5";
+        return PayMethod.WECHAT_H5.getCode();
     }
 
     @Override

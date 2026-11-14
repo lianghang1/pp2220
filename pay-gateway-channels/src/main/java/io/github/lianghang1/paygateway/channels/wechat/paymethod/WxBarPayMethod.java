@@ -4,8 +4,11 @@ import com.github.binarywang.wxpay.bean.request.WxPayMicropayRequest;
 import com.github.binarywang.wxpay.bean.result.WxPayMicropayResult;
 import com.github.binarywang.wxpay.service.WxPayService;
 import io.github.lianghang1.paygateway.api.PayPayload;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channel.PaymentSnapshot;
+import io.github.lianghang1.paygateway.channel.PayMethod;
 import io.github.lianghang1.paygateway.channels.wechat.WechatParams;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -28,7 +31,7 @@ public class WxBarPayMethod implements WechatPayMethod {
 
     @Override
     public String method() {
-        return "WECHAT_BAR";
+        return PayMethod.WECHAT_BAR.getCode();
     }
 
     @Override
