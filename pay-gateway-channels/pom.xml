@@ -34,8 +34,8 @@
 
         <!-- 渠道专属 SDK：optional，使用方按需引入对应坐标后该渠道才会激活 -->
         <dependency>
-            <groupId>com.github.wechatpay-apiv3</groupId>
-            <artifactId>wechatpay-java</artifactId>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-pay</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>

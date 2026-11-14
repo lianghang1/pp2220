@@ -32,6 +32,10 @@ public class UnionPayChannelProvider implements ChannelProvider {
         Set<String> methods = new HashSet<String>();
         methods.add(PayMethod.UNION_QR.getCode());
         methods.add(PayMethod.UNION_BAR.getCode());
+        methods.add(PayMethod.UNION_WX_JSAPI.getCode());
+        methods.add(PayMethod.UNION_WX_BAR.getCode());
+        methods.add(PayMethod.UNION_ALI_JSAPI.getCode());
+        methods.add(PayMethod.UNION_ALI_BAR.getCode());
         return methods;
     }
 
@@ -42,7 +46,7 @@ public class UnionPayChannelProvider implements ChannelProvider {
 
     @Override
     public io.github.lianghang1.paygateway.channel.PaymentHandler paymentHandler() {
-        return new UnionPayPaymentHandler(client);
+        return new UnionPayPaymentHandler();
     }
 
     @Override

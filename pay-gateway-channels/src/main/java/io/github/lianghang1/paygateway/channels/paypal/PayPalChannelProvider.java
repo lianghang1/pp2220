@@ -42,7 +42,7 @@ public class PayPalChannelProvider implements ChannelProvider {
 
     @Override
     public io.github.lianghang1.paygateway.channel.PaymentHandler paymentHandler() {
-        return new PayPalPaymentHandler(client);
+        return new PayPalPaymentHandler();
     }
 
     @Override

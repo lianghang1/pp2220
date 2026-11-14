@@ -1,21 +1,30 @@
 package io.github.lianghang1.paygateway.channels.wechat;
 
-import com.wechat.pay.java.service.refund.model.CreateRequest;
-import com.wechat.pay.java.service.refund.model.QueryByOutRefundNoRequest;
+import com.github.binarywang.wxpay.bean.request.WxPayRefundQueryV3Request;
+import com.github.binarywang.wxpay.bean.request.WxPayRefundRequest;
+import com.github.binarywang.wxpay.bean.request.WxPayRefundV3Request;
+import com.github.binarywang.wxpay.bean.result.WxPayRefundQueryV3Result;
+import com.github.binarywang.wxpay.bean.result.WxPayRefundResult;
+import com.github.binarywang.wxpay.bean.result.WxPayRefundV3Result;
+import com.github.binarywang.wxpay.service.WxPayService;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.channel.RefundHandler;
 import io.github.lianghang1.paygateway.channel.RefundInvocation;
 import io.github.lianghang1.paygateway.channel.RefundSnapshot;
+import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
+import io.github.lianghang1.paygateway.exception.GatewayException;
 import io.github.lianghang1.paygateway.model.Payment;
 import io.github.lianghang1.paygateway.model.Refund;
 import io.github.lianghang1.paygateway.model.RefundState;
+import io.github.lianghang1.paygateway.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 微信退款处理器：按商户退款单号（outRefundNo = 网关退款单号）发起与查询，
- * 支持服务商模式（subMchNo 存在时携带特约商户号）。
+ * 微信退款处理器：V3（refundV3）与 V2（refund）双路径，按渠道参数的
+ * wxApiVersion 路由；服务商模式经 WxJava 配置透传。
  *
- * <p>退款回调地址复用渠道参数 notifyUrl；微信退款支持异步回调与查单两种终态获取方式。</p>
+ * <p>V2 发起后状态以退款回调/退款查询确认（微信 V2 同步响应不含终态标识）；
+ * V3 同步返回受理状态。金额单位统一为分。</p>
  *
  * @author lianghang
  */
@@ -31,53 +40,77 @@ public class WechatRefundHandler implements RefundHandler {
     @Override
     public RefundInvocation createRefund(Refund refund, Payment payment, ChannelConfig config) {
         WechatParams params = WechatClientHolder.paramsOf(config);
-        CreateRequest request = new CreateRequest();
-        if (config.getSubMchNo() != null) {
-            request.setSubMchid(config.getSubMchNo());
+        WxPayService service = holder.service(config);
+        if (params.isV2()) {
+            WxPayRefundRequest request = new WxPayRefundRequest();
+            request.setOutTradeNo(payment.getPaymentId());
+            request.setOutRefundNo(refund.getRefundId());
+            request.setTotalFee(payment.getAmount().intValue());
+            request.setRefundFee(refund.getAmount().intValue());
+            request.setNotifyUrl(params.getNotifyUrl());
+            WxPayRefundResult result = wrap("V2 退款", () -> service.refund(request));
+            return new RefundInvocation()
+                    .setChannelRefundNo(result.getRefundId())
+                    .setState(RefundState.PROCESSING);
         }
+        WxPayRefundV3Request request = new WxPayRefundV3Request();
         request.setOutTradeNo(payment.getPaymentId());
         request.setOutRefundNo(refund.getRefundId());
-        request.setReason(refund.getReason());
+        request.setReason(StringUtils.defaultIfBlank(refund.getReason(), "退款"));
         request.setNotifyUrl(params.getNotifyUrl());
-        com.wechat.pay.java.service.refund.model.AmountReq amount =
-                new com.wechat.pay.java.service.refund.model.AmountReq();
-        amount.setRefund(refund.getAmount());
-        amount.setTotal(payment.getAmount());
+        WxPayRefundV3Request.Amount amount = new WxPayRefundV3Request.Amount();
+        amount.setRefund(refund.getAmount().intValue());
+        amount.setTotal(payment.getAmount().intValue());
         amount.setCurrency("CNY");
         request.setAmount(amount);
-
-        com.wechat.pay.java.service.refund.model.Refund response =
-                wrap("退款", () -> holder.clients(config).refundService().create(request));
+        WxPayRefundV3Result result = wrap("V3 退款", () -> service.refundV3(request));
         return new RefundInvocation()
-                .setChannelRefundNo(response.getRefundId())
-                .setState(WechatStateTranslator.toRefundState(
-                        response.getStatus() == null ? null : response.getStatus().name()));
+                .setChannelRefundNo(result.getRefundId())
+                .setState(WechatStateTranslator.toRefundState(result.getStatus()));
     }
 
     @Override
     public RefundSnapshot queryRefund(Refund refund, ChannelConfig config) {
         WechatParams params = WechatClientHolder.paramsOf(config);
-        QueryByOutRefundNoRequest request = new QueryByOutRefundNoRequest();
-        request.setOutRefundNo(refund.getRefundId());
-        if (config.getSubMchNo() != null) {
-            request.setSubMchid(config.getSubMchNo());
+        WxPayService service = holder.service(config);
+        if (params.isV2()) {
+            com.github.binarywang.wxpay.bean.request.WxPayRefundQueryRequest request =
+                    new com.github.binarywang.wxpay.bean.request.WxPayRefundQueryRequest();
+            request.setOutRefundNo(refund.getRefundId());
+            com.github.binarywang.wxpay.bean.result.WxPayRefundQueryResult result =
+                    wrap("V2 退款查单", () -> service.refundQuery(request));
+            RefundState state = RefundState.PROCESSING;
+            String succeedTime = null;
+            if (result.getRefundRecords() != null && !result.getRefundRecords().isEmpty()) {
+                com.github.binarywang.wxpay.bean.result.WxPayRefundQueryResult.RefundRecord record =
+                        result.getRefundRecords().get(0);
+                state = WechatStateTranslator.toRefundState(record.getRefundStatus());
+
+            }
+            return new RefundSnapshot()
+                    .setChannelRefundNo(refund.getRefundId())
+                    .setState(state)
+                    .setSucceedTime(WechatStateTranslator.toLocalDateTime(succeedTime))
+                    .setRawMsg(result.getRefundRecords() == null ? null
+                            : result.getRefundRecords().size() + " records");
         }
-        com.wechat.pay.java.service.refund.model.Refund response =
-                wrap("退款查单", () -> holder.clients(config).refundService().queryByOutRefundNo(request));
+        WxPayRefundQueryV3Request request = new WxPayRefundQueryV3Request();
+        request.setOutRefundNo(refund.getRefundId());
+        WxPayRefundQueryV3Result result = wrap("V3 退款查单", () -> service.refundQueryV3(request));
         return new RefundSnapshot()
-                .setChannelRefundNo(response.getRefundId())
-                .setState(WechatStateTranslator.toRefundState(
-                        response.getStatus() == null ? null : response.getStatus().name()))
-                .setSucceedTime(WechatStateTranslator.toLocalDateTime(response.getSuccessTime()))
-                .setRawMsg(response.getStatus() == null ? null : response.getStatus().name());
+                .setChannelRefundNo(result.getRefundId())
+                .setState(WechatStateTranslator.toRefundState(result.getStatus()))
+                .setSucceedTime(WechatStateTranslator.toLocalDateTime(result.getSuccessTime()))
+                .setRawMsg(result.getStatus());
     }
 
-    private <T> T wrap(String action, java.util.function.Supplier<T> call) {
+    private <T> T wrap(String action, WechatCall<T> call) {
         try {
-            return call.get();
+            return call.call();
+        } catch (GatewayException e) {
+            throw e;
         } catch (Exception e) {
-            throw new io.github.lianghang1.paygateway.exception.GatewayException(
-                    io.github.lianghang1.paygateway.exception.GatewayErrorCode.CHANNEL_CALL_FAILED,
+            throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
                     "微信{}失败: {}", action, e.getMessage(), e);
         }
     }

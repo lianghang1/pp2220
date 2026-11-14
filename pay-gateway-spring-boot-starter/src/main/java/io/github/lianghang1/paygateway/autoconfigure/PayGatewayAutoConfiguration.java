@@ -48,7 +48,7 @@ public class PayGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider.class)
-    @ConditionalOnClass(name = "com.wechat.pay.java.core.RSAAutoCertificateConfig")
+    @ConditionalOnClass(name = "com.github.binarywang.wxpay.service.WxPayService")
     public io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider wechatChannelProvider() {
         return new io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider();
     }

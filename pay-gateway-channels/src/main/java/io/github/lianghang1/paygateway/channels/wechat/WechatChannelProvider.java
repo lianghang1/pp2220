@@ -10,12 +10,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 微信支付渠道提供者：普通商户模式全能力支持
- * （JSAPI/Native/H5/APP 下单、查询、关闭、退款、商家转账、分账、回调、账单），
- * 退款/转账/分账支持服务商模式的特约商户号传递。
+ * 微信支付渠道提供者：V2/V3 双协议，支付方式经独立 PayMethod 类承载
+ * （JSAPI 公众号、Lite 小程序、Native 扫码、H5、APP、Bar 付款码），
+ * 退款/转账（V3 商家转账 + V2 企业付款）/分账/账单/通知全能力。
  *
- * <p>付款码支付（WECHAT_BAR）依赖的 API 不在当前 SDK 覆盖范围内，
- * 不在支持清单内；服务商模式支付下单待后续扩展。</p>
+ * <p>使用方在渠道参数中指定 wxApiVersion（v2/v3，缺省 v3）；
+ * 服务商模式经 subMchNo 透传 WxJava。</p>
  *
  * @author lianghang
  */
@@ -32,9 +32,11 @@ public class WechatChannelProvider implements ChannelProvider {
     public Set<String> supportedMethods() {
         Set<String> methods = new HashSet<String>();
         methods.add(PayMethod.WECHAT_JSAPI.getCode());
+        methods.add(PayMethod.WECHAT_LITE.getCode());
         methods.add(PayMethod.WECHAT_NATIVE.getCode());
         methods.add(PayMethod.WECHAT_H5.getCode());
         methods.add(PayMethod.WECHAT_APP.getCode());
+        methods.add(PayMethod.WECHAT_BAR.getCode());
         methods.add(PayMethod.WECHAT_TRANS.getCode());
         return methods;
     }
@@ -46,7 +48,7 @@ public class WechatChannelProvider implements ChannelProvider {
 
     @Override
     public io.github.lianghang1.paygateway.channel.PaymentHandler paymentHandler() {
-        return new WechatPaymentHandler(holder);
+        return new WechatPaymentHandler();
     }
 
     @Override

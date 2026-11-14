@@ -46,7 +46,7 @@ public class AlipayChannelProvider implements ChannelProvider {
 
     @Override
     public io.github.lianghang1.paygateway.channel.PaymentHandler paymentHandler() {
-        return new AlipayPaymentHandler(holder);
+        return new AlipayPaymentHandler();
     }
 
     @Override

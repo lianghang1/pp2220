@@ -1,93 +1,97 @@
 package io.github.lianghang1.paygateway.channels.unionpay;
 
-import io.github.lianghang1.paygateway.api.PayPayload;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.channel.PaymentHandler;
 import io.github.lianghang1.paygateway.channel.PaymentInvocation;
 import io.github.lianghang1.paygateway.channel.PaymentSnapshot;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.AliBarPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.AliJsapiPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.UnionPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.WxBarPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.WxJsapiPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.YsfBarPayMethod;
+import io.github.lianghang1.paygateway.channels.unionpay.paymethod.YsfQrPayMethod;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
 import io.github.lianghang1.paygateway.model.Payment;
 import io.github.lianghang1.paygateway.model.PaymentState;
-import io.github.lianghang1.paygateway.util.JsonUtils;
 import io.github.lianghang1.paygateway.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 云闪付支付处理器：银联二维码（跳转支付）与银联付款码（即时扣款）。
- *
- * <p>统一下单返回 {@code payData}——银联二维码为支付跳转地址（REDIRECT），
- * 微信/支付宝 JSAPI 经云闪付转接的 payData 为前端唤起参数 JSON（JSAPI）；
- * 付款码支付（micropay）同步扣款，channelExtras 约定 {@code authCode}。</p>
+ * 云闪付支付处理器门面：按支付方式路由到独立的 PayMethod 实现
+ * （银联二维码/银联付款码/转接微信 JSAPI/转接微信付款码/转接支付宝 JSAPI/转接支付宝付款码），
+ * 查单与关单统一按商户订单号处理。
  *
  * @author lianghang
  */
 public class UnionPayPaymentHandler implements PaymentHandler {
 
-    private final UnionPayClient client;
+    private final UnionPayClient client = new UnionPayClient();
+    private final Map<String, UnionPayMethod> payMethods = new HashMap<String, UnionPayMethod>();
 
-    public UnionPayPaymentHandler(UnionPayClient client) {
-        this.client = client;
+    public UnionPayPaymentHandler() {
+        register(new YsfQrPayMethod());
+        register(new YsfBarPayMethod());
+        register(new WxJsapiPayMethod());
+        register(new WxBarPayMethod());
+        register(new AliJsapiPayMethod());
+        register(new AliBarPayMethod());
+    }
+
+    private void register(UnionPayMethod payMethod) {
+        payMethods.put(payMethod.method(), payMethod);
+    }
+
+    /** 渠道已支持的支付方式集合（能力声明/调试用）。 */
+    public Set<String> supportedMethods() {
+        return payMethods.keySet();
     }
 
     @Override
     public PaymentInvocation createPayment(Payment payment, ChannelConfig config) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
-        String merchantId = resolveMerchantId(config, params);
-        Map<String, Object> requestParams = new HashMap<String, Object>();
-        UnionPayTranslator.fillPublicParams(requestParams, payment.getPaymentId(), payment.getAmount(),
-                payment.getSubject(), merchantId, params.getSerProvId());
-        Map<String, String> extras = StringUtils.isBlank(payment.getExtParams())
-                ? null : flatExtras(payment.getExtParams());
+        UnionPayMethod payMethod = payMethodOf(payment);
+        return payMethod.createPayment(payment, config, params, client);
+    }
 
-        boolean barcode = "UNION_BAR".equals(payment.getMethod());
-        requestParams.put("orderType", barcode ? "unionpay" : "upJs");
-        if (barcode) {
-            String authCode = extras == null ? null : extras.get("authCode");
-            if (StringUtils.isBlank(authCode)) {
-                throw new GatewayException(GatewayErrorCode.BAD_REQUEST,
-                        "云闪付付款码支付需在 channelExtras 中提供 authCode");
-            }
-            requestParams.put("authCode", authCode);
-            requestParams.put("termId", extras == null || extras.get("termId") == null
-                    ? "00000001" : extras.get("termId"));
-        } else {
-            requestParams.put("backUrl", params.getNotifyUrl());
-            requestParams.put("frontUrl", params.getNotifyUrl());
-            requestParams.put("customerIp", StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
+    private UnionPayMethod payMethodOf(Payment payment) {
+        UnionPayMethod payMethod = payMethods.get(payment.getMethod());
+        if (payMethod == null) {
+            throw new GatewayException(GatewayErrorCode.METHOD_NOT_SUPPORTED,
+                    "云闪付渠道不支持支付方式: {}", payment.getMethod());
         }
-
-        String apiUri = barcode ? "/gateway/api/pay/micropay" : "/gateway/api/pay/unifiedorder";
-        Map<String, Object> result = client.execute(barcode ? "付款码支付" : "统一下单",
-                apiUri, config, requestParams);
-        String respCode = String.valueOf(result.get("respCode"));
-
-        if (barcode) {
-            return new PaymentInvocation()
-                    .setChannelOrderNo(text(result.get("transIndex")))
-                    .setPayload(PayPayload.none())
-                    .setState("00".equals(respCode) ? PaymentState.SUCCEEDED : PaymentState.PAYING);
-        }
-        String payData = text(result.get("payData"));
-        PayPayload payload = payData != null && payData.trim().startsWith("{")
-                ? PayPayload.jsapi(payData) : PayPayload.redirect(payData);
-        return new PaymentInvocation().setPayload(payload).setState(PaymentState.PAYING);
+        return payMethod;
     }
 
     @Override
     public PaymentSnapshot queryPayment(Payment payment, ChannelConfig config) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        UnionPayTranslator.fillPublicParams(requestParams, payment.getPaymentId(), payment.getAmount(),
-                payment.getSubject(), resolveMerchantId(config, params), params.getSerProvId());
-        Map<String, Object> result = client.execute("查单", "/gateway/api/pay/queryOrder", config, requestParams);
-        String origRespCode = text(result.get("origRespCode"));
-        PaymentState state = UnionPayTranslator.fromOrigRespCode(origRespCode);
+        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderTime", java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+        requestParams.put("txnAmt", payment.getAmount());
+        requestParams.put("currencyCode", "156");
+        String merchantId = StringUtils.isNotBlank(config.getSubMchNo())
+                ? config.getSubMchNo() : params.getMerchantId();
+        if (merchantId != null) {
+            requestParams.put("merId", merchantId);
+        }
+        if (params.getSerProvId() != null) {
+            requestParams.put("serProvId", params.getSerProvId());
+        }
+        Map<String, Object> result = client.execute("查单", "/gateway/api/pay/queryOrder",
+                config, requestParams);
+        String origRespCode = result.get("origRespCode") == null
+                ? null : String.valueOf(result.get("origRespCode"));
         return new PaymentSnapshot()
-                .setChannelOrderNo(text(result.get("transIndex")))
-                .setState(state)
+                .setChannelOrderNo(result.get("transIndex") == null
+                        ? null : String.valueOf(result.get("transIndex")))
+                .setState(UnionPayTranslator.fromOrigRespCode(origRespCode))
                 .setRawMsg(origRespCode);
     }
 
@@ -95,26 +99,19 @@ public class UnionPayPaymentHandler implements PaymentHandler {
     public void closePayment(Payment payment, ChannelConfig config) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        UnionPayTranslator.fillPublicParams(requestParams, payment.getPaymentId(), payment.getAmount(),
-                payment.getSubject(), resolveMerchantId(config, params), params.getSerProvId());
-        client.execute("关单", "/gateway/api/pay/closeOrder", config, requestParams);
-    }
-
-    /** 特约商户号优先（服务商模式），缺省回落到直连商户号。 */
-    private String resolveMerchantId(ChannelConfig config, UnionPayParams params) {
-        return StringUtils.isNotBlank(config.getSubMchNo()) ? config.getSubMchNo() : params.getMerchantId();
-    }
-
-    private Map<String, String> flatExtras(String extParams) {
-        Map<String, String> result = new HashMap<String, String>();
-        Map<String, Object> source = JsonUtils.toMap(extParams);
-        for (Map.Entry<String, Object> entry : source.entrySet()) {
-            result.put(entry.getKey(), entry.getValue() == null ? null : String.valueOf(entry.getValue()));
+        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderTime", java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+        requestParams.put("txnAmt", payment.getAmount());
+        requestParams.put("currencyCode", "156");
+        String merchantId = StringUtils.isNotBlank(config.getSubMchNo())
+                ? config.getSubMchNo() : params.getMerchantId();
+        if (merchantId != null) {
+            requestParams.put("merId", merchantId);
         }
-        return result;
-    }
-
-    private String text(Object value) {
-        return value == null ? null : String.valueOf(value);
+        if (params.getSerProvId() != null) {
+            requestParams.put("serProvId", params.getSerProvId());
+        }
+        client.execute("关单", "/gateway/api/pay/closeOrder", config, requestParams);
     }
 }

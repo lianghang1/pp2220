@@ -23,11 +23,12 @@ public final class PayMethod {
 
     // ---- 微信支付 ----
     public static final PayMethod WECHAT_JSAPI = register("WECHAT_JSAPI", ChannelCode.WECHAT);
+    public static final PayMethod WECHAT_LITE = register("WECHAT_LITE", ChannelCode.WECHAT);
     public static final PayMethod WECHAT_NATIVE = register("WECHAT_NATIVE", ChannelCode.WECHAT);
     public static final PayMethod WECHAT_H5 = register("WECHAT_H5", ChannelCode.WECHAT);
     public static final PayMethod WECHAT_APP = register("WECHAT_APP", ChannelCode.WECHAT);
     public static final PayMethod WECHAT_BAR = register("WECHAT_BAR", ChannelCode.WECHAT);
-    /** 微信商家转账（到零钱/到银行卡由渠道参数决定） */
+    /** 微信商家转账（V3）/ 企业付款到零钱（V2），由 wxApiVersion 路由 */
     public static final PayMethod WECHAT_TRANS = register("WECHAT_TRANS", ChannelCode.WECHAT);
 
     // ---- 支付宝 ----
@@ -43,7 +44,10 @@ public final class PayMethod {
     // ---- 云闪付 ----
     public static final PayMethod UNION_QR = register("UNION_QR", ChannelCode.UNIONPAY);
     public static final PayMethod UNION_BAR = register("UNION_BAR", ChannelCode.UNIONPAY);
-    public static final PayMethod UNION_TRANS = register("UNION_TRANS", ChannelCode.UNIONPAY);
+    public static final PayMethod UNION_WX_JSAPI = register("UNION_WX_JSAPI", ChannelCode.UNIONPAY);
+    public static final PayMethod UNION_WX_BAR = register("UNION_WX_BAR", ChannelCode.UNIONPAY);
+    public static final PayMethod UNION_ALI_JSAPI = register("UNION_ALI_JSAPI", ChannelCode.UNIONPAY);
+    public static final PayMethod UNION_ALI_BAR = register("UNION_ALI_BAR", ChannelCode.UNIONPAY);
 
     // ---- PayPal ----
     public static final PayMethod PAYPAL_SALE = register("PAYPAL_SALE", ChannelCode.PAYPAL);
