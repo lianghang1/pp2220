@@ -31,6 +31,12 @@ public class ChannelConfig implements Serializable {
     private boolean sandbox;
     /** 服务商模式下的特约商户号；普通商户模式为 null */
     private String subMchNo;
+    /**
+     * 渠道账户标识：回调配置反查的唯一键，由 {@link ChannelAccountKey#of(String, String)}
+     * 依据 {@link ChannelParams#channelAppId()} 与 {@link #subMchNo} 生成。
+     * 普通商户等于 channelAppId，服务商模式为 {@code channelAppId#subMchNo}。
+     */
+    private String accountKey;
     /** 渠道自定义参数对象 */
     private ChannelParams params;
 }

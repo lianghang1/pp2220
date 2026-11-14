@@ -175,10 +175,9 @@ PaymentGateway gateway = PaymentGateway.builder()
 ## 渠道差异说明
 
 - **金额**：框架与 Store 统一用「分」（Long）；微信/云闪付原生接口分，支付宝/PayPal 由渠道包完成分↔元换算
-- **回调配置反查**：微信（appId）/ 支付宝（app_id，通知体内）/ 云闪付（merId）/ PayPal（clientId）——均通过回调地址查询参数或报文字段定位
+- **回调配置反查**：微信（appId）/ 支付宝（app_id，通知体内）/ 云闪付（merId）/ PayPal（clientId）——均通过回调地址查询参数或报文字段定位；服务商模式统一用 `accountKey`（`channelAppId#subMchNo`），账户键冲突在启动期抛 `CONFIG_CONFLICT`
 - **服务商模式**：微信（退款/转账/分账支持特约商户号）、云闪付（下单/退款支持 subMchNo）；微信/支付宝支付下单的服务商模式待扩展
 - **协议版本**：微信经 WxJava（binarywang 二次封装）接入，V2/V3 双协议按 `wxApiVersion` 路由（付款码/企业付款走 V2）；支付宝官方 SDK 单协议；云闪付/PayPal 为 okhttp 直连
-- **服务商模式**：微信（退款/转账/分账支持特约商户号）、云闪付（下单/退款支持 subMchNo）；微信/支付宝支付下单的服务商模式待扩展
 - **云闪付/PayPal 真实联调** 需提供对应商户凭据后验证
 
 ## 扩展新渠道
@@ -194,7 +193,7 @@ public class MyChannelProvider implements ChannelProvider {
     public ChannelParams parseParams(Map<String, String> properties) { return MyParams.fromMap(properties); }
 }
 ```
-2. **实现 Store 之外的 SPI**：渠道参数类型实现 `ChannelParams`（含 `channelAppId()` 供回调反查）；回调解析实现 `ChannelCallbackHandler`（验签 + 归一化 CallbackEvent + 应答报文）
+2. **实现 Store 之外的 SPI**：渠道参数类型实现 `ChannelParams`（含 `channelAppId()` 供回调反查）；回调解析实现 `ChannelCallbackHandler`（验签 + 归一化 CallbackEvent + 应答报文），用 `ChannelAccountKey.resolve(raw, legacyId)` 取账户键并调用 `configLookup.byAccountKey(...)`；自定义 `ChannelConfigProvider` 实现 `getByAccountKey(channelCode, accountKey)`，账户键重复时抛 `CONFIG_CONFLICT`
 3. **注册**：starter 场景注册为 Bean（`@ConditionalOnClass` 控制激活）；纯 jar 场景 `gateway.channel(provider)`
 
 渠道包只做「统一模型 ↔ 渠道协议」的翻译；状态迁移、幂等、通知、对账全部由内核完成。

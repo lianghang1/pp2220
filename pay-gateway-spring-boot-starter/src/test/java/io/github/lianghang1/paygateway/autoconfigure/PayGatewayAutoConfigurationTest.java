@@ -50,7 +50,7 @@ class PayGatewayAutoConfigurationTest {
         assertThat(config.getAppId()).isEqualTo("demo");
         assertThat(config.getNotifyUrl()).isEqualTo("http://127.0.0.1/callback/mock");
         assertThat(config.isSandbox()).isTrue();
-        assertThat(configProvider.getByChannelApp("mock", "demo-app-key").getAppId()).isEqualTo("demo");
+        assertThat(configProvider.getByAccountKey("mock", "demo-app-key").getAppId()).isEqualTo("demo");
     }
 
     @Configuration

@@ -4,6 +4,7 @@ import io.github.lianghang1.paygateway.api.CallbackEvent;
 import io.github.lianghang1.paygateway.api.ChannelCallbackRequest;
 import io.github.lianghang1.paygateway.channel.CallbackConfigLookup;
 import io.github.lianghang1.paygateway.channel.ChannelCallbackHandler;
+import io.github.lianghang1.paygateway.channel.ChannelAccountKey;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -36,11 +37,12 @@ public class PayPalCallbackHandler implements ChannelCallbackHandler {
     public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
         Map<String, Object> event = JsonUtils.toMap(raw.getBody());
         String clientId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("clientId");
-        if (StringUtils.isBlank(clientId)) {
+        String accountKey = ChannelAccountKey.resolve(raw, clientId);
+        if (StringUtils.isBlank(accountKey)) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "PayPal 回调地址需携带 clientId 查询参数以定位渠道配置");
+                    "PayPal 回调地址需携带 clientId 或 accountKey 查询参数以定位渠道配置");
         }
-        ChannelConfig config = configLookup.byChannelApp(clientId);
+        ChannelConfig config = configLookup.byAccountKey(accountKey);
         PayPalParams params = PayPalClient.paramsOf(config);
         String eventType = PayPalTranslator.text(event.get("event_type"));
 

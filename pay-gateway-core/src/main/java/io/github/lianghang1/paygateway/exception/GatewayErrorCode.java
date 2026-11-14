@@ -32,6 +32,7 @@ public enum GatewayErrorCode implements ErrorCode {
     CHANNEL_CALL_FAILED(2105, "渠道调用失败", 500),
     SIGN_INVALID(2106, "回调验签失败", 400),
     CALLBACK_PARSE_FAILED(2107, "回调报文解析失败", 400),
+    CONFIG_CONFLICT(2108, "渠道账户标识冲突，无法唯一定位回调配置", 500),
 
     // ---- 持久化/通知 22xx ----
     STORE_MISSING(2201, "持久化实现未注册", 500),

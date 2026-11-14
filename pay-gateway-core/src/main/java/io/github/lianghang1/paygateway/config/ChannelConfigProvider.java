@@ -1,6 +1,7 @@
 package io.github.lianghang1.paygateway.config;
 
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
+import io.github.lianghang1.paygateway.channel.ChannelParams;
 
 /**
  * 渠道配置提供者 SPI：按应用与渠道换取渠道配置。
@@ -21,9 +22,14 @@ public interface ChannelConfigProvider {
     ChannelConfig getConfig(String appId, String channelCode);
 
     /**
-     * 按渠道侧应用标识换取配置（渠道回调验签链路）。
-     * 渠道侧标识即 {@link ChannelParams#channelAppId()} 的取值（如微信 appid）；
-     * 实现方负责「渠道侧标识 → 配置」的映射（默认实现可维护反向索引）。
+     * 按渠道账户键换取配置（渠道回调验签链路）。
+     * 账户键由 {@link io.github.lianghang1.paygateway.channel.ChannelAccountKey#of(String, String)}
+     * 生成：普通商户即 {@link ChannelParams#channelAppId()} 的取值（如微信 appid），
+     * 服务商模式为其后追加 {@code #subMchNo} 的复合键。
+     *
+     * <p>实现方负责「账户键 → 配置」的映射，且必须保证该映射在装载期唯一：
+     * 出现两个配置生成相同账户键时应立即失败（{@code CONFIG_CONFLICT}），
+     * 不得静默覆盖，否则回调会归到错误的 appId 或用错验签密钥。</p>
      */
-    ChannelConfig getByChannelApp(String channelCode, String channelAppId);
+    ChannelConfig getByAccountKey(String channelCode, String accountKey);
 }

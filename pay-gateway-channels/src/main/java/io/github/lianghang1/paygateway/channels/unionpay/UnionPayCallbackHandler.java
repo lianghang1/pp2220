@@ -4,6 +4,7 @@ import io.github.lianghang1.paygateway.api.CallbackEvent;
 import io.github.lianghang1.paygateway.api.ChannelCallbackRequest;
 import io.github.lianghang1.paygateway.channel.CallbackConfigLookup;
 import io.github.lianghang1.paygateway.channel.ChannelCallbackHandler;
+import io.github.lianghang1.paygateway.channel.ChannelAccountKey;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -41,11 +42,12 @@ public class UnionPayCallbackHandler implements ChannelCallbackHandler {
             // 通知报文无商户号时按回调地址携带的 merId 查询参数反查
             merchantId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("merId");
         }
-        if (StringUtils.isBlank(merchantId)) {
+        String accountKey = ChannelAccountKey.resolve(raw, merchantId);
+        if (StringUtils.isBlank(accountKey)) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "云闪付回调需携带 merId 查询参数以定位渠道配置");
+                    "云闪付回调需携带 merId 或 accountKey 查询参数以定位渠道配置");
         }
-        ChannelConfig config = configLookup.byChannelApp(merchantId);
+        ChannelConfig config = configLookup.byAccountKey(accountKey);
         UnionPayParams paramsConf = UnionPayClient.paramsOf(config);
         if (!client.signer().verify(params, paramsConf)) {
             throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "云闪付通知验签失败");

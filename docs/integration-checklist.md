@@ -7,7 +7,8 @@
 
 1. 本地起 example（或使用方工程）：`mvn spring-boot:run`，默认 8088 端口
 2. 回调地址需要公网可达——本地开发用内网穿透（ngrok/花生壳）暴露 8088，
-   回调 URL = `https://<穿透域名>/callback/{渠道编码}?<定位参数>`
+   回调 URL = `https://<穿透域名>/callback/{渠道编码}?<定位参数>`（微信 appId / 云闪付 merId / PayPal clientId）；
+   服务商模式改用 `?accountKey=<应用标识>%23<特约商户号>`，规则见 docs/config-keys.md
 3. 无公网时的替代验证：下单后用沙箱买家付款，走 `GET /api/pay/{paymentId}`
    （内部触发渠道查单补单确认终态）——可验证下单/查单协议，验证不了验签
 
@@ -129,6 +130,7 @@ pay-gateway:
 | 现象 | 排查点 |
 |---|---|
 | 验签失败 | 微信：V3 头（Wechatpay-Serial 等）是否被网关改写；支付宝：表单参数是否被二次编码 |
-| 回调 404 | 回调 URL 查询参数（appId/merId/clientId）是否携带 |
+| 回调 404 / 配置缺失 | 回调 URL 查询参数（appId/merId/clientId）是否携带；服务商模式是否带 `accountKey`（`#` 需转义为 `%23`） |
+| 启动报 `CONFIG_CONFLICT` | 同一渠道下两个配置生成了相同账户键，为各特约商户配置不同的 `subMchNo` |
 | 查单一直 PAYING | 商户号/证书与下单环境是否一致（沙箱 vs 生产） |
 | 通知重试耗尽 | 通知接收方需返回 `success` / `{"code":"SUCCESS"}` / `OK`（按渠道） |

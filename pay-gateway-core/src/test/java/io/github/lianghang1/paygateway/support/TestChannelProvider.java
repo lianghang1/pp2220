@@ -218,7 +218,7 @@ public class TestChannelProvider implements ChannelProvider {
                     throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "模拟验签失败");
                 }
                 Map<String, Object> body = JsonUtils.toMap(raw.getBody());
-                ChannelConfig config = configLookup.byChannelApp(APP_KEY);
+                ChannelConfig config = configLookup.byAccountKey(APP_KEY);
                 CallbackEvent event = new CallbackEvent()
                         .setType(BizOrderType.valueOf((String) body.get("type")))
                         .setAppId(config.getAppId())
@@ -280,10 +280,10 @@ public class TestChannelProvider implements ChannelProvider {
         }
 
         @Override
-        public ChannelConfig getByChannelApp(String channelCode, String channelAppId) {
-            if (!CODE.equals(channelCode) || !APP_KEY.equals(channelAppId)) {
+        public ChannelConfig getByAccountKey(String channelCode, String accountKey) {
+            if (!CODE.equals(channelCode) || !APP_KEY.equals(accountKey)) {
                 throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                        "渠道侧应用标识无对应配置: channel={}, appKey={}", channelCode, channelAppId);
+                        "渠道账户键无对应配置: channel={}, accountKey={}", channelCode, accountKey);
             }
             return new ChannelConfig()
                     .setAppId(appId)

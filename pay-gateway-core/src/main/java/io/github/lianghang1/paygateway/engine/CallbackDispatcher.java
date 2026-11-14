@@ -48,8 +48,8 @@ class CallbackDispatcher {
         ChannelCallbackHandler handler = rt.registry.callbackHandler(raw.getChannelCode());
         CallbackEvent event = handler.parseCallback(raw, new CallbackConfigLookup() {
             @Override
-            public ChannelConfig byChannelApp(String channelAppId) {
-                return rt.configProvider.getByChannelApp(raw.getChannelCode(), channelAppId);
+            public ChannelConfig byAccountKey(String accountKey) {
+                return rt.configProvider.getByAccountKey(raw.getChannelCode(), accountKey);
             }
         });
         if (event == null || event.getType() == null) {

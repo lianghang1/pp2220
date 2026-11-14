@@ -7,6 +7,10 @@ package io.github.lianghang1.paygateway.channel;
  * <p>框架对参数内容零感知——渠道包在自己的 Handler 内向下转型为自己定义的类型；
  * 类型不匹配时按 {@code CONFIG_MISSING} 语义报错，快速暴露配置错装问题。</p>
  *
+ * <p>{@link #channelAppId()} 同时是回调配置反查账户键的输入：框架会结合
+ * {@code ChannelConfig.subMchNo} 经 {@link ChannelAccountKey#of(String, String)}
+ * 生成唯一账户键。多个配置生成相同账户键时配置装载直接失败，不再静默覆盖。</p>
+ *
  * @author lianghang
  */
 public interface ChannelParams {

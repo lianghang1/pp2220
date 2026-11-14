@@ -12,6 +12,7 @@ import io.github.lianghang1.paygateway.api.CallbackEvent;
 import io.github.lianghang1.paygateway.api.ChannelCallbackRequest;
 import io.github.lianghang1.paygateway.channel.CallbackConfigLookup;
 import io.github.lianghang1.paygateway.channel.ChannelCallbackHandler;
+import io.github.lianghang1.paygateway.channel.ChannelAccountKey;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -49,11 +50,12 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "微信通知报文为空");
         }
         String appId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("appId");
-        if (StringUtils.isBlank(appId)) {
+        String accountKey = ChannelAccountKey.resolve(raw, appId);
+        if (StringUtils.isBlank(accountKey)) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "微信回调地址需携带 appId 查询参数以定位渠道配置");
+                    "微信回调地址需携带 appId 或 accountKey 查询参数以定位渠道配置");
         }
-        ChannelConfig config = configLookup.byChannelApp(appId);
+        ChannelConfig config = configLookup.byAccountKey(accountKey);
         WechatParams params = WechatClientHolder.paramsOf(config);
         WxPayService service = holder.service(config);
 

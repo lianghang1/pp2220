@@ -5,6 +5,7 @@ import io.github.lianghang1.paygateway.api.CallbackEvent;
 import io.github.lianghang1.paygateway.api.ChannelCallbackRequest;
 import io.github.lianghang1.paygateway.channel.CallbackConfigLookup;
 import io.github.lianghang1.paygateway.channel.ChannelCallbackHandler;
+import io.github.lianghang1.paygateway.channel.ChannelAccountKey;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -48,7 +49,7 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
         if (StringUtils.isBlank(appId)) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "支付宝通知缺少 app_id");
         }
-        ChannelConfig config = configLookup.byChannelApp(appId);
+        ChannelConfig config = configLookup.byAccountKey(ChannelAccountKey.resolve(raw, appId));
         AlipayParams alipayParams = AlipayClientHolder.paramsOf(config);
 
         boolean verified = wrapVerify(params, alipayParams);

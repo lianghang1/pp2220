@@ -9,6 +9,7 @@ import io.github.lianghang1.paygateway.channel.BillHandler;
 import io.github.lianghang1.paygateway.channel.CallbackConfigLookup;
 import io.github.lianghang1.paygateway.channel.ChannelCallbackHandler;
 import io.github.lianghang1.paygateway.channel.ChannelCode;
+import io.github.lianghang1.paygateway.channel.ChannelAccountKey;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.channel.ChannelParams;
 import io.github.lianghang1.paygateway.channel.ChannelProvider;
@@ -203,7 +204,8 @@ public class MockChannelProvider implements ChannelProvider {
             @Override
             public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
                 String sign = raw.getHeaders() == null ? null : raw.getHeaders().get(SIGN_HEADER);
-                ChannelConfig config = configLookup.byChannelApp(appKeyOf(raw));
+                ChannelConfig config = configLookup.byAccountKey(
+                        ChannelAccountKey.resolve(raw, appKeyOf(raw)));
                 MockParams params = params(config);
                 if (StringUtils.isBlank(sign) || !sign.equals(params.getAppKey())) {
                     throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "模拟渠道验签失败");
