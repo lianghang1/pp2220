@@ -60,4 +60,9 @@ public interface ChannelProvider {
     default ChannelCallbackHandler callbackHandler() {
         return null;
     }
+
+    /** 渠道用户标识能力（JSAPI 下单前获取 openid/buyerUserId）；不支持返回 null。 */
+    default ChannelUserHandler channelUserHandler() {
+        return null;
+    }
 }

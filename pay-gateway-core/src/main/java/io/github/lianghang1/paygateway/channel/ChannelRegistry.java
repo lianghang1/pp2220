@@ -68,6 +68,11 @@ public class ChannelRegistry {
         return capability(channelCode, provider(channelCode).profitShareHandler(), "分账");
     }
 
+    /** 渠道用户标识能力。 */
+    public ChannelUserHandler channelUserHandler(String channelCode) {
+        return capability(channelCode, provider(channelCode).channelUserHandler(), "用户标识");
+    }
+
     /** 渠道账单能力。 */
     public BillHandler billHandler(String channelCode) {
         return capability(channelCode, provider(channelCode).billHandler(), "账单");

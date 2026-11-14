@@ -39,6 +39,8 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
     private String apiV2Key;
     /** V2 企业付款密钥（缺省复用 apiV2Key） */
     private String entPayKey;
+    /** 公众号/小程序 AppSecret（仅渠道用户标识 OAuth2 授权需要，选填） */
+    private String appSecret;
     /** APIv3 密钥 */
     private String apiV3Key;
     /** V3 商户 API 证书序列号 */
@@ -59,6 +61,7 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
             params.setSubAppId(StringUtils.trimToNull(properties.get("subAppId")));
             params.setApiV2Key(properties.get("apiV2Key"));
             params.setEntPayKey(properties.get("entPayKey"));
+            params.setAppSecret(properties.get("appSecret"));
             params.setApiV3Key(properties.get("apiV3Key"));
             params.setMerchantSerialNumber(properties.get("merchantSerialNumber"));
             params.setMerchantPrivateKey(properties.get("merchantPrivateKey"));

@@ -48,6 +48,16 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
     }
 
     @Override
+    public void bindReceiver(ProfitShareReceiver receiver, ChannelConfig config) {
+        WechatDivisionReceiverSupport.bindReceiver(receiver, config, holder);
+    }
+
+    @Override
+    public void unbindReceiver(ProfitShareReceiver receiver, ChannelConfig config) {
+        WechatDivisionReceiverSupport.unbindReceiver(receiver, config, holder);
+    }
+
+    @Override
     public ProfitShareInvocation createProfitShare(ProfitShare share, ChannelConfig config) {
         WechatParams params = WechatClientHolder.paramsOf(config);
         WxPayService service = holder.service(config);

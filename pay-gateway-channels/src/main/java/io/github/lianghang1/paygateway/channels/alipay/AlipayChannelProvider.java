@@ -73,4 +73,9 @@ public class AlipayChannelProvider implements ChannelProvider {
     public io.github.lianghang1.paygateway.channel.ChannelCallbackHandler callbackHandler() {
         return new AlipayCallbackHandler(holder);
     }
+
+    @Override
+    public io.github.lianghang1.paygateway.channel.ChannelUserHandler channelUserHandler() {
+        return new AlipayChannelUserHandler(holder);
+    }
 }

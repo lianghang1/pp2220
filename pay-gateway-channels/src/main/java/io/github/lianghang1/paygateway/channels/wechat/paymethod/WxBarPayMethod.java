@@ -13,6 +13,7 @@ import io.github.lianghang1.paygateway.model.Payment;
 import io.github.lianghang1.paygateway.model.PaymentState;
 import io.github.lianghang1.paygateway.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -33,8 +34,7 @@ public class WxBarPayMethod implements WechatPayMethod {
     @Override
     public PaymentInvocation createPayment(Payment payment, io.github.lianghang1.paygateway.channel.ChannelConfig config, WechatParams params, WxPayService service) {
         if (WechatPartnerSupport.isIsv(config)) {
-            throw new GatewayException(GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
-                    "微信付款码服务商模式走 V2 子商户配置，暂未支持");
+            return isvMicropay(payment, config, params);
         }
         Map<String, String> extras = StringUtils.isBlank(payment.getExtParams())
                 ? null : WxJsapiPayMethod.flatExtras(payment.getExtParams());
@@ -54,6 +54,40 @@ public class WxBarPayMethod implements WechatPayMethod {
         boolean success = "SUCCESS".equals(result.getResultCode());
         return new PaymentInvocation()
                 .setChannelOrderNo(result.getTransactionId())
+                .setPayload(PayPayload.none())
+                .setState(success ? PaymentState.SUCCEEDED : PaymentState.PAYING);
+    }
+
+    /**
+     * 服务商模式付款码：V2 micropay 报文携带 sub_appid/sub_mchid
+     * （WxJava 普通商户模型未含子商户字段，经 V2 直连客户端实现）。
+     */
+    private PaymentInvocation isvMicropay(Payment payment,
+                                          io.github.lianghang1.paygateway.channel.ChannelConfig config,
+                                          WechatParams params) {
+        Map<String, String> extras = StringUtils.isBlank(payment.getExtParams())
+                ? new HashMap<String, String>() : WxJsapiPayMethod.flatExtras(payment.getExtParams());
+        String authCode = extras.get("authCode");
+        if (StringUtils.isBlank(authCode)) {
+            throw new GatewayException(GatewayErrorCode.BAD_REQUEST,
+                    "付款码支付需在 channelExtras 中提供 authCode");
+        }
+        Map<String, String> fields = new HashMap<String, String>();
+        fields.put("appid", params.getAppId());
+        fields.put("mch_id", params.getMerchantId());
+        fields.put("sub_appid", StringUtils.defaultIfBlank(params.getSubAppId(), params.getAppId()));
+        fields.put("sub_mch_id", config.getSubMchNo());
+        fields.put("body", StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
+        fields.put("out_trade_no", payment.getPaymentId());
+        fields.put("total_fee", String.valueOf(payment.getAmount()));
+        fields.put("spbill_create_ip", StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
+        fields.put("auth_code", authCode);
+        Map<String, String> result = new io.github.lianghang1.paygateway.channels.wechat.WechatV2Client()
+                .execute(params, "/pay/micropay", fields);
+        boolean success = "SUCCESS".equals(result.get("result_code"))
+                && "SUCCESS".equals(result.get("trade_state"));
+        return new PaymentInvocation()
+                .setChannelOrderNo(result.get("transaction_id"))
                 .setPayload(PayPayload.none())
                 .setState(success ? PaymentState.SUCCEEDED : PaymentState.PAYING);
     }

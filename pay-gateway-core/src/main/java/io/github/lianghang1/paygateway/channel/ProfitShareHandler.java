@@ -19,4 +19,23 @@ public interface ProfitShareHandler {
 
     /** 查询渠道侧分账状态：用于分账单补单。 */
     ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config);
+
+    /**
+     * 绑定分账接收方（渠道要求先绑定后分账的渠道必须实现，如微信）。
+     * 默认抛「渠道不支持该能力」——渠道无绑定要求的可不实现。
+     */
+    default void bindReceiver(io.github.lianghang1.paygateway.model.ProfitShareReceiver receiver,
+                              ChannelConfig config) {
+        throw new io.github.lianghang1.paygateway.exception.GatewayException(
+                io.github.lianghang1.paygateway.exception.GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
+                "渠道不支持分账接收方绑定");
+    }
+
+    /** 解绑分账接收方；默认抛「渠道不支持该能力」。 */
+    default void unbindReceiver(io.github.lianghang1.paygateway.model.ProfitShareReceiver receiver,
+                                ChannelConfig config) {
+        throw new io.github.lianghang1.paygateway.exception.GatewayException(
+                io.github.lianghang1.paygateway.exception.GatewayErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
+                "渠道不支持分账接收方解绑");
+    }
 }

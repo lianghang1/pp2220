@@ -75,4 +75,9 @@ public class WechatChannelProvider implements ChannelProvider {
     public io.github.lianghang1.paygateway.channel.ChannelCallbackHandler callbackHandler() {
         return new WechatCallbackHandler(holder);
     }
+
+    @Override
+    public io.github.lianghang1.paygateway.channel.ChannelUserHandler channelUserHandler() {
+        return new WechatChannelUserHandler();
+    }
 }

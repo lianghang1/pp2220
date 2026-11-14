@@ -9,6 +9,7 @@ import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
 import io.github.lianghang1.paygateway.model.BizOrderType;
+import io.github.lianghang1.paygateway.util.JsonUtils;
 import io.github.lianghang1.paygateway.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,6 +56,23 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
             throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "支付宝通知验签失败");
         }
 
+        // 支付宝转账通知（fund_trans）：通知体含 biz_content（内嵌 out_biz_no/status），
+        // 与支付通知（trade_status 顶层字段）互斥，据此归类
+        String bizContent = params.get("biz_content");
+        if (StringUtils.isNotBlank(bizContent) && params.get("trade_status") == null) {
+            Map<String, Object> biz = JsonUtils.toMap(bizContent);
+            String status = biz.get("status") == null ? null : String.valueOf(biz.get("status"));
+            String outBizNo = biz.get("out_biz_no") == null ? null : String.valueOf(biz.get("out_biz_no"));
+            return new CallbackEvent()
+                    .setType(BizOrderType.TRANSFER)
+                    .setAppId(config.getAppId())
+                    .setBizOrderNo(outBizNo)
+                    .setChannelOrderNo(biz.get("order_id") == null
+                            ? null : String.valueOf(biz.get("order_id")))
+                    .setSuccess("SUCCESS".equals(status))
+                    .setRaw(flatten(params));
+        }
+
         CallbackEvent event = new CallbackEvent()
                 .setType(BizOrderType.PAYMENT)
                 .setAppId(config.getAppId())
@@ -66,6 +84,10 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
                 .setOccurTime(parseTime(params.get("gmt_payment")))
                 .setRaw(params);
         return event;
+    }
+
+    private Map<String, String> flatten(Map<String, String> source) {
+        return new java.util.HashMap<String, String>(source);
     }
 
     private boolean wrapVerify(Map<String, String> params, AlipayParams alipayParams) {
