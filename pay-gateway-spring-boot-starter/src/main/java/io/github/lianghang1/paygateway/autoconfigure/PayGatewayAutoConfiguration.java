@@ -66,6 +66,12 @@ public class PayGatewayAutoConfiguration {
         return new io.github.lianghang1.paygateway.channels.unionpay.UnionPayChannelProvider();
     }
 
+    @Bean
+    @ConditionalOnMissingBean(io.github.lianghang1.paygateway.channels.paypal.PayPalChannelProvider.class)
+    public io.github.lianghang1.paygateway.channels.paypal.PayPalChannelProvider payPalChannelProvider() {
+        return new io.github.lianghang1.paygateway.channels.paypal.PayPalChannelProvider();
+    }
+
     // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean
