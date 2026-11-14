@@ -49,6 +49,8 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
     private String merchantPrivateKey;
     /** 微信回调地址 */
     private String notifyUrl;
+    /** 沙箱开关（V2 仿真系统；V3 无官方沙箱，此开关仅影响 V2） */
+    private boolean sandbox;
     /** 协议版本（v2/v3，缺省 v3） */
     private String wxApiVersion = API_VERSION_V3;
 
@@ -62,6 +64,7 @@ public class WechatParams implements io.github.lianghang1.paygateway.channel.Cha
             params.setApiV2Key(properties.get("apiV2Key"));
             params.setEntPayKey(properties.get("entPayKey"));
             params.setAppSecret(properties.get("appSecret"));
+            params.setSandbox("true".equalsIgnoreCase(properties.get("sandbox")));
             params.setApiV3Key(properties.get("apiV3Key"));
             params.setMerchantSerialNumber(properties.get("merchantSerialNumber"));
             params.setMerchantPrivateKey(properties.get("merchantPrivateKey"));

@@ -32,7 +32,7 @@
 
 ## 联调
 
-真实账号（沙箱）到位后按 [docs/integration-checklist.md](docs/integration-checklist.md) 逐项联调；
+真实账号（沙箱）到位后按 [docs/integration-checklist.md](docs/integration-checklist.md) 与 [docs/config-keys.md](docs/config-keys.md) 逐项联调；
 example 内置沙箱配置模板（application-sandbox.yml）。
 
 ## 快速开始（Spring Boot）

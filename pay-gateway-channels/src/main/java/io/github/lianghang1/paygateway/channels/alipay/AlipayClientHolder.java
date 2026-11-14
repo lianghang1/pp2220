@@ -30,7 +30,7 @@ public class AlipayClientHolder {
         return clients.computeIfAbsent(params, key -> {
             try {
                 AlipayConfig alipayConfig = new AlipayConfig();
-                alipayConfig.setServerUrl(key.getGateway());
+                alipayConfig.setServerUrl(key.effectiveGateway());
                 alipayConfig.setAppId(key.getAppId());
                 alipayConfig.setPrivateKey(key.getPrivateKey());
                 alipayConfig.setAlipayPublicKey(key.getAlipayPublicKey());
