@@ -20,7 +20,7 @@
 **配置**：
 
 ```yaml
-pay-gateway:
+conflux.pay:
   apps:
     demo:
       channels:
@@ -52,7 +52,7 @@ pay-gateway:
 **配置**：
 
 ```yaml
-pay-gateway:
+conflux.pay:
   apps:
     demo:
       channels:
@@ -81,7 +81,7 @@ API 安全中心申请 API 证书（拿证书序列号与私钥）+ 设置 APIv3
 **配置**：
 
 ```yaml
-pay-gateway:
+conflux.pay:
   apps:
     demo:
       channels:
@@ -109,7 +109,7 @@ Native 扫码；退款（V3 回调）；商家转账；分账（需开通分账�
 **配置**：
 
 ```yaml
-pay-gateway:
+conflux.pay:
   apps:
     demo:
       channels:

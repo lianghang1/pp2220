@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.lianghang1</groupId>
+        <artifactId>conflux-pay</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-pay-channels</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-pay-channels</name>
+    <description>渠道实现集合：mock / wechat / alipay / unionpay / paypal，按包隔离；渠道专属 SDK 依赖 optional，缺依赖不影响其他渠道</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.lianghang1</groupId>
+            <artifactId>conflux-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.lianghang1</groupId>
+            <artifactId>conflux-pay-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 渠道专属 SDK：optional，使用方按需引入对应坐标后该渠道才会激活 -->
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-pay</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: conflux-invoice-example
+
+conflux:
+  invoice:
+    # 默认注册 mock 渠道，零凭据即可启动
+    mock-enabled: true
+    apps:
+      demo:
+        channels:
+          mock:
+            # 销方纳税人识别号（企业准入标识，也是多账户路由/回调反查键的一段）
+            seller-tax-no: "91310000MOCK000001"
+            notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+            sandbox: true
+            tier: SERVICE_API
+            priority: 10
+            enabled: true
+            attrs:
+              appKey: "demo-app-key"
+              appSecret: "demo-secret"
+              issueOutcome: "AUTH"
+              redConfirmOutcome: "CONFIRMED"

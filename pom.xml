@@ -5,117 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.lianghang1</groupId>
-    <artifactId>pay-gateway</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <artifactId>conflux-parent</artifactId>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
-    <name>pay-gateway</name>
-    <description>可嵌入的聚合支付网关框架：统一支付 API、多渠道适配、异步通知、对账</description>
+    <name>conflux-parent</name>
+    <description>Conflux 聚合器（纯 reactor 入口）：仅汇总模块，不发布、不作为任何模块的 parent。
+        各能力域（common / pay / invoice）有独立的父 pom 与独立版本号，互不影响发版节奏。</description>
 
     <modules>
-        <module>pay-gateway-core</module>
-        <module>pay-gateway-channels</module>
-        <module>pay-gateway-spring-boot-starter</module>
-        <module>pay-gateway-example</module>
+        <module>conflux-common</module>
+        <module>conflux-pay</module>
+        <module>conflux-invoice</module>
     </modules>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <java.version>1.8</java.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-
-        <spring-boot.version>2.7.18</spring-boot.version>
-        <okhttp.version>4.12.0</okhttp.version>
-        <guava.version>32.1.3-jre</guava.version>
-        <weixin-java-pay.version>4.7.2.B</weixin-java-pay.version>
-        <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
-        <ttl.version>2.14.5</ttl.version>
-    </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <!-- 官方 BOM：Spring 全家桶与常用三方件版本出口 -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>${spring-boot.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- 自产模块 -->
-            <dependency>
-                <groupId>io.github.lianghang1</groupId>
-                <artifactId>pay-gateway-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.lianghang1</groupId>
-                <artifactId>pay-gateway-channels</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.lianghang1</groupId>
-                <artifactId>pay-gateway-spring-boot-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <!-- BOM 未覆盖的三方件 -->
-            <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>okhttp</artifactId>
-                <version>${okhttp.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.guava</groupId>
-                <artifactId>guava</artifactId>
-                <version>${guava.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.binarywang</groupId>
-                <artifactId>weixin-java-pay</artifactId>
-                <version>${weixin-java-pay.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.alipay.sdk</groupId>
-                <artifactId>alipay-sdk-java</artifactId>
-                <version>${alipay-sdk.version}</version>
-            </dependency>
-
-            <!-- 上下文传递 -->
-            <dependency>
-                <groupId>com.alibaba</groupId>
-                <artifactId>transmittable-thread-local</artifactId>
-                <version>${ttl.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.10.1</version>
-                    <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
-                        <encoding>UTF-8</encoding>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.22.2</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring-boot.version}</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
 </project>

@@ -3,7 +3,7 @@
 配置采用「统一基础键 + 渠道扩展键」两层模型：
 语义相同的键全渠道同名（`notifyUrl` / `sandbox` / `subMchNo`），
 各渠道凭证体系不同的部分使用渠道自有命名，统一放在 `attrs` 下。
-均经 `pay-gateway.apps.<appId>.channels.<渠道>` 声明。
+均经 `conflux.pay.apps.<appId>.channels.<渠道>` 声明。
 
 ## 统一基础键（全渠道同名）
 
@@ -91,7 +91,7 @@
 配置示例（同一渠道应用标识、两个特约商户各用一份配置）：
 
 ```yaml
-pay-gateway:
+conflux.pay:
   apps:
     brand-a:
       channels:

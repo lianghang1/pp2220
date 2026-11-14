@@ -1,0 +1,51 @@
+package io.github.lianghang1.conflux.invoice.autoconfigure;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * 发票 starter 配置（{@code conflux.invoice.*}）。
+ *
+ * <p>结构为「应用 → 渠道 → 配置项」。相较支付域多了
+ * {@code sellerTaxNo}（企业准入标识）与 {@code tier/priority}（通道分级路由），
+ * 因为同一应用下可能有多个销方税号、同一税号又可能有多级通道。</p>
+ *
+ * @author lianghang
+ */
+@Data
+@ConfigurationProperties(prefix = "conflux.invoice")
+public class InvoiceProperties {
+
+    /** 应用 → 渠道配置。 */
+    private Map<String, AppProperties> apps = new LinkedHashMap<String, AppProperties>();
+
+    /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
+    private boolean mockEnabled = true;
+
+    /** 单应用的渠道配置集合。 */
+    @Data
+    public static class AppProperties {
+        /** 渠道编码 → 渠道配置。 */
+        private Map<String, ChannelProperties> channels = new LinkedHashMap<String, ChannelProperties>();
+    }
+
+    /** 单渠道配置：统一基础键 + attrs 渠道个性键值包。 */
+    @Data
+    public static class ChannelProperties {
+        /** 销方纳税人识别号（企业准入标识，也是多账户路由键）。 */
+        private String sellerTaxNo;
+        /** 渠道异步通知地址。 */
+        private String notifyUrl;
+        private boolean sandbox;
+        /** 通道分级：DIRECT_TAX / SERVICE_API / WEB_PORTAL，留空取渠道默认值。 */
+        private String tier;
+        /** 同级别内权重，数值越大越优先。 */
+        private int priority;
+        private boolean enabled = true;
+        /** 渠道个性键值包（经 InvoiceChannelProvider.parseParams 解析）。 */
+        private Map<String, String> attrs = new LinkedHashMap<String, String>();
+    }
+}

@@ -1,214 +1,223 @@
-# pay-gateway
+# Conflux
 
-可嵌入的聚合支付网关框架（JDK 8+）。
+可嵌入的多能力域聚合接入框架（**JDK 8+ / Spring Boot 2.7.x**），目前包含 **支付** 与 **数电发票** 两个能力域。
 
-## 特性
+> **定位**：Conflux 不是独立运行的中间件，而是给成熟应用直接引入的 SDK。框架只负责「统一模型 ↔ 渠道协议」的翻译、状态机编排、回调路由与并发契约；持久化、下游通知接收、定时任务由使用方实现或注册为 Bean。
+
+## 工程结构
+
+根 `pom.xml`（`conflux-parent`）是**纯聚合器**：不发布、不作为任何模块的 parent。每个能力域有独立父 pom 与独立版本号，互不影响发版节奏。
+
+```
+conflux-parent (聚合器, 1.0.0)
+├── conflux-common          1.0.0          公共基座（工具 / 异常骨架 / HTTP 传输层）
+├── conflux-pay             1.0.0-SNAPSHOT 支付能力域（4 个子模块）
+│   ├── conflux-pay-core                 内核：模型、状态机、SPI、编排引擎，零 Spring 依赖
+│   ├── conflux-pay-channels             渠道实现（mock / wechat / alipay / unionpay / paypal）
+│   ├── conflux-pay-spring-boot-starter  Spring Boot 2.x 自动装配
+│   └── conflux-pay-example              演示宿主
+└── conflux-invoice         0.1.0-SNAPSHOT 发票能力域（4 个子模块）
+    ├── conflux-invoice-core              发票内核（可挂起状态机 / 渠道 SPI / Store 契约）
+    ├── conflux-invoice-channels          渠道实现（mock + 4 家服务商）
+    ├── conflux-invoice-spring-boot-starter
+    └── conflux-invoice-example
+```
+
+**命名约定**：产品名 `conflux` 永远作为第一段。
+
+| 能力域 | Java 包 | 配置前缀 | 错误码段 |
+|---|---|---|---|
+| 公共基座 | `io.github.lianghang1.conflux.common.*` | — | 1xxx `CommonErrorCode` |
+| 支付 | `io.github.lianghang1.conflux.pay.*` | `conflux.pay.*` | 2xxx `GatewayErrorCode` |
+| 发票 | `io.github.lianghang1.conflux.invoice.*` | `conflux.invoice.*` | 3xxx `InvoiceErrorCode` |
+
+公共基座只持 `ErrorCode` 契约与 1xxx 通用码；`JsonUtils` 只抛 JDK 标准 `IllegalArgumentException`，不依赖任何业务异常。OkHttp 只出现在 `common` 的 `HttpTransport`，pay 与 invoice 渠道一律经该传输层发请求，不直接依赖 OkHttp。
+
+---
+
+## 能力域一：支付（conflux-pay）
 
 - **统一支付 API**：支付、查询、关闭、退款、转账、分账，一套出入参模型
-- **多渠道适配**：渠道实现集中单模块按包隔离，渠道专属 SDK/签名/报文封闭在各自包内；新增渠道零改内核
-- **零表结构**：框架不建表、不绑存储，持久化通过 Store SPI 交给使用方实现（订单、通知、对账差错等记录全部自定义落库）
-- **双形态引入**：任意 Java 应用直接引 core jar 手动组装；Spring Boot 应用引 starter 自动装配
-- **异步通知**：渠道回调验签解析 → 统一状态机迁移 → 事件发布 → 下游 HTTP 通知（分级退避重试 + 通知留痕）
-- **对账**：渠道账单与本地订单比对，差错分类留痕、渠道成功而本地未成功的订单自动修正
-
-## 模块
-
-| 模块 | 说明 |
-|---|---|
-| pay-gateway-core | 渠道无关内核：模型、状态机、SPI、编排引擎，零 Spring 依赖 |
-| pay-gateway-channels | 全部渠道实现，按包隔离（mock / wechat / alipay / unionpay / paypal） |
-| pay-gateway-spring-boot-starter | Spring Boot 2.x 自动装配，`pay-gateway.*` 配置绑定 |
-| pay-gateway-example | 演示宿主：starter 接入 + 使用方自行实现 Store + 回调入口 |
-
-渠道能力矩阵：
+- **多渠道适配**：渠道按包隔离，渠道专属 SDK/签名/报文封闭在各自包内，新增渠道零改内核
+- **零表结构**：框架不建表，持久化通过 Store SPI 交给使用方
+- **双形态引入**：纯 jar 手动组装 / Spring Boot starter 自动装配
+- **异步通知与对账**：回调验签 → 状态机 → 事件 → 下游 HTTP 通知；渠道账单与本地订单比对修正
 
 | 渠道 | 支付方式 | 退款 | 转账 | 分账 | 账单 | 回调验签 |
 |---|---|---|---|---|---|---|
-| wechat | JSAPI(公众号) / LITE(小程序) / Native(WEB扫码) / H5 / APP / BAR(付款码)，V2/V3 双协议 | ✓ | 商家转账(V3)+企业付款(V2) | ✓ | ✓ | V3 平台证书验签 / V2 MD5 |
-| alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓（同步） | 单笔转账 | ✓（结算规则） | ✓ | RSA2 公钥 |
-| unionpay | 银联二维码 / 银联付款码 / 转接微信 JSAPI·付款码 / 转接支付宝 JSAPI·付款码 | ✓ | — | — | — | 平台公钥 |
-| paypal | Orders v2（批准→捕获） | ✓（捕获单） | Payouts | — | — | Webhook 官方验签接口 |
+| wechat | JSAPI / 小程序 / Native / H5 / APP / 付款码，V2·V3 双协议 | ✓ | ✓ | ✓ | ✓ | V3 平台证书 / V2 MD5 |
+| alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓ | ✓ | ✓ | ✓ | RSA2 公钥 |
+| unionpay | 银联二维码·付款码 / 转接微信·支付宝 | ✓ | — | — | — | 平台公钥 |
+| paypal | Orders v2（批准→捕获） | ✓ | Payouts | — | — | Webhook 官方验签 |
 | mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
 
-## 联调
+**多账户回调路由**：同一渠道可配置多个账户。服务商模式用 `accountKey`（`channelAppId#subMchNo`）在回调 URL 上定位账户；配置装载期用 `putIfAbsent` 建唯一反查索引，键冲突立即抛 `CONFIG_CONFLICT` 使启动失败，绝不静默覆盖。详见 [docs/config-keys.md](docs/config-keys.md)。
 
-真实账号（沙箱）到位后按 [docs/integration-checklist.md](docs/integration-checklist.md) 与 [docs/config-keys.md](docs/config-keys.md) 逐项联调；
-example 内置沙箱配置模板（application-sandbox.yml）。
-
-## 快速开始（Spring Boot）
-
-### 1. 引入依赖
+### 快速开始（支付）
 
 ```xml
 <dependency>
     <groupId>io.github.lianghang1</groupId>
-    <artifactId>pay-gateway-spring-boot-starter</artifactId>
+    <artifactId>conflux-pay-spring-boot-starter</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-</dependency>
-<!-- 渠道专属 SDK 按需引入（可选依赖，缺依赖的渠道不激活） -->
-<dependency>
-    <groupId>com.github.wechatpay-apiv3</groupId>
-    <artifactId>wechatpay-java</artifactId>
 </dependency>
 ```
 
-### 2. 配置
-
 ```yaml
-pay-gateway:
+conflux.pay:
   notify:
     retry-seconds: [15, 15, 30, 180, 600, 1200]
-    secret: 下游通知签名密钥（可选，配置后通知携带 HMAC 头）
+    secret: 下游通知签名密钥
   apps:
     app-001:
       channels:
-        wechat:
-          merchantId: 商户号
-          merchantSerialNumber: 商户证书序列号
-          merchantPrivateKey: "PEM 私钥文本（\n 转义换行）"
-          apiV3Key: APIv3密钥
-          appId: 微信AppID
-          wxApiVersion: v3            # v2/v3 双协议，缺省 v3
-          apiV2Key: V2商户支付密钥    # wxApiVersion=v2 或付款码/企业付款时必填
-          notifyUrl: https://你的域名/callback/wechat
-        alipay:
-          appId: 支付宝AppID
-          privateKey: 应用私钥
-          alipayPublicKey: 支付宝公钥
-          notifyUrl: https://你的域名/callback/alipay
-        unionpay:
-          merchantId: 商户号
-          p12CertPath: /cert/unionpay.p12
-          p12CertPassword: 证书密码
-          publicKey: 平台公钥
-          notifyUrl: https://你的域名/callback/unionpay
-        paypal:
-          sandbox: true
-          clientId: ClientID
-          clientSecret: ClientSecret
-          webhookId: WebhookID
         mock:
-          appKey: mock-app-key
+          notifyUrl: http://127.0.0.1:8088/callback/mock
+          attrs:
+            appKey: demo-app-key
+            payOutcome: paying
 ```
 
-### 3. 实现 Store（框架不建表，按你的习惯落库）
+实现并注册 `PaymentStore` 等 Store Bean，注入 `PaymentGateway` 即可下单。完整配置键、联调清单与回调示例见 [docs/config-keys.md](docs/config-keys.md)、[docs/integration-checklist.md](docs/integration-checklist.md)。
 
-以支付单为例，实现并注册为 Bean（其余退款/转账/分账/通知/差错存储按需）：
+---
+
+## 能力域二：数电发票（conflux-invoice）
+
+参考支付域的 Ports & Adapters / Strategy 模式，把 `百旺 / 票通 / 航信 / 金蝶 / 企享云` 等服务商类比支付里的 `微信 / 支付宝`。但发票有支付没有的语义，因此内核不是支付模型的简单复制：
+
+| 差异 | 支付 | 数电发票 | Conflux 的建模 |
+|---|---|---|---|
+| 企业准入 | 商户号即可 | 税号需准入、税局备案 | `sellerTaxNo` 作为配置第三维与路由键 |
+| 通道分级 | 无 | 乐企直连 / 服务商 API / 电局网页 RPA 并存 | `ChannelTier` + `ChannelInstance` 择优路由 |
+| 人工授权 | 无 | 扫脸 / 短信 / 扫码，登录态会过期 | `WAITING_AUTH` 挂起态 + `AuthSession` 端口 |
+| 异步长耗时 | 少见 | 开票 40s+ 常转异步 | `PROCESSING` + 查单/回调推进 |
+| 法定原件 | 无 | XML 是法定原件 | 无 XML 原件**拒绝**置为 `SUCCEEDED` |
+| 红冲 | 退款一次调用 | 红字确认单需对方确认，两段长事务 | `RedApply` 独立实体 + 两段状态机 |
+| 并发契约 | `update` 全量覆盖 | 回调与补单并发必须可表达 | Store 带 **CAS** 与**租约** |
+
+### 状态机
+
+```
+CREATED → SUBMITTING → WAITING_AUTH ⇄ SUBMITTING → PROCESSING → SUCCEEDED
+                                                        ↓
+                              SUCCEEDED → RED_APPLYING → RED_APPLY_CONFIRMED → RED_SUCCEEDED
+```
+
+- `WAITING_AUTH` / `RED_APPLYING` 是**挂起态**，不是失败也不是终态，可被授权提交、查单或回调唤醒。
+- `SUCCEEDED` **不是终态**（开票成功后仍可发起红冲）；真正终态是 `FAILED` / `CLOSED` / `RED_SUCCEEDED`。
+- 所有迁移集中在 `InvoiceStateMachine` 一张显式表里，非法跃迁抛 `STATE_ILLEGAL`。
+
+### Store 并发契约（对支付域契约缺位的修正）
 
 ```java
-@Component
-public class MyPaymentStore implements PaymentStore {
-    // save / update / findById / findByBizOrderNo（幂等键）
-    // findByChannelOrderNo / findPayingBefore（补单） / findByChannelAndDate（对账）
-}
+boolean tryUpdate(Invoice invoice, long expectedVersion);          // CAS：版本不匹配返回 false 且不写入
+List<Invoice> claimProcessingBefore(LocalDateTime threshold, int limit,
+                                    String owner, long leaseMillis); // 原子「查询 + 认领」，租约期内不重复领取
 ```
 
-建议：`appId + 业务单号` 建唯一索引（幂等）、渠道单号建普通索引（回调/补单定位）。完整示例见 `pay-gateway-example`（JPA/H2 实现）。
+每次状态迁移都走 CAS 写入，失败抛 `STORE_CONCURRENT_MODIFICATION` 让补单/回调重试，避免回调线程与补单线程互相全量覆盖。`core` 的 `support` 包提供纯 JDK 内存参考实现（含深拷贝、租约、XML 归档），仅供单测与 example；生产请自行落库。
 
-### 4. 注入网关并下单
+### 快速开始（发票）
+
+```xml
+<dependency>
+    <groupId>io.github.lianghang1</groupId>
+    <artifactId>conflux-invoice-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
+```yaml
+conflux.invoice:
+  mock-enabled: true
+  apps:
+    demo:
+      channels:
+        mock:
+          seller-tax-no: "91310000MOCK000001"
+          notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+          tier: SERVICE_API
+          attrs:
+            appKey: demo-app-key
+            appSecret: demo-secret
+            issueOutcome: AUTH       # AUTH / ASYNC / SUCCESS / FAIL
+            redConfirmOutcome: CONFIRMED
+```
+
+注册 4 个 Store Bean（`InvoiceStore` / `RedApplyStore` / `AuthSessionStore` / `InvoiceFileStore`），缺失时启动直接失败并给出提示。然后：
 
 ```java
-PaymentResult result = paymentGateway.createPayment(new PaymentRequest()
-        .setAppId("app-001")
-        .setBizOrderNo("订单号")
-        .setMethod("WECHAT_NATIVE")   // 或 ALI_QR / UNION_QR / PAYPAL_SALE ...
-        .setAmount(9900L)             // 分
-        .setSubject("商品标题")
-        .setNotifyUrl("http://你的业务/notify"));  // 支付成功后网关回调你的业务
-// result.getPayPayload(): QRCODE 码值 / REDIRECT 跳转链接 / JSAPI 唤起参数
+InvoiceResult r = gateway.issue(new InvoiceRequest()
+        .setAppId("demo").setBizOrderNo("B001")
+        .setSellerTaxNo("91310000MOCK000001").setBuyerTitle("购方企业")
+        .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
+        .setItems(items).setAmount(new BigDecimal("1000.00")));
+
+// r.getState() == WAITING_AUTH → 引导用户完成短信/扫码
+InvoiceResult done = gateway.submitAuth(new AuthSubmission()
+        .setSessionId(r.getAuthChallenge().getSessionId()).setCaptcha("123456"));
+// done.getState() == SUCCEEDED，done.hasLegalXml() == true
+
+RedApply apply = gateway.applyRed(...);   // 第一段：申请红字确认单（WAITING_CONFIRM）
+gateway.confirmRed(apply.getRedApplyId()); // 对方确认 → CONFIRMED
+gateway.issueRed(...);                     // 第二段：开红字发票 → 原票 RED_SUCCEEDED
 ```
 
-### 5. 暴露渠道回调入口（使用方自写 Controller）
+`conflux-invoice-example` 提供可直接运行的 REST 宿主（`/api/invoices` 系列端点），默认 mock 渠道，零凭据即可跑通完整链路。
 
-```java
-@PostMapping("/callback/{channelCode}")
-public ResponseEntity<String> callback(@PathVariable String channelCode,
-        @RequestHeader Map<String, String> headers,
-        @RequestParam Map<String, String> queryParams,
-        @RequestBody(required = false) String body, HttpServletRequest request) {
-    try {
-        ChannelCallbackReply reply = paymentGateway.handleCallback(new ChannelCallbackRequest()
-                .setChannelCode(channelCode).setHeaders(headers)
-                .setQueryParams(queryParams).setFormParams(request.getParameterMap()...)
-                .setBody(body));
-        return ResponseEntity.status(reply.getStatusCode()).body(reply.getBody());
-    } catch (GatewayException e) {
-        return ResponseEntity.ok(paymentGateway.callbackFailureReply(channelCode)); // 触发渠道重推
-    }
-}
+---
+
+## 发票平台接入现状（如实标注）
+
+第一版先做「完全公开、有 API 文档」的平台。**框架不编造未经核实的 URL 与字段**：`RestChannelSpec.documentVerified` 标记文档核对状态，未核对的渠道默认不带任何接口路径、不暴露「假装能用」的能力，使用方按平台最新公开文档在 `attrs` 中配置路径与字段映射后即可启用。
+
+| 渠道编码 | 平台 | 通道级别 | 文档核对状态 | 已实现 |
+|---|---|---|---|---|
+| `mock` | 内置模拟 | SERVICE_API | 不适用 | 全能力：开票 / 授权 / 异步 / XML 原件 / 两段红冲 / 回调 |
+| `qixiangyun` | 企享云 | SERVICE_API | **蓝字开具接口已核对** | `POST /v2/invoice/qdfp/fpkjZzs`，字段 `action/async/nsrsbh/ly_ddbh/wjgs/fplxdm/xmmx/jshj/hjse/data.xsf_yhmc`；响应 `reqId/code/success/message/data.fphm`，`code=2001` 转异步。查单/红字/授权/文件下载需按文档配置路径 |
+| `baiwangjs` | 百旺金穗云 | SERVICE_API | **待核对** | 公开文档页当前抓到的是「进项发票入账提交接口」(`/swgx-saas/swgx-api/interface/jxgl/creditSubmit`)，**并非蓝字开具接口**，需重新定位开具/红冲/查询/文件下载文档页后配置 |
+| `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
+| `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
+
+配置驱动启用示例（以某待核对平台为例）：
+
+```yaml
+conflux.invoice.apps.demo.channels.baiwangjs.attrs:
+  baseUrl: https://<平台网关>
+  issuePath: /<蓝字开具路径>
+  queryPath: /<查单路径>
+  filePath: /<版式文件下载路径>
+  redApplyPath: /<红字申请路径>
+  redQueryPath: /<红字确认查询路径>
+  redIssuePath: /<红字开具路径>
+  fplxdm.DIGITAL_VAT_SPECIAL: "<平台专票编码>"
+  appKey: ...
+  appSecret: ...
 ```
 
-约定：微信回调地址带 `?appId=...`、云闪付带 `?merId=...`、PayPal 带 `?clientId=...` 查询参数用于配置反查。
+> 通用 REST 适配器的签名默认是 HMAC-SHA256 占位；各平台签名规则不同，正式接入前须按文档覆写 `buildHeaders`。详见 [docs/invoice-platforms.md](docs/invoice-platforms.md)。
 
-### 6. 兜底定时任务（通知重试 + 补单）
+---
 
-```java
-@Scheduled(fixedDelay = 10000)
-public void retryNotifies() { paymentGateway.retryPendingNotifies(100); }
+## 设计约定
 
-@Scheduled(fixedDelay = 30000)
-public void reissue() {
-    for (Payment p : paymentStore.findPayingBefore(LocalDateTime.now().minusMinutes(2), 50)) {
-        paymentGateway.queryPayment(new PaymentQueryRequest().setPaymentId(p.getPaymentId()));
-    }
-}
+- **错误码三段分层**：1xxx 通用 / 2xxx 支付 / 3xxx 发票，common 只持契约与通用段
+- **账户键**：支付 `channelAppId#subMchNo`、发票 `channelAppId#sellerTaxNo`；回调 URL 带 `?accountKey=...`（`#` 需转义为 `%23`），装载期冲突 fail-fast
+- **渠道实现无状态**：运行态数据一律从 `InvoiceContext` / 调用上下文取得，Provider 上不保存单据状态
+- **传输层边界**：`HttpTransport` 只返回原始 `HttpResponse(statusCode, body, headers)`，非 2xx 不抛异常；业务判定、JSON/XML 解析、错误码翻译全部在渠道层
+- **全栈 JDK 8**：不使用 `var` / `List.of` / `String.isBlank` 等 JDK 9+ API
+
+## 构建与测试
+
+```bash
+mvn -q -DfailIfNoTests=false test
 ```
 
-## 纯 jar 接入（无 Spring）
+当前全量 **127 个用例全绿**（common 6、pay 76、invoice 45）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端。
 
-```java
-PaymentGateway gateway = PaymentGateway.builder()
-        .channel(new MockChannelProvider())          // 或自定义渠道
-        .configProvider((appId, channel) -> myConfig) // 渠道配置提供者
-        .paymentStore(myPaymentStore)
-        .refundStore(myRefundStore)
-        .notifyLogStore(myNotifyLogStore)
-        .listener(event -> log.info("订单事件: {}", event.getType()))
-        .build();
-```
+## 文档索引
 
-## 订单状态机
-
-`CREATED → PAYING → SUCCEEDED / FAILED / CLOSED`；`SUCCEEDED → PART_REFUNDED → REFUNDED`。
-渠道回调、查单补单、对账修正共用同一状态机，重复通知按幂等语义处理。
-
-## 渠道差异说明
-
-- **金额**：框架与 Store 统一用「分」（Long）；微信/云闪付原生接口分，支付宝/PayPal 由渠道包完成分↔元换算
-- **回调配置反查**：微信（appId）/ 支付宝（app_id，通知体内）/ 云闪付（merId）/ PayPal（clientId）——均通过回调地址查询参数或报文字段定位；服务商模式统一用 `accountKey`（`channelAppId#subMchNo`），账户键冲突在启动期抛 `CONFIG_CONFLICT`
-- **服务商模式**：微信（退款/转账/分账支持特约商户号）、云闪付（下单/退款支持 subMchNo）；微信/支付宝支付下单的服务商模式待扩展
-- **协议版本**：微信经 WxJava（binarywang 二次封装）接入，V2/V3 双协议按 `wxApiVersion` 路由（付款码/企业付款走 V2）；支付宝官方 SDK 单协议；云闪付/PayPal 为 okhttp 直连
-- **云闪付/PayPal 真实联调** 需提供对应商户凭据后验证
-
-## 扩展新渠道
-
-零改内核，三步接入（示例：新增某三方/银行间联通道）：
-
-1. **实现 ChannelProvider**（可新建包或直接在使用方工程内实现）：
-```java
-public class MyChannelProvider implements ChannelProvider {
-    public String channelCode() { return "my-channel"; }
-    public Set<String> supportedMethods() { return Set.of("MY_QR"); }
-    public PaymentHandler paymentHandler() { return myPaymentHandler; }  // 能力按需实现
-    public ChannelParams parseParams(Map<String, String> properties) { return MyParams.fromMap(properties); }
-}
-```
-2. **实现 Store 之外的 SPI**：渠道参数类型实现 `ChannelParams`（含 `channelAppId()` 供回调反查）；回调解析实现 `ChannelCallbackHandler`（验签 + 归一化 CallbackEvent + 应答报文），用 `ChannelAccountKey.resolve(raw, legacyId)` 取账户键并调用 `configLookup.byAccountKey(...)`；自定义 `ChannelConfigProvider` 实现 `getByAccountKey(channelCode, accountKey)`，账户键重复时抛 `CONFIG_CONFLICT`
-3. **注册**：starter 场景注册为 Bean（`@ConditionalOnClass` 控制激活）；纯 jar 场景 `gateway.channel(provider)`
-
-渠道包只做「统一模型 ↔ 渠道协议」的翻译；状态迁移、幂等、通知、对账全部由内核完成。
-
-## 对账
-
-```java
-ReconReport report = paymentGateway.reconcile("wechat", "app-001", LocalDate.of(2026, 11, 14));
-// 差错类型：CHANNEL_MISSING（本地有渠道无）/ LOCAL_MISSING / AMOUNT_MISMATCH / STATE_MISMATCH
-// 渠道成功而本地未成功：自动修正本地状态并触发事件与下游通知；其余差错留痕待人工处理
-```
-
-## 注意事项
-
-- 渠道 SDK 依赖为 optional，使用方按渠道引入对应坐标（wechatpay-java / alipay-sdk-java；云闪付与 PayPal 为 okhttp 直连无额外 SDK）
-- 下游通知体在入队时固化，重试投递同一内容；接收方按 `orderId` 幂等处理，配置密钥后以 `X-Gateway-Signature`（HMAC-SHA256）校验防篡改
-- 收款账号等敏感信息落日志请经 `MaskUtils` 打码
-- 真实渠道联调需各渠道商户凭据（微信商户证书、支付宝公钥、银联 P12、PayPal 应用凭据）
+- [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表与服务商模式回调路由
+- [docs/integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单
+- [docs/invoice-platforms.md](docs/invoice-platforms.md) — 发票平台文档核对清单与接入说明
