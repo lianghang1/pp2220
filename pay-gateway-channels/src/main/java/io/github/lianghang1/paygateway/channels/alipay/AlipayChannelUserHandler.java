@@ -59,7 +59,10 @@ public class AlipayChannelUserHandler implements ChannelUserHandler {
         request.setGrantType("authorization_code");
         request.setCode(authCode);
         AlipaySystemOauthTokenResponse response =
-                holder.execute("换取用户标识", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("换取用户标识", config, (client, authToken) -> {
+            // 授权码换令牌本身即 ISV 授权流程，无需再携带令牌
+            return client.execute(request);
+        });
         if (StringUtils.isBlank(response.getUserId())) {
             throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
                     "支付宝授权令牌响应缺少 userId");

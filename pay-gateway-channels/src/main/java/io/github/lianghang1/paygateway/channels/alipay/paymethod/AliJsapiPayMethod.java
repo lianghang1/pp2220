@@ -50,7 +50,12 @@ public class AliJsapiPayMethod implements AlipayPayMethod {
         model.setBuyerId(buyerId);
         request.setBizModel(model);
         AlipayTradeCreateResponse response = holder.execute("JSAPI 下单", config,
-                (client, authToken) -> client.execute(request, authToken));
+                (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         return new PaymentInvocation().setPayload(PayPayload.jsapi(
                 JsonUtils.toJson(new TradeNoPayload(response.getTradeNo()))))
                 .setState(PaymentState.PAYING);

@@ -35,7 +35,12 @@ public class AliQrPayMethod implements AlipayPayMethod {
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "pay-gateway"));
         request.setBizModel(model);
         AlipayTradePrecreateResponse response =
-                holder.execute("扫码下单", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("扫码下单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         return new PaymentInvocation().setPayload(PayPayload.qrCode(response.getQrCode()))
                 .setState(PaymentState.PAYING);
     }

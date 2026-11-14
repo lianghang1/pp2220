@@ -51,7 +51,12 @@ public class AliBarPayMethod implements AlipayPayMethod {
         model.setScene("bar_code");
         request.setBizModel(model);
         AlipayTradePayResponse response = holder.execute("付款码支付", config,
-                (client, authToken) -> client.execute(request, authToken));
+                (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         // 业务受理成功即扣款完成（失败在 execute 内以渠道异常抛出）
         return new PaymentInvocation()
                 .setChannelOrderNo(response.getTradeNo())

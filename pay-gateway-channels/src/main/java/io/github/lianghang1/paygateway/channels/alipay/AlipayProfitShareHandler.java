@@ -11,6 +11,7 @@ import com.alipay.api.response.AlipayTradeOrderSettleResponse;
 import io.github.lianghang1.paygateway.channel.ChannelConfig;
 import io.github.lianghang1.paygateway.channel.ProfitShareHandler;
 import io.github.lianghang1.paygateway.channel.ProfitShareInvocation;
+import io.github.lianghang1.paygateway.util.StringUtils;
 import io.github.lianghang1.paygateway.channel.ProfitShareSnapshot;
 import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
@@ -43,44 +44,49 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
     /** 绑定分账接收方（支付宝结算规则关系绑定 alipay.trade.royalty.relation.bind）。 */
     @Override
     public void bindReceiver(ProfitShareReceiver receiver, ChannelConfig config) {
-        applyRelation(receiver, config, new com.alipay.api.request.AlipayTradeRoyaltyRelationBindRequest(),
-                new com.alipay.api.domain.AlipayTradeRoyaltyRelationBindModel(), "绑定");
+        com.alipay.api.request.AlipayTradeRoyaltyRelationBindRequest request =
+                new com.alipay.api.request.AlipayTradeRoyaltyRelationBindRequest();
+        com.alipay.api.domain.AlipayTradeRoyaltyRelationBindModel model =
+                new com.alipay.api.domain.AlipayTradeRoyaltyRelationBindModel();
+        model.setOutRequestNo(io.github.lianghang1.paygateway.util.IdGenerator.nextProfitShareId() + "BIND");
+        model.setReceiverList(java.util.Collections.singletonList(royaltyEntity(receiver)));
+        request.setBizModel(model);
+        holder.execute("分账接收方绑定", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
+        log.info("支付宝分账接收方绑定完成: account={}",
+                io.github.lianghang1.paygateway.util.MaskUtils.custom(receiver.getReceiverAccount(), 3, 2));
     }
 
     /** 解绑分账接收方（alipay.trade.royalty.relation.unbind）。 */
     @Override
     public void unbindReceiver(ProfitShareReceiver receiver, ChannelConfig config) {
-        applyRelation(receiver, config, new com.alipay.api.request.AlipayTradeRoyaltyRelationUnbindRequest(),
-                new com.alipay.api.domain.AlipayTradeRoyaltyRelationUnbindModel(), "解绑");
+        com.alipay.api.request.AlipayTradeRoyaltyRelationUnbindRequest request =
+                new com.alipay.api.request.AlipayTradeRoyaltyRelationUnbindRequest();
+        com.alipay.api.domain.AlipayTradeRoyaltyRelationUnbindModel model =
+                new com.alipay.api.domain.AlipayTradeRoyaltyRelationUnbindModel();
+        model.setOutRequestNo(io.github.lianghang1.paygateway.util.IdGenerator.nextProfitShareId() + "UNBIND");
+        model.setReceiverList(java.util.Collections.singletonList(royaltyEntity(receiver)));
+        request.setBizModel(model);
+        holder.execute("分账接收方解绑", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
+        log.info("支付宝分账接收方解绑完成: account={}",
+                io.github.lianghang1.paygateway.util.MaskUtils.custom(receiver.getReceiverAccount(), 3, 2));
     }
 
-    /** 接收方关系绑定/解绑公共实现（outRequestNo 随机生成、单接收方明细）。 */
-    private void applyRelation(ProfitShareReceiver receiver, ChannelConfig config,
-                               com.alipay.api.AlipayRequest<?> request,
-                               Object model,
-                               String action) {
+    /** 支付宝分账接收方实体（结算规则关系模型字段）。 */
+    private com.alipay.api.domain.RoyaltyEntity royaltyEntity(ProfitShareReceiver receiver) {
         com.alipay.api.domain.RoyaltyEntity entity = new com.alipay.api.domain.RoyaltyEntity();
         entity.setAccount(receiver.getReceiverAccount());
         entity.setMemo(StringUtils.defaultIfBlank(receiver.getDescription(), "分账"));
-        java.util.List<com.alipay.api.domain.RoyaltyEntity> entities =
-                java.util.Collections.singletonList(entity);
-        String outRequestNo = io.github.lianghang1.paygateway.util.IdGenerator.nextProfitShareId() + action;
-        if (request instanceof com.alipay.api.request.AlipayTradeRoyaltyRelationBindRequest) {
-            com.alipay.api.domain.AlipayTradeRoyaltyRelationBindModel bindModel =
-                    (com.alipay.api.domain.AlipayTradeRoyaltyRelationBindModel) model;
-            bindModel.setOutRequestNo(outRequestNo);
-            bindModel.setReceiverList(entities);
-            ((com.alipay.api.request.AlipayTradeRoyaltyRelationBindRequest) request).setBizModel(bindModel);
-        } else {
-            com.alipay.api.domain.AlipayTradeRoyaltyRelationUnbindModel unbindModel =
-                    (com.alipay.api.domain.AlipayTradeRoyaltyRelationUnbindModel) model;
-            unbindModel.setOutRequestNo(outRequestNo);
-            unbindModel.setReceiverList(entities);
-            ((com.alipay.api.request.AlipayTradeRoyaltyRelationUnbindRequest) request).setBizModel(unbindModel);
-        }
-        holder.execute("分账接收方" + action, config, (client, authToken) -> client.execute(request, authToken));
-        log.info("支付宝分账接收方{}完成: account={}", action,
-                io.github.lianghang1.paygateway.util.MaskUtils.custom(receiver.getReceiverAccount(), 3, 2));
+        return entity;
     }
 
     @Override
@@ -104,7 +110,12 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
         model.setRoyaltyParameters(royalties);
         request.setBizModel(model);
         AlipayTradeOrderSettleResponse response =
-                holder.execute("分账", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("分账", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         return new ProfitShareInvocation()
                 .setChannelShareNo(response.getSettleNo())
                 .setState(ProfitShareState.FINISHED);
@@ -117,7 +128,12 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
         model.setOutRequestNo(share.getShareId());
         request.setBizModel(model);
         AlipayTradeOrderSettleQueryResponse response =
-                holder.execute("分账查单", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("分账查单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         ProfitShareState state = ProfitShareState.FINISHED;
         List<RoyaltyDetail> details = response.getRoyaltyDetailList();
         if (details != null) {

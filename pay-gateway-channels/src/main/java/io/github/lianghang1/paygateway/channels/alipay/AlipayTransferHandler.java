@@ -12,6 +12,7 @@ import io.github.lianghang1.paygateway.exception.GatewayErrorCode;
 import io.github.lianghang1.paygateway.exception.GatewayException;
 import io.github.lianghang1.paygateway.model.Transfer;
 import io.github.lianghang1.paygateway.util.MaskUtils;
+import io.github.lianghang1.paygateway.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -50,7 +51,12 @@ public class AlipayTransferHandler implements TransferHandler {
         request.setNotifyUrl(AlipayClientHolder.paramsOf(config).getNotifyUrl());
         request.setBizModel(model);
         AlipayFundTransUniTransferResponse response =
-                holder.execute("转账", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("转账", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         log.info("支付宝转账已受理: transferId={}, payee={}, status={}",
                 transfer.getTransferId(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2), response.getStatus());
         return new TransferInvocation()
@@ -68,7 +74,12 @@ public class AlipayTransferHandler implements TransferHandler {
         model.setProductCode("TRANS_ACCOUNT_NO_PWD");
         request.setBizModel(model);
         com.alipay.api.response.AlipayFundTransCommonQueryResponse response =
-                holder.execute("转账查单", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("转账查单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         return new TransferSnapshot()
                 .setChannelTransferNo(response.getOrderId())
                 .setState(AlipayStateTranslator.toTransferState(response.getStatus()))

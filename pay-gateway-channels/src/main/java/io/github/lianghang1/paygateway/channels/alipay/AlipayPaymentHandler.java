@@ -72,7 +72,12 @@ public class AlipayPaymentHandler implements PaymentHandler {
         AlipayTradeQueryModel model = new AlipayTradeQueryModel();
         model.setOutTradeNo(payment.getPaymentId());
         request.setBizModel(model);
-        AlipayTradeQueryResponse response = holder.execute("查单", config, (client, authToken) -> client.execute(request, authToken));
+        AlipayTradeQueryResponse response = holder.execute("查单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         // 交易不存在（用户尚未唤起支付）按支付中处理，等待补单确认
         if (!response.isSuccess() && "ACQ.TRADE_NOT_EXIST".equals(response.getSubCode())) {
             return new PaymentSnapshot().setState(PaymentState.PAYING).setRawMsg("ACQ.TRADE_NOT_EXIST");
@@ -91,7 +96,12 @@ public class AlipayPaymentHandler implements PaymentHandler {
         AlipayTradeCloseModel model = new AlipayTradeCloseModel();
         model.setOutTradeNo(payment.getPaymentId());
         request.setBizModel(model);
-        AlipayTradeCloseResponse response = holder.execute("关单", config, (client, authToken) -> client.execute(request, authToken));
+        AlipayTradeCloseResponse response = holder.execute("关单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         log.info("支付宝关单完成: paymentId={}, tradeNo={}", payment.getPaymentId(), response.getTradeNo());
     }
 

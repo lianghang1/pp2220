@@ -40,7 +40,12 @@ public class AlipayRefundHandler implements RefundHandler {
         model.setOutRequestNo(refund.getRefundId());
         model.setRefundReason(StringUtils.isNotBlank(refund.getReason()) ? refund.getReason() : "退款");
         request.setBizModel(model);
-        AlipayTradeRefundResponse response = holder.execute("退款", config, (client, authToken) -> client.execute(request, authToken));
+        AlipayTradeRefundResponse response = holder.execute("退款", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         return new RefundInvocation()
                 .setChannelRefundNo(response.getTradeNo())
                 .setState(AlipayStateTranslator.toRefundState(response.getFundChange()));
@@ -53,7 +58,12 @@ public class AlipayRefundHandler implements RefundHandler {
         model.setOutRequestNo(refund.getRefundId());
         request.setBizModel(model);
         AlipayTradeFastpayRefundQueryResponse response =
-                holder.execute("退款查单", config, (client, authToken) -> client.execute(request, authToken));
+                holder.execute("退款查单", config, (client, authToken) -> {
+            if (StringUtils.isNotBlank(authToken)) {
+                request.putOtherTextParam("app_auth_token", authToken);
+            }
+            return client.execute(request);
+        });
         if (!response.isSuccess() && StringUtils.isNotBlank(response.getSubCode())) {
             // 查询无记录视为仍在处理（等待受理）
             return new RefundSnapshot()
