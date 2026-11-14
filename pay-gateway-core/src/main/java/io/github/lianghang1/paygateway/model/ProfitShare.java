@@ -33,6 +33,8 @@ public class ProfitShare implements Serializable {
     private String bizOrderNo;
     /** 渠道编码（继承自支付单） */
     private String channelCode;
+    /** 关联支付单的渠道侧单号（分账 API 必需的入账凭证） */
+    private String channelPayOrderNo;
     /** 分账总金额（分） */
     private Long amount;
     /** 分账接收方列表 */

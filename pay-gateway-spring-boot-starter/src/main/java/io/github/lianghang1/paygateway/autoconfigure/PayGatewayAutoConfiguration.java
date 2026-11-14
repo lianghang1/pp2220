@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -45,7 +46,14 @@ public class PayGatewayAutoConfiguration {
         return new MockChannelProvider();
     }
 
-    // 微信渠道在 SDK 就位后由对应模块补充条件装配；其余渠道同理
+    @Bean
+    @ConditionalOnMissingBean(io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider.class)
+    @ConditionalOnClass(name = "com.wechat.pay.java.core.RSAAutoCertificateConfig")
+    public io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider wechatChannelProvider() {
+        return new io.github.lianghang1.paygateway.channels.wechat.WechatChannelProvider();
+    }
+
+    // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean
     @ConditionalOnMissingBean(ChannelConfigProvider.class)

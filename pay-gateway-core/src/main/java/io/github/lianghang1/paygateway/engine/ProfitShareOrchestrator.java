@@ -79,6 +79,7 @@ class ProfitShareOrchestrator {
                 .setPaymentId(payment.getPaymentId())
                 .setBizOrderNo(payment.getBizOrderNo())
                 .setChannelCode(payment.getChannelCode())
+                .setChannelPayOrderNo(payment.getChannelOrderNo())
                 .setAmount(total)
                 .setReceivers(request.getReceivers())
                 .setState(ProfitShareState.CREATED)
