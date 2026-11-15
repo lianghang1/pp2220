@@ -360,7 +360,42 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 企业注册（2.2）、二维码开票（2.16~2.18）、统计类、机动车（2.39~2.42）、
 纸票（文档 3.2.0 未覆盖，生产在用的 `/invoicePaperCommon.pt` 等挂 C 档）。
 
-## 5. 通用 REST 适配器的配置键
+## 5. 版式文件交付形态与固化策略
+
+各平台的版式文件（XML/OFD/PDF/IMAGE）交付形态不一：有的在回调/查单响应里内联 Base64（如百旺票号回调、票通查单），
+有的只给一个有时效的下载地址（如百旺 `qdbswj` 版式回调的 `xmlurl`/`ofdurl`/`pdf`）。下载链接普遍 1~7 天过期，
+若只存 url 不取字节，过期后法定原件永久丢失。框架因此采用**归档即固化 + 按需加工**两层策略：
+
+### 5.1 归档即固化（框架职责，使用方零感知）
+
+- 编排层在把单据置为 `SUCCEEDED` 前，统一把 `content`（Base64/文本）与 `url` 两种形态拉平为**字节**：
+  content 直接解码、url 立即下载（经 `HttpTransport.getBinary` 读原始字节，不走会破坏字节的 UTF-8 String 解码），
+  回写 SHA-256 digest / size，可选落盘。
+- **两级失败策略**：XML 法定原件固化失败一律阻断置成功（错误码 `XML_ORIGINAL_REQUIRED`）；
+  PDF/OFD/IMAGE 展示文件失败仅告警、保留 url，由 `fileBytes`/`refresh`/`repair` 异步补拉，不阻断开票成功。
+- 固化结果回写 `FileStore`（幂等），`InvoiceFile.isMaterialized()` 标识已固化。
+- 配置项 `conflux.invoice.file.*`：
+
+| 键 | 默认值 | 说明 |
+|---|---|---|
+| `immediate-download` | `true` | 归档时对 url 型展示文件立即下载；XML 法定原件始终强制下载，不随开关变化 |
+| `output-dir` | 空 | 本地落盘根目录；留空则字节仅存 FileStore（SDK 的 FileStore 是短期工作区，长期归档由使用方落对象存储） |
+| `download-timeout-millis` | `30000` | 固化下载超时 |
+
+### 5.2 统一字节出口与按需加工（门面 API）
+
+| 门面方法 | 作用 |
+|---|---|
+| `files(invoiceId)` | 已归档文件列表（可能含未固化的 url 型展示文件） |
+| `fileBytes(invoiceId, type)` | 统一字节出口：content 直接解码；仅 url 则下载并回写（幂等）；url 失效自动降级渠道 `InvoiceFileFetcher` 重拉一次，仍失败抛 `FILE_URL_EXPIRED` 引导修复 |
+| `pageImages(invoiceId, config)` | 【按需】PDF 逐页转图（PNG，携带 DPI 元数据），供预览；转换时机与参数由使用方决定 |
+| `printAdaptedPdf(invoiceId, paper, dpi)` | 【按需】PDF 逐页栅格化后重组指定纸型 PDF（真实场景：特殊字体 PDF 直接打印丢字 → 转图再排进 A4，文字固化为像素），输出仍是单一 PDF，打印接口零改动 |
+
+后两者基于 common 的 `PdfImageConverter`，依赖 `org.apache.pdfbox:pdfbox`（optional）；未引入时抛 `FILE_PRINT_UNSUPPORTED`
+而非 `NoClassDefFoundError`。框架绝不自动转换——是否转图、转什么纸型、什么时机，全部由使用方按需调用。
+example 的 `InvoiceController` 提供了 `/files/{id}/{type}/bytes`、`/{id}/pages`、`/{id}/print-adapted` 演示端点。
+
+## 6. 通用 REST 适配器的配置键
 
 > 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；百旺金穗云的配置键见 3.4 节；票通云见 4.5 节。
 
@@ -389,7 +424,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 - `documentVerified=false` 的渠道（可配置骨架）：能力先暴露，真正调用时校验路径是否已配置，
   未配置抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED` 并提示补齐，绝不返回伪造的成功。
 
-## 6. 接入新平台的步骤
+## 7. 接入新平台的步骤
 
 1. 在 `RestSpecs` 增加一份 `RestChannelSpec`，如实填写 `documentVerified` 与 `docNote`；
 2. 常规平台新增一个继承 `AbstractRestInvoiceChannel` 的 Provider 类，在 starter 中注册为 Bean；
@@ -402,7 +437,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 5. 在 `attrs` 中配置路径与票种编码映射，用 mock 单测覆盖「成功 / 异步 / 授权 / 失败 / 无 XML」分支；
 6. 按平台文档核对字段语义后再将 `documentVerified` 置为 `true`。
 
-## 7. 与支付域复用的部分
+## 8. 与支付域复用的部分
 
 - `ChannelProvider` SPI + `ChannelRegistry` 按能力查找、缺失报明确异常；
 - `AccountKey` 复合键与配置装载期 `putIfAbsent` + `CONFIG_CONFLICT` fail-fast；

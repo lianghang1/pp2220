@@ -101,6 +101,7 @@ public class InvoiceAutoConfiguration {
     @Bean
     public InvoiceRuntime invoiceRuntime(InvoiceChannelRegistry registry,
                                          InvoiceConfigProvider configProvider,
+                                         InvoiceProperties properties,
                                          ObjectProvider<InvoiceStore> invoiceStore,
                                          ObjectProvider<RedApplyStore> redApplyStore,
                                          ObjectProvider<AuthSessionStore> authSessionStore,
@@ -114,6 +115,11 @@ public class InvoiceAutoConfiguration {
 
         InvoiceRuntime runtime = new InvoiceRuntime(registry, configProvider,
                 store, redStore, authStore, files);
+        // 版式文件固化选项（url/Base64 统一拉平为字节，可选本地落盘）
+        runtime.setFileOptions(new io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions()
+                .setImmediateDownload(properties.getFile().isImmediateDownload())
+                .setOutputDir(properties.getFile().getOutputDir())
+                .setDownloadTimeoutMillis(properties.getFile().getDownloadTimeoutMillis()));
         Clock customClock = clock.getIfAvailable();
         if (customClock != null) {
             runtime.setClock(customClock);

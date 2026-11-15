@@ -33,7 +33,7 @@ conflux-parent (聚合器, 1.0.0)
 
 公共基座只持 `ErrorCode` 契约与 1xxx 通用码；`JsonUtils` 只抛 JDK 标准 `IllegalArgumentException`，不依赖任何业务异常。OkHttp 只出现在 `common` 的 `HttpTransport`，pay 与 invoice 渠道一律经该传输层发请求，不直接依赖 OkHttp。
 
-`common/util/PdfImageConverter` 提供发票 PDF 的图片化与栅格化能力（打印/展示防丢字场景：特殊字体 PDF 直接打印易丢字，栅格化后文字固化为像素）：三种模式——按原始页面尺寸逐页转图（PNG/JPEG，携带 DPI 物理元数据）、强制统一纸型（A4/A5/A3/B5/LETTER，内容等比缩放不裁切不变形，支持内容区域压缩与方向自动）、栅格化为单一 PDF（接口"一个文件进出"无需改动）。基于 PDFBox 2.x 且依赖声明为 `optional`，仅使用该能力时需自行引入 `org.apache.pdfbox:pdfbox`；服务端运行需 `java.awt.headless=true`（现代 JVM 默认已开启）。
+`common/util/PdfImageConverter` 提供发票 PDF 的图片化与栅格化能力（打印/展示防丢字场景：特殊字体 PDF 直接打印易丢字，栅格化后文字固化为像素）：三种模式——按原始页面尺寸逐页转图（PNG/JPEG，携带 DPI 物理元数据）、强制统一纸型（A4/A5/A3/B5/LETTER，内容等比缩放不裁切不变形，支持内容区域压缩与方向自动）、栅格化为单一 PDF（接口"一个文件进出"无需改动）。基于 PDFBox 2.x 且依赖声明为 `optional`，仅使用该能力时需自行引入 `org.apache.pdfbox:pdfbox`；服务端运行需 `java.awt.headless=true`（现代 JVM 默认已开启）。发票门面已把该能力按需开放：`gateway.pageImages(invoiceId, config)` 逐页转图、`gateway.printAdaptedPdf(invoiceId, paper, dpi)` 栅格化重组 A4 PDF，转换时机与参数由使用方决定，框架不自动转换；pdfbox 缺失时抛 `FILE_PRINT_UNSUPPORTED` 而非 `NoClassDefFoundError`。
 
 ---
 
@@ -243,7 +243,7 @@ conflux.invoice.apps.demo.channels.baiwangjs:
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **260 个用例全绿**（common 17、pay 76、invoice 167）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 **62 个用例**覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流（含 `hzcx`）、「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢，以及 A/B 档新增的请求组装、修复结果归一、可选能力 `default-null` 契约与门面编排（`resend` / `repair` / `queryRepair` / 主动确认 / 红冲前置校验 / 按票号查单）；票通云 **32 个用例**覆盖 RSA 字典序签名串、3DES 往返、信封构建/验签解密（含篡改拒绝）、20/26 位流水号规则、开票报文组装（免税/优惠映射、金额位数）、业务状态归一（0000/6666/7777/9999/3999/4999/5999）、加密推送回调解析与加密应答信封、ThreadLocal 桥接的泄漏防护；common 侧 **PdfImageConverter 11 个用例**覆盖逐页转图（原尺寸/强制纸型/内容区域压缩）、栅格化 PDF 往返（页数与按 DPI 反算的页面尺寸）、Base64/流/文件入口、多页 ZIP 与单页纯图片输出、JPEG 透明铺底、PNG pHYs / JPEG JFIF DPI 元数据、非法输入魔数校验与配置边界。
+当前全量 **278 个用例全绿**（common 20、pay 76、invoice 182）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、**版式文件固化（url/Base64 统一拉平为字节、可选落盘、XML strict 阻断、fileBytes 幂等回写与失效重拉）、按需转图与打印适配**、starter 装配与 example 端到端；其中百旺金穗云 **62 个用例**覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流（含 `hzcx`）、「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢，以及 A/B 档新增的请求组装、修复结果归一、可选能力 `default-null` 契约与门面编排（`resend` / `repair` / `queryRepair` / 主动确认 / 红冲前置校验 / 按票号查单）；票通云 **32 个用例**覆盖 RSA 字典序签名串、3DES 往返、信封构建/验签解密（含篡改拒绝）、20/26 位流水号规则、开票报文组装（免税/优惠映射、金额位数）、业务状态归一（0000/6666/7777/9999/3999/4999/5999）、加密推送回调解析与加密应答信封、ThreadLocal 桥接的泄漏防护；common 侧 **PdfImageConverter 11 个用例**覆盖逐页转图（原尺寸/强制纸型/内容区域压缩）、栅格化 PDF 往返（页数与按 DPI 反算的页面尺寸）、Base64/流/文件入口、多页 ZIP 与单页纯图片输出、JPEG 透明铺底、PNG pHYs / JPEG JFIF DPI 元数据、非法输入魔数校验与配置边界。
 
 ## 文档索引
 

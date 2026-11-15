@@ -39,9 +39,17 @@ public final class SignUtil {
         if (data == null) {
             throw new IllegalArgumentException("data 不能为空");
         }
+        return sha256Hex(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** SHA-256 摘要（字节输入，用于二进制文件完整性核算）。 */
+    public static String sha256Hex(byte[] data) {
+        if (data == null) {
+            throw new IllegalArgumentException("data 不能为空");
+        }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return toHex(digest.digest(data.getBytes(StandardCharsets.UTF_8)));
+            return toHex(digest.digest(data));
         } catch (Exception e) {
             throw new IllegalStateException("SHA-256 计算失败", e);
         }

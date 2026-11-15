@@ -31,12 +31,14 @@ public class InvoiceFile implements Serializable {
     private String content;
     /** 下载地址（渠道未提供内联内容时使用）。 */
     private String url;
-    /** 内容摘要（SHA-256 十六进制）。 */
+    /** 内容摘要（SHA-256 十六进制，对固化后字节计算）。 */
     private String digest;
     /** 内容字节数（未知时为 -1）。 */
     private long size = -1L;
     /** 归档时间。 */
     private LocalDateTime createdTime;
+    /** 本地落盘路径（配置 outputDir 且固化成功时回填，未落盘为 null）。 */
+    private String filePath;
 
     /** 是否为法定原件。 */
     public boolean isLegalOriginal() {
@@ -46,5 +48,10 @@ public class InvoiceFile implements Serializable {
     /** 是否有可用内容（内联或下载地址）。 */
     public boolean hasPayload() {
         return (content != null && content.length() > 0) || (url != null && url.length() > 0);
+    }
+
+    /** 是否已固化为内联字节（content 非空且摘要/尺寸已核算）。 */
+    public boolean isMaterialized() {
+        return content != null && content.length() > 0 && digest != null;
     }
 }

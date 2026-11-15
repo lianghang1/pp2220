@@ -25,6 +25,20 @@ public class InvoiceProperties {
     /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
     private boolean mockEnabled = true;
 
+    /** 版式文件固化选项。 */
+    private FileProperties file = new FileProperties();
+
+    /** 版式文件固化配置（url/Base64 统一拉平为字节，可选本地落盘）。 */
+    @Data
+    public static class FileProperties {
+        /** 归档时对 url 型文件立即下载固化（XML 法定原件始终强制，不随开关变化）。 */
+        private boolean immediateDownload = true;
+        /** 本地落盘根目录；留空 = 不落盘，字节仅存 FileStore。 */
+        private String outputDir;
+        /** 固化下载超时（毫秒）。 */
+        private long downloadTimeoutMillis = 30000L;
+    }
+
     /** 单应用的渠道配置集合。 */
     @Data
     public static class AppProperties {

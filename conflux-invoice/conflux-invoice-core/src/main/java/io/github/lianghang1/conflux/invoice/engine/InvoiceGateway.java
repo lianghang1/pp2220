@@ -1,5 +1,7 @@
 package io.github.lianghang1.conflux.invoice.engine;
 
+import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.common.util.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
@@ -13,10 +15,14 @@ import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
+import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
+import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -105,6 +111,71 @@ public class InvoiceGateway {
     /** 已归档的版式文件（含法定 XML 原件）。 */
     public List<InvoiceFile> files(String invoiceId) {
         return runtime.fileStore.findByInvoiceId(invoiceId);
+    }
+
+    /**
+     * 取指定类型版式文件的原始字节（统一出口，屏蔽渠道差异）。
+     *
+     * <p>content 已内联 → 直接解码；只有 url → 下载并回写 FileStore（幂等）；
+     * url 失效 → 自动降级渠道重拉一次。无论渠道给的是 Base64 还是下载地址，
+     * 使用方从这里拿到的永远是字节。</p>
+     */
+    public byte[] fileBytes(String invoiceId, InvoiceFileType type) {
+        return orchestrator.fileBytes(invoiceId, type);
+    }
+
+    /**
+     * 【按需能力】版式 PDF 逐页转图（防丢字/预览场景）。
+     *
+     * <p>直接转发 {@link PdfImageConverter#convert}：默认保持原始页面尺寸；
+     * 传 {@code config.targetPaper} 可强制统一纸型。转换时机与参数完全由使用方
+     * 决定，框架不做任何自动转换。需引入 {@code org.apache.pdfbox:pdfbox}。</p>
+     */
+    public List<PdfImageConverter.PageImage> pageImages(String invoiceId,
+                                                        PdfImageConverter.Config config) {
+        assertPdfBoxPresent();
+        try {
+            return PdfImageConverter.convert(fileBytes(invoiceId, InvoiceFileType.PDF), config);
+        } catch (IOException e) {
+            throw new GatewayException(InvoiceErrorCode.FILE_MATERIALIZE_FAILED,
+                    "PDF 转图失败: invoiceId={}", invoiceId, e);
+        }
+    }
+
+    /**
+     * 【按需能力】版式 PDF 打印适配：逐页转图后重组为指定纸型的 PDF
+     * （真实场景：PDF 直接打印丢字 → 栅格化成图片再排进 A4，文字固化为像素）。
+     *
+     * <p>等价于 {@code PdfImageConverter.rasterizeToPdf}：输出仍是单一 PDF 字节，
+     * 「一个文件进出」的打印接口零改动；{@code paper} 传 null 保持每页原始尺寸，
+     * 传 {@code PaperSize.A4} 则全部页面等比缩放放进 A4（不裁切不变形）。
+     * 需引入 {@code org.apache.pdfbox:pdfbox}。</p>
+     */
+    public byte[] printAdaptedPdf(String invoiceId, PdfImageConverter.PaperSize paper, int dpi) {
+        assertPdfBoxPresent();
+        PdfImageConverter.Config config = new PdfImageConverter.Config();
+        config.dpi = dpi;
+        if (paper != null) {
+            config.targetPaper = paper;
+        }
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            PdfImageConverter.rasterizeToPdf(fileBytes(invoiceId, InvoiceFileType.PDF), out, config);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new GatewayException(InvoiceErrorCode.FILE_MATERIALIZE_FAILED,
+                    "PDF 打印适配失败: invoiceId={}", invoiceId, e);
+        }
+    }
+
+    /** pdfbox 为 optional 依赖：缺失时给出可排查的领域错误而非 NoClassDefFoundError。 */
+    private void assertPdfBoxPresent() {
+        try {
+            Class.forName("org.apache.pdfbox.pdmodel.PDDocument");
+        } catch (ClassNotFoundException e) {
+            throw new GatewayException(InvoiceErrorCode.FILE_PRINT_UNSUPPORTED,
+                    "打印适配能力需要 pdfbox：请在使用方引入 org.apache.pdfbox:pdfbox（2.x）");
+        }
     }
 
     public Invoice findById(String invoiceId) {

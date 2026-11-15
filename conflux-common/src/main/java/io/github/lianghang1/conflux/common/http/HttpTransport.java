@@ -99,13 +99,13 @@ public final class HttpTransport {
             try (Response response = client(connectMillis, readMillis, writeMillis)
                     .newCall(builder.build()).execute()) {
                 ResponseBody rb = response.body();
-                String text = rb == null ? "" : rb.string();
+                byte[] bytes = rb == null ? new byte[0] : rb.bytes();
                 Map<String, String> respHeaders = new LinkedHashMap<String, String>();
                 Headers h = response.headers();
                 for (int i = 0; i < h.size(); i++) {
                     respHeaders.put(h.name(i), h.value(i));
                 }
-                return new HttpResponse(response.code(), text, respHeaders);
+                return new HttpResponse(response.code(), bytes, respHeaders);
             }
         } catch (IOException e) {
             throw new HttpTransportException("HTTP 传输失败: " + method + " " + url, e);
@@ -123,6 +123,17 @@ public final class HttpTransport {
     /** GET（自定义超时）。 */
     public static HttpResponse get(String url, Map<String, String> headers,
                                    long connectMillis, long readMillis, long writeMillis) {
+        return execute("GET", url, headers, null, null, connectMillis, readMillis, writeMillis);
+    }
+
+    /**
+     * GET 二进制下载（版式文件等字节场景，自定义超时）。
+     *
+     * <p>与文本 {@link #get} 的区别只在调用方取值方式（{@code getRawBytes()}），
+     * 传输行为完全一致：非 2xx 也正常返回，由调用方按业务判定成败。</p>
+     */
+    public static HttpResponse getBinary(String url, Map<String, String> headers,
+                                         long connectMillis, long readMillis, long writeMillis) {
         return execute("GET", url, headers, null, null, connectMillis, readMillis, writeMillis);
     }
 

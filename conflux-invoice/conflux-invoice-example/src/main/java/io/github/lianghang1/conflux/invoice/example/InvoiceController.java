@@ -1,5 +1,6 @@
 package io.github.lianghang1.conflux.invoice.example;
 
+import io.github.lianghang1.conflux.common.util.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
@@ -15,6 +16,7 @@ import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
+import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +106,40 @@ public class InvoiceController {
     @GetMapping("/{invoiceId}/files")
     public List<InvoiceFile> files(@PathVariable String invoiceId) {
         return gateway.files(invoiceId);
+    }
+
+    /** 取版式文件原始字节（统一出口：url/Base64 屏蔽差异；url 型首次调用即下载回写）。 */
+    @GetMapping("/{invoiceId}/files/{type}/bytes")
+    public ResponseEntity<byte[]> fileBytes(@PathVariable String invoiceId,
+                                            @PathVariable String type) {
+        byte[] bytes = gateway.fileBytes(invoiceId, InvoiceFileType.valueOf(type.toUpperCase()));
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    /** 按需转图（预览场景）：版式 PDF 逐页转 PNG，返回每页 dataURL / 尺寸元数据。 */
+    @GetMapping("/{invoiceId}/pages")
+    public List<PdfImageConverter.PageImage> pageImages(@PathVariable String invoiceId,
+                                                        @RequestParam(defaultValue = "96") int dpi) {
+        PdfImageConverter.Config config = new PdfImageConverter.Config();
+        config.dpi = dpi;
+        return gateway.pageImages(invoiceId, config);
+    }
+
+    /**
+     * 打印适配（按需能力）：版式 PDF 逐页栅格化后重组为指定纸型 PDF，
+     * 防丢字打印场景；paper=A4、dpi=300 时输出即为打印可用的 A4 栅格化 PDF。
+     */
+    @GetMapping("/{invoiceId}/print-adapted")
+    public ResponseEntity<byte[]> printAdapted(@PathVariable String invoiceId,
+                                               @RequestParam(defaultValue = "A4") String paper,
+                                               @RequestParam(defaultValue = "300") int dpi) {
+        byte[] bytes = gateway.printAdaptedPdf(invoiceId,
+                PdfImageConverter.PaperSize.valueOf(paper.toUpperCase()), dpi);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(bytes);
     }
 
     /** 重新交付发票（短信/邮箱重发），不改单据状态。 */

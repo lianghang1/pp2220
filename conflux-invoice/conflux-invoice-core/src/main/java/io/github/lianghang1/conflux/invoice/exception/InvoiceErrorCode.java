@@ -59,6 +59,9 @@ public enum InvoiceErrorCode implements ErrorCode {
     STORE_CONCURRENT_MODIFICATION(3404, "单据已被并发修改，请重试", 409),
     STORE_CLAIM_FAILED(3405, "待处理单据认领失败", 409),
     FILE_ARCHIVE_FAILED(3406, "版式文件归档失败", 500),
+    FILE_URL_EXPIRED(3407, "版式文件下载地址已失效，请走修复补拉", 502),
+    FILE_MATERIALIZE_FAILED(3408, "版式文件固化失败（下载/解码）", 500),
+    FILE_PRINT_UNSUPPORTED(3409, "打印适配能力不可用：需引入 org.apache.pdfbox:pdfbox", 500),
 
     // ---- 辅助能力 35xx（交付 / 修复 / 补单） ----
     DELIVERY_TARGET_REQUIRED(3501, "交付目标（手机号或邮箱）不能为空", 400),

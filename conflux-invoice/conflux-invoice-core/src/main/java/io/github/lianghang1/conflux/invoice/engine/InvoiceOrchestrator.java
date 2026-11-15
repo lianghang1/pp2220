@@ -36,6 +36,7 @@ import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
 import io.github.lianghang1.conflux.invoice.model.RedApplyState;
+import io.github.lianghang1.conflux.invoice.support.InvoiceFileMaterializer;
 import io.github.lianghang1.conflux.invoice.util.InvoiceIds;
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,10 +76,19 @@ public class InvoiceOrchestrator {
 
     private final InvoiceRuntime rt;
     private final ChannelInstanceRouter router;
+    private final InvoiceFileMaterializer fileMaterializer;
 
     public InvoiceOrchestrator(InvoiceRuntime rt) {
         this.rt = rt;
         this.router = new ChannelInstanceRouter(rt);
+        // 固化结果回写 FileStore（幂等），调用方无需再关心 url 型文件
+        this.fileMaterializer = new InvoiceFileMaterializer(rt.getFileOptions(),
+                new InvoiceFileMaterializer.PersistCallback() {
+                    @Override
+                    public void persist(List<InvoiceFile> files) {
+                        rt.fileStore.saveAll(files);
+                    }
+                });
     }
 
     // ==================== 蓝字开票 ====================
@@ -677,6 +687,8 @@ public class InvoiceOrchestrator {
     private void supplement(Invoice invoice, InvoiceCallbackEvent event) {
         List<InvoiceFile> files = normalizeFiles(event.getFiles(), invoice.getInvoiceId());
         if (!files.isEmpty()) {
+            // 回调补充场景不阻断：固化失败保留 url，由 fileBytes/修复兜底
+            fileMaterializer.materialize(files, false);
             rt.fileStore.saveAll(files);
         }
         long expected = invoice.getVersion();
@@ -800,6 +812,8 @@ public class InvoiceOrchestrator {
             case SUCCEEDED: {
                 assertAmountMatch(invoice, outcome);
                 List<InvoiceFile> files = resolveFiles(outcome, ctx, invoice);
+                // 归档即固化：url 型先下载转内联（strict：XML 失败阻断置成功）
+                fileMaterializer.materialize(files, true);
                 assertLegalXml(files, invoice.getInvoiceId());
                 rt.fileStore.saveAll(files);
                 transition(invoice, InvoiceState.SUCCEEDED, new Consumer<Invoice>() {
@@ -841,8 +855,67 @@ public class InvoiceOrchestrator {
         }
     }
 
-    private List<InvoiceFile> resolveFiles(InvoiceResult outcome, InvoiceContext ctx, Invoice invoice) {
-        List<InvoiceFile> files = outcome.getFiles();
+    /**
+     * 按类型取已固化的文件字节（统一出口，使用方无需感知渠道交付形态）。
+     *
+     * <p>content 已内联 → 直接解码返回；只有 url → 下载并回写 FileStore（幂等，
+     * 第二次调用不再下载）；url 失效 → 自动降级调渠道 {@code InvoiceFileFetcher}
+     * 重拉一次，仍失败抛 {@code FILE_URL_EXPIRED} 引导走修复。</p>
+     */
+    public byte[] fileBytes(String invoiceId, InvoiceFileType type) {
+        GatewayAssert.param(StringUtils.isNotBlank(invoiceId), "invoiceId 不能为空");
+        GatewayAssert.param(type != null, "文件类型不能为空");
+        Invoice invoice = rt.invoiceStore.findById(invoiceId);
+        if (invoice == null) {
+            throw new GatewayException(InvoiceErrorCode.INVOICE_NOT_FOUND,
+                    "发票单据不存在: {}", invoiceId);
+        }
+        List<InvoiceFile> files = rt.fileStore.findByInvoiceIdAndType(invoiceId, type);
+        InvoiceFile target = pickFile(files);
+        GatewayAssert.isTrue(target != null, InvoiceErrorCode.FILE_NOT_FOUND,
+                "单据未归档 {} 版式文件: invoiceId={}", type, invoiceId);
+        try {
+            return fileMaterializer.materializeBytes(target);
+        } catch (GatewayException e) {
+            if (e.getErrorCode() != InvoiceErrorCode.FILE_URL_EXPIRED) {
+                throw e;
+            }
+        }
+        // url 失效：渠道重拉一次（严格模式：取不到字节继续抛 FILE_URL_EXPIRED）
+        ChannelConfig config = configOf(invoice.getChannelCode(), invoice.getAccountKey());
+        InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
+        List<InvoiceFile> refetched = normalizeFiles(rt.registry.fileFetcher(invoice.getChannelCode())
+                .fetch(ctx, EnumSet.of(type)), invoiceId);
+        fileMaterializer.materialize(refetched, true);
+        rt.fileStore.saveAll(refetched);
+        InvoiceFile refreshed = pickFile(refetched);
+        GatewayAssert.isTrue(refreshed != null && StringUtils.isNotBlank(refreshed.getContent()),
+                InvoiceErrorCode.FILE_URL_EXPIRED,
+                "渠道重拉仍未取得可用文件: invoiceId={}, type={}", invoiceId, type);
+        return fileMaterializer.materializeBytes(refreshed);
+    }
+
+    /** 优先已固化文件，其次任一有载荷的文件。 */
+    private InvoiceFile pickFile(List<InvoiceFile> files) {
+        if (files == null || files.isEmpty()) {
+            return null;
+        }
+        InvoiceFile fallback = null;
+        for (InvoiceFile file : files) {
+            if (file == null || file.getType() == null || !file.hasPayload()) {
+                continue;
+            }
+            if (file.isMaterialized()) {
+                return file;
+            }
+            if (fallback == null) {
+                fallback = file;
+            }
+        }
+        return fallback;
+    }
+
+    private List<InvoiceFile> resolveFiles(InvoiceResult outcome, InvoiceContext ctx, Invoice invoice) {        List<InvoiceFile> files = outcome.getFiles();
         if (files == null || files.isEmpty()) {
             files = rt.registry.fileFetcher(invoice.getChannelCode())
                     .fetch(ctx, EnumSet.of(InvoiceFileType.XML,

@@ -39,6 +39,10 @@ public class InvoiceRuntime {
             new CopyOnWriteArrayList<InvoiceEventListener>();
     private volatile Clock clock = Clock.systemDefaultZone();
 
+    /** 版式文件固化选项（可整体替换；默认即时开启、不落盘）。 */
+    private volatile io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions fileOptions =
+            new io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions();
+
     public InvoiceRuntime(InvoiceChannelRegistry registry,
                           InvoiceConfigProvider configProvider,
                           InvoiceStore invoiceStore,
@@ -73,6 +77,19 @@ public class InvoiceRuntime {
 
     public Clock getClock() {
         return clock;
+    }
+
+    /** 版式文件固化选项（永不为 null）。 */
+    public io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions getFileOptions() {
+        return fileOptions;
+    }
+
+    public InvoiceRuntime setFileOptions(
+            io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions fileOptions) {
+        if (fileOptions != null) {
+            this.fileOptions = fileOptions;
+        }
+        return this;
     }
 
     public InvoiceRuntime addListener(InvoiceEventListener listener) {

@@ -19,9 +19,14 @@ import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceConfigProvide
 import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceFileStore;
 import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceStore;
 import io.github.lianghang1.conflux.invoice.support.InMemoryRedApplyStore;
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -55,16 +60,48 @@ class BaiwangJsSupplementFlowTest {
     private static final String ACCOUNT_KEY = InvoiceAccountKey.of(APP_KEY, TAX);
     private static final String FPHM = "24312000000000000001";
 
+    // 版式文件下载源：归档即固化会真下载 url，用本地 server 提供真实字节，离网可跑
+    private HttpServer server;
+    private String base;
+
+    @BeforeEach
+    void startServer() throws IOException {
+        byte[] xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><invoice>数电票</invoice>"
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] bin = "%PDF-1.4 mock layout bytes".getBytes(StandardCharsets.US_ASCII);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/x.xml", ex -> respond(ex, xml));
+        server.createContext("/x.ofd", ex -> respond(ex, bin));
+        server.createContext("/x.pdf", ex -> respond(ex, bin));
+        server.start();
+        base = "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    @AfterEach
+    void stopServer() {
+        server.stop(0);
+    }
+
+    private static void respond(com.sun.net.httpserver.HttpExchange ex, byte[] bytes) throws IOException {
+        ex.sendResponseHeaders(200, bytes.length);
+        ex.getResponseBody().write(bytes);
+        ex.getResponseBody().close();
+    }
+
+    private String layoutJson() {
+        return String.format(LAYOUT_JSON_TPL, base, base, base);
+    }
+
     private static final String FACE_JSON = "{\n"
             + "  \"ywlxdm\":\"fpkj\", \"ddlsh\":\"" + DDLSH + "\", \"status\":\"1\",\n"
             + "  \"qdfphm\":\"" + FPHM + "\", \"kprq\":\"20260115142522\",\n"
             + "  \"jshj\":\"100.00\", \"hjse\":\"6.00\"\n"
             + "}";
 
-    private static final String LAYOUT_JSON = "{\n"
+    private static final String LAYOUT_JSON_TPL = "{\n"
             + "  \"ywlxdm\":\"qdbswj\", \"ddlsh\":\"" + DDLSH + "\", \"status\":\"1\",\n"
-            + "  \"xmlurl\":\"https://cdn/x.xml\", \"ofdurl\":\"https://cdn/x.ofd\",\n"
-            + "  \"pdf\":\"https://cdn/x.pdf\"\n"
+            + "  \"xmlurl\":\"%s/x.xml\", \"ofdurl\":\"%s/x.ofd\",\n"
+            + "  \"pdf\":\"%s/x.pdf\"\n"
             + "}";
 
     @Test
@@ -80,7 +117,7 @@ class BaiwangJsSupplementFlowTest {
         assertTrue(gateway.files(INVOICE_ID).isEmpty(),
                 "补充型回调此时还没有版式地址，不应归档文件");
 
-        InvoiceResult layout = gateway.handleCallback(callback(LAYOUT_JSON));
+        InvoiceResult layout = gateway.handleCallback(callback(layoutJson()));
         assertNotNull(layout);
         assertSame(InvoiceState.SUCCEEDED, layout.getState());
         assertEquals(FPHM, layout.getInvoiceNo(), "版式回调不能把已补充的票号抹成 null");
@@ -97,7 +134,7 @@ class BaiwangJsSupplementFlowTest {
     void layoutThenFace_alsoConvergesAndDoesNotRollbackState() {
         InvoiceGateway gateway = fixture();
 
-        InvoiceResult layout = gateway.handleCallback(callback(LAYOUT_JSON));
+        InvoiceResult layout = gateway.handleCallback(callback(layoutJson()));
         assertNotNull(layout);
         assertSame(InvoiceState.SUCCEEDED, layout.getState());
         assertTrue(layout.hasLegalXml());

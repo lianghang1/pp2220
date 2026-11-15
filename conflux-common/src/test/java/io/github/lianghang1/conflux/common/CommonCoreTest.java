@@ -66,7 +66,7 @@ class CommonCoreTest {
         assertThat(fail.isSuccessful()).isFalse();
         assertThat(fail.getBody()).isEqualTo("down");
         assertThat(fail.getHeaders()).isEmpty();
-        HttpResponse nullBody = new HttpResponse(204, null, null);
+        HttpResponse nullBody = new HttpResponse(204, (String) null, null);
         assertThat(nullBody.getBody()).isEmpty();
     }
 

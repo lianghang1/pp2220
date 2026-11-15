@@ -9,6 +9,11 @@ conflux:
   invoice:
     # 默认注册 mock 渠道，零凭据即可启动
     mock-enabled: true
+    # 版式文件固化：url/Base64 统一拉平为字节；配置 outputDir 后同步落盘
+    file:
+      immediate-download: true
+      # output-dir: ./data/invoice-files
+      download-timeout-millis: 30000
     apps:
       demo:
         channels:
