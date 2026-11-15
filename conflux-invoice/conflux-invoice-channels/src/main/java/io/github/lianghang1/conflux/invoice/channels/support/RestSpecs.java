@@ -56,6 +56,24 @@ public final class RestSpecs {
                         + "支持 V2 优先 / V1 可切换，接口路径见 BaiwangJsSpec。");
     }
 
+    /**
+     * 票通云：已按《票通数电发票接口文档 3.2.0》核对，不由通用 REST 适配器承载。
+     *
+     * <p>协议为「明文 JSON 信封 + 3DES 业务报文 + RSA SHA1withRSA 字典序签名 +
+     * 响应验签解密」，与通用适配器假设不兼容，改由
+     * {@link io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider}
+     * 独立实现。本规格仅作元数据占位。</p>
+     */
+    public static RestChannelSpec piaotong() {
+        return new RestChannelSpec()
+                .setChannelCode("piaotong")
+                .setDisplayName("票通云")
+                .setBaseUrl("https://fpkj.vpiaotong.com")
+                .setDocumentVerified(true)
+                .setDocNote("已按票通数电发票接口文档 3.2.0 核对；由专属适配器 "
+                        + "PiaoTongChannelProvider 实现，接口路径见 PiaoTongSpec。");
+    }
+
     /** 百旺票税云：待核对公开文档字段。 */
     public static RestChannelSpec baiwang() {
         return new RestChannelSpec()

@@ -62,6 +62,14 @@ public class InvoiceAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(
+            io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider.class)
+    public io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider
+            piaotongChannelProvider() {
+        return new io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider();
+    }
+
+    @Bean
     @ConditionalOnMissingBean(BaiwangChannelProvider.class)
     public BaiwangChannelProvider baiwangChannelProvider() {
         return new BaiwangChannelProvider();

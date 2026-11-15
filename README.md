@@ -18,7 +18,7 @@ conflux-parent (聚合器, 1.0.0)
 │   └── conflux-pay-example              演示宿主
 └── conflux-invoice         0.1.0-SNAPSHOT 发票能力域（4 个子模块）
     ├── conflux-invoice-core              发票内核（可挂起状态机 / 渠道 SPI / Store 契约）
-    ├── conflux-invoice-channels          渠道实现（mock + 4 家服务商 + 百旺金穗云专属适配器）
+    ├── conflux-invoice-channels          渠道实现（mock + 4 家服务商 + 百旺金穗云/票通云专属适配器）
     ├── conflux-invoice-spring-boot-starter
     └── conflux-invoice-example
 ```
@@ -190,6 +190,7 @@ gateway.confirmRed(new RedConfirmRequest().setRedApplyId(applyId).setAccept(true
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全能力：开票 / 授权 / 异步 / XML 原件 / 两段红冲 / 回调 |
 | `qixiangyun` | 企享云 | SERVICE_API | **蓝字开具接口已核对** | `POST /v2/invoice/qdfp/fpkjZzs`，字段 `action/async/nsrsbh/ly_ddbh/wjgs/fplxdm/xmmx/jshj/hjse/data.xsf_yhmc`；响应 `reqId/code/success/message/data.fphm`，`code=2001` 转异步。查单/红字/授权/文件下载需按文档配置路径 |
 | `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方文档）** | 专属适配器 `BaiwangJsChannelProvider`：Base64 报文 + HMAC 网关签名；蓝字开具 / 查单 / 发票修复 **V2 优先、V1 保留可切换**；红字两段（确认后开具 / 状态查询 / 主动确认）、登录 / 实人认证（同步+异步二维码）、3.4.15 / 3.4.8 版式文件查询、3.4.7 交付重发、3.3.17 可冲销校验、`hzcx` 回调分流、XML 法定原件。62 个协议层/编排层单测覆盖 |
+| `piaotong` | 票通云 | SERVICE_API | **已核对（接口文档 3.2.0 + 生产实现交叉验证）** | 专属适配器 `PiaoTongChannelProvider`：明文信封 + 3DES 业务报文 + RSA 字典序签名 + 响应验签解密；蓝字开具（2.23~2.27 特定业务同端点自动附加）、查单、红字两段（2.38 新版优先 / 2.31 主动确认 / 2.29 查询 / 2.30 开具 / 2.33 局端兜底）、电局登录认证链路（2.4~2.8）、2.15 文件下载（XML/PDF/OFD）、2.13/2.14 加密推送回调、2.19 交付重发、2.12 全票面 / 2.45 账号列表便捷入口。32 个协议层单测覆盖 |
 | `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 
@@ -240,7 +241,7 @@ conflux.invoice.apps.demo.channels.baiwangjs:
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **206 个用例全绿**（common 6、pay 76、invoice 124）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 **62 个用例**覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流（含 `hzcx`）、「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢，以及 A/B 档新增的请求组装、修复结果归一、可选能力 `default-null` 契约与门面编排（`resend` / `repair` / `queryRepair` / 主动确认 / 红冲前置校验 / 按票号查单）。
+当前全量 **249 个用例全绿**（common 6、pay 76、invoice 167）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 **62 个用例**覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流（含 `hzcx`）、「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢，以及 A/B 档新增的请求组装、修复结果归一、可选能力 `default-null` 契约与门面编排（`resend` / `repair` / `queryRepair` / 主动确认 / 红冲前置校验 / 按票号查单）；票通云 **32 个用例**覆盖 RSA 字典序签名串、3DES 往返、信封构建/验签解密（含篡改拒绝）、20/26 位流水号规则、开票报文组装（免税/优惠映射、金额位数）、业务状态归一（0000/6666/7777/9999/3999/4999/5999）、加密推送回调解析与加密应答信封、ThreadLocal 桥接的泄漏防护。
 
 ## 文档索引
 

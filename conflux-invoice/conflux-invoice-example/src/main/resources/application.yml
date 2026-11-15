@@ -86,3 +86,38 @@ conflux:
           #     # repairPath: "/cloud/v2/invoiceRepair"
           #     # repairResultPath: "/cloud/repairResult"
           #     # queryBatchPath: "/cloud/queryInvBatch"
+
+          # ------------------------------------------------------------------
+          # 票通云（piaotong）专属适配器配置模板
+          # 以《票通数电发票接口文档 3.2.0》为准；凭据均由票通分配。
+          # 字段与路径的完整说明见 docs/invoice-platforms.md 第 4 节。
+          # ------------------------------------------------------------------
+          # piaotong:
+          #   seller-tax-no: "91310000XXXXXXXXXX"
+          #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/piaotong?accountKey=<PLATFORM_CODE>%2391310000XXXXXXXXXX"
+          #   sandbox: true
+          #   tier: SERVICE_API
+          #   priority: 20
+          #   enabled: false
+          #   attrs:
+          #     platformCode: "<平台编码>"            # 票通分配的第三方平台编码（8 位）
+          #     aliasName: "ABCD"                    # 平台简称（4 位，拼 20/26 位流水号）
+          #     password: "<3DES 密钥>"              # 业务报文加解密密钥（ECB/UTF-8）
+          #     privateKey: "<我方 RSA 私钥>"         # PKCS8 Base64，请求签名（SHA1withRSA）
+          #     publicKey: "<票通平台公钥>"           # X509 Base64，响应/推送验签
+          #     sellerTaxNo: "91310000XXXXXXXXXX"    # 报文 taxpayerNum
+          #     account: "13800000000"               # 电子税局登录账号（认证链路 2.4~2.8）
+          #     sellerName: "某某科技有限公司"
+          #     # baseUrl: "https://fpkj.vpiaotong.com/tp/openapi"
+          #     # timeoutMillis: 30000               # 2.15 文件下载较耗时，可调大
+          #     # redApplyMode: "OLD"                # 红字申请改走 2.28 旧版（默认 2.38 新版）
+          #     # qrcodeType: "1"                    # 2.6 二维码类型（1 税务 APP / 2 个税 APP）
+          #     # ---- 红字申请覆盖项（购方申请时按需）----
+          #     # applySource: "0"                   # 0 销方申请 / 1 购方申请
+          #     # redReason: "01"                    # 01 开票有误 / 02 销货退回 / 03 服务中止 / 04 销售折让
+          #     # blueInvoiceDate: "20240108"        # 冲红非票通平台开具的发票时必传（yyyyMMdd）
+          #     # ---- 特定业务透传（货运/旅客/不动产销售，JSON 数组原样上报）----
+          #     # goodsTransportList: '[{"transportToolType":"公路运输","transportToolBrand":"沪A12345","departurePlace":"上海市黄浦区","destinationPlace":"四川省绵阳市涪城区"}]'
+          #     # passengerTransportList: '[{"traveler":"张三","travelDate":"2024-01-08","travelerIdType":"...","travelerIdNo":"..."}]'
+          #     # realEstateSaleList: '[{"region":"上海市黄浦区","detailedAddress":"东江北路68号"}]'
+          #     # herBuyerList: '[]'

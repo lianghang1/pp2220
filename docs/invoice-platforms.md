@@ -274,9 +274,95 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 百旺票税云、金蝶发票云仍为骨架，待按各自公开文档核对。
 
-## 4. 通用 REST 适配器的配置键
+## 4. 票通云：专属适配器（以《票通数电发票接口文档 3.2.0》为准）
 
-> 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；百旺金穗云的配置键见 3.4 节。
+> 与生产环境在用代码逐字段交叉验证过（签名串、3DES、流水号规则、状态归一）。
+> 接口核对清单见仓库外 `piaotong-api-codes.md`（PT-01 ~ PT-51，A 档 15 + B 档 9 已实现）。
+
+### 4.1 传输与签名（文档 1.1/1.2，与百旺体系完全不同）
+
+| 项 | 票通实现 |
+|---|---|
+| 传输 | POST JSON **明文信封**（`platformCode/signType/format/version/content/timestamp/serialNo/sign`） |
+| 业务报文 | `content` = `Base64(3DES-ECB(password, JSON))`，UTF-8 |
+| 签名 | RSA `SHA1withRSA`，签名串 = 除 sign 外全部参数按 key **字典序** `k=v&k=v`，结果 Base64 |
+| 验签 | 响应与推送用票通平台公钥（X509）验签，失败抛 `SIGN_INVALID` |
+| 信封流水号 | `serialNo` = 4 位平台简称 + 14 位日期时间 + 8 位 UUID（26 位） |
+| 业务流水号 | `invoiceReqSerialNo` = 4 位平台简称 + 14 位日期时间 + 2 位随机（20 位，同一单据全程复用） |
+| 传输层 | 与其他渠道一致，走 common `HttpTransport`，渠道包不直接依赖 OkHttp |
+
+### 4.2 接口路径（全部 `.pt` 后缀）
+
+| 编号 | 接口 | 路径 | 框架对接 |
+|---|---|---|---|
+| 2.4 | 获取登录短信验证码 | `/sendLoginSmsCode.pt` | `AuthSessionHandler.start` |
+| 2.5 | 短信登录 | `/smsLogin.pt` | `AuthSessionHandler.submit(captcha)` |
+| 2.6 | 获取实名认证二维码 | `/getAuthenticationQrcode.pt` | `AuthSessionHandler.start`（扫码） |
+| 2.7 | 查询二维码扫码状态 | `/queryAuthQrcodeScanStatus.pt` | `AuthSessionHandler.submit(token)` |
+| 2.8 | 查询数电账号认证状态 | `/getTaxBureauAccountAuthStatus.pt` | `start` 前置分流（`operationProposed=0` 免认证） |
+| 2.9 | 开具蓝字数电发票 | `/invoiceBlue.pt` | `InvoiceIssuer.issue` |
+| 2.23~2.27 | 特定业务开票 | **同一端点**，附加 `buildService` / `realEstateRentalList` 等节点 | 按核心模型国标字段自动附加 |
+| 2.11 | 查询发票主要信息 | `/queryInvoiceInfo.pt` | `InvoiceQuerier.query` |
+| 2.12 | 查询全票面 | `/queryInvoice.pt` | Provider 便捷入口 `queryFull(ctx)` |
+| 2.13/2.14 | 推送主要/全票面（回调） | 第三方提供 | `InvoiceCallbackHandler` |
+| 2.15 | 获取数电发票文件 | `/getAllEleInvFile.pt` | `InvoiceFileFetcher.fetch`（XML/PDF/OFD Base64 内容） |
+| 2.19 | 重新发送邮件或短信 | `/resendEmailOrSMS.pt` | `InvoiceDeliverer.resend` |
+| 2.38 | 红字确认单申请（新版） | `/redInvConfirmationApply.pt` | `RedHandler.apply`（`attrs.redApplyMode=OLD` 切 2.28 旧版） |
+| 2.29 | 查看红字确认单 | `/querySpecialInvoiceRedInfo.pt` | `RedHandler.queryRed` |
+| 2.30 | 开具红字数电发票 | `/issueRedSpecialInvoice.pt` | `RedHandler.issueRed` |
+| 2.31 | 红字确认单审核 | `/confirmRedInvConfirmation.pt` | `RedHandler.confirm`（confirmType 0/1） |
+| 2.33/2.34 | 局端索单下载/结果 | `/downloadSpecialInvRedInfoTable.pt`、`/queryRedInfoTableDownloadResult.pt` | Provider 便捷入口 `queryRedFromBureau(ctx, start, end)` |
+| 2.45 | 查询数电账号列表 | `/listTaxBureauAccount.pt` | Provider 便捷入口 `listAccounts(ctx)` |
+
+### 4.3 状态语义与归一
+
+**业务状态码**（查询/推送/开票结果通用）：
+
+| code | 语义 | 框架归一 |
+|---|---|---|
+| 0000 | 开票成功 | SUCCEEDED（XML 法定原件由编排层随后调 2.15 补拉归档） |
+| 6666 | 未开票 | PROCESSING 保持挂起 |
+| 7777 | 开票中 | PROCESSING |
+| 9999 | 开票失败 | FAILED |
+| 3999 | 需扫码/短信认证（响应带 authenticationQrcode/authId） | WAITING_AUTH |
+| 4999 | 红字确认单申请中（仅红票） | PROCESSING |
+| 5999 | 红字确认单审核中（仅红票） | PROCESSING |
+
+**红字确认单 processState**：`81` 无需确认 / `84` 双方已确认 / `5` 已冲红 → CONFIRMED；
+`82` 待购方确认 / `83` 待销方确认 / `0` 审核中 → WAITING_CONFIRM（72 小时窗）；
+`4`/`7`/`11` 处理失败 → FAILED；`85`~`90`（否认/超时/撤销/异常凭证）→ REJECTED。
+
+### 4.4 回调推送应答
+
+推送请求为与响应相同的加密信封（平台公钥验签 + 3DES 解密）。
+应答也走信封（业务部分 `code=0000/9999`）；因 SPI 的
+`reply(success, message)` 无配置入参，应答信封依赖 `parse` 同线程暂存的配置
+（ThreadLocal 桥接，解析异常即清理），拿不到时退化为业务明文 JSON——
+宿主如需强制完整信封应答，可在回调 Controller 内直接用 Provider + ChannelConfig 构建。
+
+### 4.5 配置项（`conflux.invoice.apps.<appId>.channels.piaotong`）
+
+| 键 | 说明 |
+|---|---|
+| `attrs.platformCode` | 票通分配的第三方平台编码（8 位） |
+| `attrs.aliasName` | 平台简称（4 位，拼流水号） |
+| `attrs.password` | 3DES 密钥（加密/解密共用） |
+| `attrs.privateKey` | 我方 RSA 私钥（PKCS8，请求签名） |
+| `attrs.publicKey` | 票通平台公钥（X509，验签） |
+| `attrs.sellerTaxNo` | 销方税号（报文 `taxpayerNum`） |
+| `attrs.account` | 电子税局登录账号（认证链路） |
+| `attrs.redApplyMode` | `OLD` 用 2.28 旧版红字申请（默认 2.38 新版） |
+| `attrs.qrcodeType` | 2.6 二维码类型（1 税务 APP / 2 个税 APP，默认 1） |
+| `attrs.blueInvoiceDate` / `attrs.applySource` / `attrs.redReason` | 红字申请覆盖项（购方申请时按需） |
+| `attrs.goodsTransportList` 等 | 货运/旅客/不动产销售特定信息 JSON 原样透传 |
+
+**未纳入**（与百旺口径一致）：作废类、快捷冲红（2.10/2.37）、索单撤销（2.32）、
+企业注册（2.2）、二维码开票（2.16~2.18）、统计类、机动车（2.39~2.42）、
+纸票（文档 3.2.0 未覆盖，生产在用的 `/invoicePaperCommon.pt` 等挂 C 档）。
+
+## 5. 通用 REST 适配器的配置键
+
+> 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；百旺金穗云的配置键见 3.4 节；票通云见 4.5 节。
 
 渠道路径与票种编码全部可通过 `conflux.invoice.apps.<appId>.channels.<channel>.attrs` 覆盖：
 
@@ -303,7 +389,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 - `documentVerified=false` 的渠道（可配置骨架）：能力先暴露，真正调用时校验路径是否已配置，
   未配置抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED` 并提示补齐，绝不返回伪造的成功。
 
-## 5. 接入新平台的步骤
+## 6. 接入新平台的步骤
 
 1. 在 `RestSpecs` 增加一份 `RestChannelSpec`，如实填写 `documentVerified` 与 `docNote`；
 2. 常规平台新增一个继承 `AbstractRestInvoiceChannel` 的 Provider 类，在 starter 中注册为 Bean；
@@ -316,7 +402,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 5. 在 `attrs` 中配置路径与票种编码映射，用 mock 单测覆盖「成功 / 异步 / 授权 / 失败 / 无 XML」分支；
 6. 按平台文档核对字段语义后再将 `documentVerified` 置为 `true`。
 
-## 6. 与支付域复用的部分
+## 7. 与支付域复用的部分
 
 - `ChannelProvider` SPI + `ChannelRegistry` 按能力查找、缺失报明确异常；
 - `AccountKey` 复合键与配置装载期 `putIfAbsent` + `CONFIG_CONFLICT` fail-fast；
