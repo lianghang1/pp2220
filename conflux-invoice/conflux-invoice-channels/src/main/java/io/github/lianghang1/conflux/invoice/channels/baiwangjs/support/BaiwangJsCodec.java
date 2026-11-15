@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.github.lianghang1.conflux.common.util.JsonUtils;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsParams;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsSpec;
 import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
+import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
+import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
@@ -297,12 +300,234 @@ public final class BaiwangJsCodec {
         return body;
     }
 
-    /** 3.4.5 认证结果查询。 */
+    /** 3.4.14 认证结果 / 纳税人风险信息查询（异步，回调 cxnsrfx）。 */
     public static Map<String, Object> riskInfoBody(BaiwangJsParams params, String ddlsh) {
         Map<String, Object> body = baseBody(params, ddlsh);
         put(body, "nsrsbh", params.getSellerTaxNo());
         put(body, "dlzh", params.getDlzh());
         return body;
+    }
+
+    /** 3.4.5 获取实人认证二维码（异步，回调 ewmrz）。 */
+    public static Map<String, Object> qrCodeAsyncBody(BaiwangJsParams params, String ddlsh,
+                                                      String ewmlx) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "nsrsbh", params.getSellerTaxNo());
+        put(body, "dlzh", params.getDlzh());
+        put(body, "ewmlx", ewmlx == null ? "1" : ewmlx);
+        return body;
+    }
+
+    // ---- 3.3.12 数电红冲开具 ----
+    public static Map<String, Object> redIssueBody(BaiwangJsParams params, String ddlsh,
+                                                    String confirmNo) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "dlzh", params.getDlzh());
+        put(body, "hzfpxxqrdbh", confirmNo);
+        return body;
+    }
+
+    // ---- 3.3.15 红字确认单状态查询（同步） ----
+    public static Map<String, Object> redStatusBody(BaiwangJsParams params, String ddlsh,
+                                                     String confirmNo) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "dlzh", params.getDlzh());
+        put(body, "hzfpxxqrdbh", confirmNo);
+        return body;
+    }
+
+    // ---- 3.3.16 红字确认单确认或拒绝（qrlx=Y/N） ----
+    public static Map<String, Object> redConfirmBody(BaiwangJsParams params, String confirmNo,
+                                                      boolean accept) {
+        Map<String, Object> body = new LinkedHashMap<String, Object>();
+        put(body, "qyId", params.getQyId());
+        put(body, "dlzh", params.getDlzh());
+        put(body, "hzfpxxqrdbh", confirmNo);
+        put(body, "qrlx", accept ? "Y" : "N");
+        return body;
+    }
+
+    // ---- 3.3.17 可冲销明细查询（异步，回调 hzcx） ----
+    public static Map<String, Object> redAvailableBody(BaiwangJsParams params, String ddlsh,
+                                                       Invoice original, String invoiceDate,
+                                                       String bizCode, String sourceCode) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "xsfnsrsbh", original == null ? params.getSellerTaxNo()
+                : original.getSellerTaxNo());
+        put(body, "gmfnsrsbh", original == null ? null : original.getBuyerTaxNo());
+        put(body, "dlzh", params.getDlzh());
+        put(body, "gjbq", "1");
+        put(body, "lzfpdm", original == null ? null : original.getInvoiceCode());
+        put(body, "lzfphm", original == null ? null : original.getInvoiceNo());
+        put(body, "lzfpqdhm", original == null ? null : original.getInvoiceNo());
+        put(body, "lzkprq", invoiceDate);
+        put(body, "ywdjDm", bizCode);
+        put(body, "fplyDm", sourceCode == null ? "2" : sourceCode);
+        return body;
+    }
+
+    // ---- 3.4.7 发票短信邮箱重发（同步） ----
+    public static Map<String, Object> deliveryBody(BaiwangJsParams params, String invoiceCode,
+                                                   String invoiceNo, String phone, String email) {
+        Map<String, Object> body = new LinkedHashMap<String, Object>();
+        put(body, "qyId", params.getQyId());
+        put(body, "fpDm", invoiceCode);
+        put(body, "fpHm", invoiceNo);
+        put(body, "qdfphm", invoiceNo);
+        put(body, "phone", phone);
+        put(body, "email", email);
+        return body;
+    }
+
+    // ---- 3.4.8 电子发票下载地址查询（同步，按 ddlsh） ----
+    public static Map<String, Object> downloadBody(BaiwangJsParams params, String ddlsh) {
+        return baseBody(params, ddlsh);
+    }
+
+    // ---- 3.4.15 电票版式文件查询（同步，按票号） ----
+    public static Map<String, Object> layoutQueryBody(BaiwangJsParams params, String ddlsh,
+                                                      String invoiceCode, String invoiceNo) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "fpdm", invoiceCode);
+        put(body, "fphm", invoiceNo);
+        put(body, "qdfphm", invoiceNo);
+        put(body, "dlzh", params.getDlzh());
+        return body;
+    }
+
+    // ---- 3.4.11 / 3.4.11(V2) 发票修复（异步） ----
+    public static Map<String, Object> repairBody(BaiwangJsParams params, String ddlsh,
+                                                 String invoiceTypeCode, String invoiceNo,
+                                                 String startDate, String endDate,
+                                                 String buyerName) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "nsrsbh", params.getSellerTaxNo());
+        put(body, "dlzh", params.getDlzh());
+        put(body, "fplxdm", invoiceTypeCode);
+        put(body, "sksbh", params.getSellerTaxNo());
+        put(body, "cxfs", StringUtils.isNotBlank(startDate) ? "3" : "0");
+        put(body, "fphm", invoiceNo);
+        put(body, "qsrq", startDate);
+        put(body, "zzrq", endDate);
+        put(body, "gmfMc", buyerName);
+        return body;
+    }
+
+    // ---- 3.4.12 发票修复结果查询（同步） ----
+    public static Map<String, Object> repairResultBody(BaiwangJsParams params, String ddlsh,
+                                                        String elecBz) {
+        Map<String, Object> body = baseBody(params, ddlsh);
+        put(body, "elecBz", elecBz == null ? "1" : elecBz);
+        return body;
+    }
+
+    // ---- 3.4.13 发票查询-按票号或时间（同步，批量分页） ----
+    public static Map<String, Object> queryBatchBody(BaiwangJsParams params, String cxfs,
+                                                     String invoiceTypeCode, String invoiceCode,
+                                                     String startNo, String endNo,
+                                                     String startDate, String endDate,
+                                                     String digitalNo, String pageNo,
+                                                     String pageSize) {
+        Map<String, Object> body = new LinkedHashMap<String, Object>();
+        put(body, "qyId", params.getQyId());
+        put(body, "fplxdm", invoiceTypeCode);
+        put(body, "sksbh", params.getSellerTaxNo());
+        put(body, "cxfs", cxfs == null ? "0" : cxfs);
+        put(body, "fpdm", invoiceCode);
+        put(body, "qshm", startNo);
+        put(body, "zzhm", endNo);
+        put(body, "qsrq", startDate);
+        put(body, "zzrq", endDate);
+        put(body, "elecBz", "1");
+        put(body, "qdfphm", digitalNo);
+        put(body, "pageNo", pageNo == null ? "0" : pageNo);
+        put(body, "pageSize", pageSize == null ? "50" : pageSize);
+        return body;
+    }
+
+    // ==================== 响应解析 ====================
+
+    /** 取 data / Data 节点（兼容平台大小写差异）。 */
+    public static JsonNode dataNode(BaiwangJsResponse response) {
+        if (response == null || response.getRoot() == null) {
+            return null;
+        }
+        JsonNode root = response.getRoot();
+        JsonNode data = root.get("data");
+        if (data == null || data.isNull()) {
+            data = root.get("Data");
+        }
+        return data;
+    }
+
+    /**
+     * 从响应 data 节点提取版式文件地址，兼容三套字段命名：
+     * 3.4.15 用 pdfUrl/ofdUrl/xmlUrl，3.4.8 与 3.4.13 用 pdf/ofdurl/xmlurl，
+     * qdbswj 回调还可能出现 gsPdf/gsOfdUrl（百旺版式）。
+     */
+    public static List<InvoiceFile> layoutFiles(JsonNode data) {
+        List<InvoiceFile> files = new ArrayList<InvoiceFile>();
+        if (data == null) {
+            return files;
+        }
+        addFile(files, InvoiceFileType.XML, data, "xmlUrl", "xmlurl", "xml");
+        addFile(files, InvoiceFileType.OFD, data, "ofdUrl", "ofdurl", "gsOfdUrl");
+        addFile(files, InvoiceFileType.PDF, data, "pdfUrl", "pdf", "gsPdf");
+        return files;
+    }
+
+    /**
+     * 3.4.12 / 3.4.13 修复结果归一（纯函数，无网络依赖）：
+     * {@code code=0} 已修复到发票 → SUCCEEDED；
+     * {@code code=-1} 失败或尚未修复到发票 → PROCESSING（异步补偿，可继续查）；
+     * 其它（如 1003 需要登录）→ FAILED。
+     *
+     * <p>兼容「字段在 data 节点」与「字段在根节点」两套返回结构，
+     * 版式文件地址复用 {@link #layoutFiles(JsonNode)}。</p>
+     */
+    public static RepairResult repairResult(BaiwangJsResponse response, String ddlsh) {
+        String code = response.getCode();
+        String msg = response.getReason() == null
+                ? response.getMessage() : response.getReason();
+        if (BaiwangJsSpec.CODE_OK.equals(code)) {
+            JsonNode root = response.getRoot();
+            JsonNode data = dataNode(response);
+            if (data == null || data.isNull() || !data.isObject()) {
+                data = root;
+            }
+            List<InvoiceFile> files = layoutFiles(data);
+            if (files.isEmpty() && root != null && root != data) {
+                files = layoutFiles(root);
+            }
+            String invoiceNo = text(data, "qdfphm", "fphm");
+            if (StringUtils.isBlank(invoiceNo) && root != null) {
+                invoiceNo = text(root, "qdfphm", "fphm");
+            }
+            String invoiceCode = text(data, "fpdm");
+            if (StringUtils.isBlank(invoiceCode) && root != null) {
+                invoiceCode = text(root, "fpdm");
+            }
+            return RepairResult.succeeded(ddlsh, files)
+                    .setInvoiceNo(invoiceNo).setInvoiceCode(invoiceCode)
+                    .setRawPayload(response.getRawBody());
+        }
+        if ("-1".equals(code)) {
+            // 文档：code=-1 失败或未修复到发票；修复是异步补偿，保持 PROCESSING 允许继续查
+            return RepairResult.accepted(ddlsh)
+                    .setErrorMsg(StringUtils.isBlank(msg)
+                            ? "尚未修复到发票，可稍后继续查询" : msg)
+                    .setRawPayload(response.getRawBody());
+        }
+        return RepairResult.failed(nullTo(code, "REPAIR_QUERY_FAILED"), msg)
+                .setRawPayload(response.getRawBody());
+    }
+
+    private static void addFile(List<InvoiceFile> files, InvoiceFileType type, JsonNode data,
+                                String... names) {
+        String url = text(data, names);
+        if (StringUtils.isNotBlank(url)) {
+            files.add(new InvoiceFile().setType(type).setUrl(url));
+        }
     }
 
     // ==================== 工具 ====================

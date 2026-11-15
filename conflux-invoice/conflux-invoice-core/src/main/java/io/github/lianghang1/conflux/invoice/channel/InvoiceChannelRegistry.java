@@ -89,6 +89,26 @@ public class InvoiceChannelRegistry {
         return capability(channelCode, provider(channelCode).callbackHandler(), "回调解析");
     }
 
+    public InvoiceDeliverer deliverer(String channelCode) {
+        return capability(channelCode, provider(channelCode).deliverer(), "发票交付");
+    }
+
+    public InvoiceRepairer repairer(String channelCode) {
+        return capability(channelCode, provider(channelCode).repairer(), "发票修复");
+    }
+
+    /** 可选能力查询：渠道未实现时返回 null，供编排层跳过而非抛异常。 */
+    public InvoiceDeliverer delivererOrNull(String channelCode) {
+        InvoiceChannelProvider p = provider(channelCode);
+        return p == null ? null : p.deliverer();
+    }
+
+    /** 可选能力查询：渠道未实现时返回 null，供编排层跳过而非抛异常。 */
+    public InvoiceRepairer repairerOrNull(String channelCode) {
+        InvoiceChannelProvider p = provider(channelCode);
+        return p == null ? null : p.repairer();
+    }
+
     private <T> T capability(String channelCode, T handler, String capabilityName) {
         if (handler == null) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
@@ -105,6 +125,8 @@ public class InvoiceChannelRegistry {
         append(sb, "file", provider.fileFetcher() != null);
         append(sb, "auth", provider.authHandler() != null);
         append(sb, "callback", provider.callbackHandler() != null);
+        append(sb, "delivery", provider.deliverer() != null);
+        append(sb, "repair", provider.repairer() != null);
         if (sb.charAt(sb.length() - 1) == ',') {
             sb.setLength(sb.length() - 1);
         }

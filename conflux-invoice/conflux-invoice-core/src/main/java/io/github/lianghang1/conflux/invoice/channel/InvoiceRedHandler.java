@@ -2,6 +2,8 @@ package io.github.lianghang1.conflux.invoice.channel;
 
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
+import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
+import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 
 /**
  * 红字能力：两段式红冲，与支付退款「一次调用」的语义完全不同。
@@ -24,4 +26,24 @@ public interface InvoiceRedHandler {
 
     /** 确认后开具红字发票（第二段）。 */
     InvoiceResult issueRed(InvoiceContext ctx);
+
+    /**
+     * 红冲前置校验：查询原票可冲销明细 / 可红冲金额。
+     *
+     * <p><b>可选能力</b>：默认返回 null，编排层跳过校验。渠道不支持时不应阻断红冲，
+     * 避免把「未提供该接口」误判为「不可红冲」。</p>
+     */
+    default RedAvailableResult checkRedAvailable(InvoiceContext ctx) {
+        return null;
+    }
+
+    /**
+     * 主动确认或拒绝红字确认单（与 {@link #queryRed} 的「查状态」分开）。
+     *
+     * <p><b>可选能力</b>：默认返回 null，编排层据此抛
+     * {@code CHANNEL_CAPABILITY_NOT_SUPPORTED}，由使用方决定改走查询状态流程。</p>
+     */
+    default RedApplyResult confirm(InvoiceContext ctx, RedConfirmRequest request) {
+        return null;
+    }
 }

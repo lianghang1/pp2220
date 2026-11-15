@@ -66,4 +66,14 @@ public interface InvoiceChannelProvider {
     default InvoiceCallbackHandler callbackHandler() {
         return null;
     }
+
+    /** 发票交付（短信/邮箱重发）能力；可选，默认不支持。 */
+    default InvoiceDeliverer deliverer() {
+        return null;
+    }
+
+    /** 发票修复（局端补拉）能力；可选，默认不支持。 */
+    default InvoiceRepairer repairer() {
+        return null;
+    }
 }

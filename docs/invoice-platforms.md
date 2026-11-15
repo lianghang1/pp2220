@@ -15,7 +15,7 @@
 |---|---|---|---|---|
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全部（蓝字、授权、异步查单、XML 原件、红字两段、回调） |
 | `qixiangyun` | 企享云 | SERVICE_API | 蓝字开具**已核对**；其余待核对 | 蓝字开票（issue）、回调解析 |
-| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方公开文档）** | 专属适配器：蓝字 V2/V1、查单、红字两段、登录/实人认证、版式回调、XML 法定原件 |
+| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方公开文档）** | 专属适配器：蓝字 V2/V1、查单、红字两段（含 3.3.12 确认后开具 / 3.3.15 状态 / 3.3.16 主动确认）、登录与实人认证（同步+异步二维码）、3.4.15 / 3.4.8 版式文件查询、3.4.7 交付重发、3.4.11/12/13 发票修复、3.3.17 可冲销校验、`ywlxdm` 回调分流、XML 法定原件 |
 | `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
 
@@ -108,16 +108,30 @@ x-htjs-ua: {UserAgent}
 
 ### 3.2 接口路径清单（同一能力 V2 优先、V1 保留实现）
 
-| 能力 | attrs 覆盖键 | V2（默认） | V1（`apiVersion=V1`） |
+下表为按语雀《3.接口定义》逐条核对后**已落地**的路径；加粗项为本轮 A/B 档补齐。
+所有路径都可用 `attrs` 中的覆盖键改写，便于平台升级或私有化部署，无需改代码。
+
+| 能力（文档编号） | attrs 覆盖键 | 默认路径 | 版本 / 触发 |
 |---|---|---|---|
-| 蓝字开具申请 3.2.6 | `issuePath` | `/cloud/v2/applyInvoice` | `/cloud/applyInvoice` |
-| 按订单流水号查询 3.2.7 | `queryPath` | `/cloud/v2/queryOrder` | `/cloud/queryOrder` |
-| 查询企业唯一标识 3.1.1 | — | `/cloud/queryUniqueSign` | 同左（单一版本） |
-| 数电红冲申请 3.3.3 | `redApplyPath` | `/cloud/applyElecRedInvoice` | 同左 |
-| 数电红冲结果查询 3.3.4 | `redQueryPath` | `/cloud/queryRedInvRes` | 同左 |
-| 电子税务局登录 3.4.2 | `authStartPath` / `authSubmitPath` | `/cloud/dzswjLogin` | 同左 |
-| 实人认证二维码（同步）3.4.4 | `qrCodePath` | `/elecEwm/queryEwmrzSnyc` | 同左 |
-| 认证结果 / 风险查询 3.4.5 | `riskInfoPath` | `/elecEwm/queryRiskInfo` | 同左 |
+| 蓝字开具申请 3.2.6 | `issuePath` | `/cloud/v2/applyInvoice` | V2；V1 = `/cloud/applyInvoice` |
+| 按订单流水号查询 3.2.7 | `queryPath` | `/cloud/v2/queryOrder` | V2；V1 = `/cloud/queryOrder` |
+| **查询企业唯一标识 3.1.1** | `uniqueSignPath` | `/cloud/queryUniqueSign` | 单一版本，配置期工具 |
+| 数电红冲申请 3.3.3 | `redApplyPath` | `/cloud/applyElecRedInvoice` | 单一版本 |
+| 数电红冲结果查询 3.3.4 | `redQueryPath` | `/cloud/queryRedInvRes` | 单一版本（无确认单号时回退） |
+| **数电红冲开具 3.3.12** | `redIssuePath` | `/cloud/doElecRedInvoice` | 确认单 CONFIRMED 后真调 |
+| **红字确认单状态查询 3.3.15** | `redStatusPath` | `/cloud/queryHzqrdzt` | 同步，优先数据源 |
+| **红字确认单确认或拒绝 3.3.16** | `redConfirmPath` | `/cloud/updateHzqrdState` | `qrlx=Y/N` |
+| **可冲销明细查询 3.3.17** | `redAvailablePath` | `/cloud/hzcxmx` | 异步，回调 `hzcx` |
+| 电子税务局登录 3.4.4 | `authStartPath` / `authSubmitPath` | `/cloud/dzswjLogin` | 两步短信 |
+| 实人认证二维码（同步）3.4.6 | `qrCodePath` | `/elecEwm/queryEwmrzSnyc` | 默认 |
+| **实人认证二维码（异步）3.4.5** | `qrCodeAsyncPath` | `/elecEwm/queryEwmrz` | `attrs.qrMode=ASYNC` |
+| **认证结果 / 风险查询 3.4.14** | `riskInfoPath` | `/elecEwm/queryRiskInfo` | 异步，回调 `cxnsrfx` |
+| **发票短信邮箱重发 3.4.7** | `deliveryPath` | `/cloud/fpReSend` | 同步 |
+| **电子发票下载地址查询 3.4.8** | `downloadPath` | `/cloud/invoiceDownload` | 同步（按 ddlsh） |
+| **电票版式文件查询 3.4.15** | `layoutQueryPath` | `/cloud/queryBswj` | 同步（按票号） |
+| **发票修复 3.4.11 / (V2)** | `repairPath` | `/cloud/v2/invoiceRepair` | V2；V1 = `/cloud/invoiceRepair` |
+| **发票修复结果查询 3.4.12** | `repairResultPath` | `/cloud/repairResult` | 同步（默认） |
+| **发票查询-按票号或时间 3.4.13** | `queryBatchPath` | `/cloud/queryInvBatch` | 同步，`repairResultMode=BATCH` |
 
 V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
@@ -129,8 +143,9 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | 购方银行 / 账号 | `gmfYhzh` | `gmfYh` + `gmfZh` |
 | 明细序号 | 带 `xh` | 不带 `xh` |
 
-`attrs.apiVersion=V1` 时开票与查单**同时**切到 V1 路径与 V1 报文；空值 / 未知值回落 V2，
-不会因拼写错误静默切到老接口。所有路径也都可用上表覆盖键单独改写，便于平台升级或私有化部署，无需改代码。
+`attrs.apiVersion=V1` 时开票、查单与发票修复**同时**切到 V1 路径，开票报文同时切到 V1 合并字段；
+空值 / 未知值回落 V2，不会因拼写错误静默切到老接口。其余接口文档只有单一版本，
+同一能力的同步/异步两种模式走 `attrs` 切换，不为版本或模式各开一个 SPI 方法。
 
 ### 3.3 异步回调：票号与版式分离
 
@@ -145,6 +160,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | `qdhzsq` | 红字确认单申请结果 | `WAITING_CONFIRM` / `FAILED`，携带 `hzfpxxqrdbh` |
 | `ewmrz` | 实人认证二维码 | 登记 `rzid` / `ewm` 到 attrs，不改状态 |
 | `cxnsrfx` | 认证结果 / 风险信息 | 登记 `sfsl` / `sxlb` / `yjjb` 到 attrs，不改状态 |
+| **`hzcx`** | 可冲销明细查询结果（3.3.17） | 登记 `hzcxje` / `hzcxse` / `jshj` 到 attrs，**绝不迁移状态**，避免被误当成 `fpkj` |
 | `1004` / `1003` | 需要登录 / 需要实人认证 | 映射 `WAITING_AUTH` 挂起态并触发授权会话 |
 
 回调应答固定 `{"code":"0","message":"成功"}`；失败也返回 `code=1` 的 JSON，避免平台收不到应答。
@@ -166,23 +182,64 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | `sellerName`、`sellerAddress`、`sellerPhone`、`sellerBank`、`sellerBankAccount` | attrs | 销方票面信息；V1 合并、V2 拆分 |
 | `apiVersion` | attrs | `V2`（默认）/ `V1` |
 | `baseUrl` / `userAgent` / `timeoutMillis` | attrs | 网关地址（私有化部署）、UA、超时 |
-| `issuePath` 等路径键 | attrs | 见 3.2 表 |
+| `qrMode` | attrs | `ASYNC` 时实人认证二维码走 3.4.5 异步路径（默认 3.4.6 同步） |
+| `repairResultMode` | attrs | `BATCH` 时修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12） |
+| 3.2 表各路径键 | attrs | 见 3.2 表；逐接口覆盖默认路径 |
 | `fplxdm.<InvoiceType>` | attrs | 票种编码覆盖（内置数电专票 `01` / 普票 `02` 等默认值） |
 | `callbackSignKey` | attrs | 可选，启用回调 HMAC 验签 |
+
+请求级 `extra` 也可覆盖：`queryMode=BATCH`（单次修复结果查询走 3.4.13）、
+`elecBz`（数电票标志，默认 `1`）、`pageNo` / `pageSize`（批量查询分页）、
+`fpDm` / `fpHm` / `qdfphm`（交付重发的票号）、`fplxdm`（修复票种）、`gmfMc`（修复购方名称）。
 
 完整配置模板（含全部可覆盖键，默认注释、不影响零凭据启动）见
 `conflux-invoice-example/src/main/resources/application.yml`。
 
-### 3.5 如实标注的边界
+### 3.5 骨架层 A/B 档扩展与如实标注的边界
 
-- 上述路径、字段、状态码、签名规则均取自**公开文档**并做了单测（32 个用例），
-  其中含 2 个编排层端到端用例，验证 `fpkj` / `qdbswj` 两种到达顺序下票号与 XML 原件收敛到同一单据；
-  **尚未与平台做真实联调**；首次接入须用沙箱 / 测试企业核对 `qyId`、`fplxdm` 字典与回调地址可达性。
-- 销项侧**没有独立的版式文件查询接口**：文件地址只由 `qdbswj` 回调给出，
-  `InvoiceFileFetcher.fetch()` 只做已记录 URL 的归一化，不编造下载接口。
-- 公开文档未给出「红字确认单确认后单独开具」接口，红字开具由平台在确认后自动完成；
-  `issueRed()` 返回异步受理并等待 `fpkj`（带 `yqdfphm`）回调，不重复调用申请接口。
-- 3.1.1 查询 `qyId` 的接口已登记在 `BaiwangJsSpec`，但框架不自动调用，由使用方查询后配置，避免启动期产生外部依赖。
+按「通用渠道平台」视角，只把**填实已有骨架能力**与**跨渠道一等可选能力**纳入实现；
+商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等纯业务 / 渠道专属接口不进骨架。
+**数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` / `InvoiceStore` 不因此改动。
+
+**A 档（填实已有能力，不改 SPI 签名）**：
+
+| 编码 | 落地 |
+|---|---|
+| BW-01 / 3.1.1 | `queryUniqueSign(credentials, name, taxNo)` 配置期工具，需显式传网关凭据 |
+| BW-30 / 3.3.12 | `issueRed()` 真调确认后开具，不再只查结果返回受理 |
+| BW-33 / 3.3.15 | `queryRed()` 优先查确认单状态，无确认单号回退 3.3.4 |
+| BW-34 / 3.3.16 | 主动确认/拒绝走新增 `InvoiceRedHandler.confirm(ctx, req)` 可选方法 |
+| BW-40 / 3.4.5 | 异步二维码走 `attrs.qrMode=ASYNC`，与同步版共用同一能力 |
+| BW-43 / BW-52 / 3.4.8 / 3.4.15 | `fetch()` 真查版式文件；失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程 |
+| BW-51 / 3.4.14 | `submit()` 扫脸分支接认证结果查询，`sfsl=N` 直接通过 |
+| BW-50 / 3.4.13 | 骨架层：`InvoiceQueryRequest` 加 `invoiceNo/invoiceCode`，`locate()` 复用 `Store.findByInvoiceNo` |
+
+**B 档（新增可选能力，一律 `default null`）**：
+
+| 编码 | 新增 | 配套 |
+|---|---|---|
+| BW-42 / 3.4.7 | `InvoiceDeliverer` + `Provider.deliverer()` | `Registry`、`Gateway.resend()`、编排 |
+| BW-47/48/49 / 3.4.11/12 | `InvoiceRepairer`（apply + query）+ `Provider.repairer()` | `Gateway.repair()` / `queryRepair()` |
+| BW-50 / 3.4.13 | 3.4.11 文档明确修复结果也可由 3.4.13 查询 | `repairResultMode=BATCH` 走 `queryBatchPath` |
+| BW-35 / 3.3.17 | `InvoiceRedHandler.checkRedAvailable()` | 返回 null / 异步受理 / 可冲时放行，仅明确「不可冲」抛 `RED_NOT_AVAILABLE` |
+
+门面/编排层新增 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
+渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`，
+`mock` / 企享云等渠道不受影响；`hzcx` 回调只登记 attrs、绝不迁移状态机。
+
+**如实标注的边界**：
+
+- 上述路径、字段、状态码、签名规则均取自**公开文档**并做了协议层 / 编排层单测
+  （百旺相关 62 个用例），**尚未与平台做真实联调**；首次接入须用沙箱 / 测试企业核对
+  `qyId`、`fplxdm` 字典、回调地址可达性与异步回调字段。
+- 版式文件以 3.4.15（按票号）/ 3.4.8（按 ddlsh）同步查询为主，`qdbswj` 回调 URL 为降级兜底；
+  编排层在置 `SUCCEEDED` 前仍强校验 XML 法定原件，缺则抛 `XML_ORIGINAL_REQUIRED`。
+- 3.4.11 修复是**异步**且文档明确「不支持结果回调」：申请只返回受理，结果由
+  3.4.12（默认）或 3.4.13（`repairResultMode=BATCH`）查询；`code=-1` 视为「尚未修复到发票」，
+  保持 `PROCESSING` 允许继续查询，不误判为终态失败。
+- 3.1.1 查询 `qyId` 由使用方在配置期调用一次后写入 `attrs.qyId`，框架**不在启动期**自动发起外部请求。
+- 不编造未纳入的接口：作废类（3.3.1 / 3.3.2 / 3.3.10 / 3.3.11）、税控红字信息表、
+  商品管理、机动车/二手车、乐企跨区、订单码、打印、智能抬头等按口径留在骨架之外。
 
 百旺票税云、金蝶发票云仍为骨架，待按各自公开文档核对。
 
@@ -223,8 +280,10 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
    `BaiwangJsChannelProvider` 一样直接实现 `InvoiceChannelProvider` 及各能力接口，不强行套通用适配器；
 3. 若平台签名规则不是默认 HMAC-SHA256，覆写 `buildHeaders`；若响应结构与通用解析差异大，
    覆写 `call` 的解析或 `toInvoiceResult`；
-4. 在 `attrs` 中配置路径与票种编码映射，用 mock 单测覆盖「成功 / 异步 / 授权 / 失败 / 无 XML」分支；
-5. 按平台文档核对字段语义后再将 `documentVerified` 置为 `true`。
+4. 新增可选能力时在 SPI 上用 `default null`，并在注册表加 `capability()` 包装与能力位；
+   未实现的渠道由注册表统一拒绝，不构成强制契约；
+5. 在 `attrs` 中配置路径与票种编码映射，用 mock 单测覆盖「成功 / 异步 / 授权 / 失败 / 无 XML」分支；
+6. 按平台文档核对字段语义后再将 `documentVerified` 置为 `true`。
 
 ## 6. 与支付域复用的部分
 

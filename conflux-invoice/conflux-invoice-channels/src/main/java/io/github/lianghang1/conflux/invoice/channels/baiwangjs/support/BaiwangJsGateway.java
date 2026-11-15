@@ -57,6 +57,23 @@ public final class BaiwangJsGateway {
         }
     }
 
+    /**
+     * 3.1.1 查询企业唯一标识（配置期工具，仅调用一次）。
+     *
+     * <p>框架不自动调用，避免启动期产生外部依赖；使用方在配置 {@code qyId} 前调用本方法，
+     * 把返回的 qyId 写入 {@code attrs.qyId}。返回 null 表示渠道未给出（code≠0）。</p>
+     */
+    public String queryUniqueSign(String sellerName, String sellerTaxNo) {
+        Map<String, Object> body = BaiwangJsCodec.uniqueSignBody(sellerName, sellerTaxNo);
+        BaiwangJsResponse response = call("uniqueSignPath",
+                io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsSpec
+                        .QUERY_UNIQUE_SIGN, null, body);
+        if (!response.isAccepted()) {
+            return null;
+        }
+        return response.dataText("qyId");
+    }
+
     /** 读取同步响应中 data 下的字段（兼容 data / Data）。 */
     public static String dataText(BaiwangJsResponse response, String... names) {
         return response == null ? null : response.dataText(names);

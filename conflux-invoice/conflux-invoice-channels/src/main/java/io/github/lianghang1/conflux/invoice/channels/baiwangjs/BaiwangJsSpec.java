@@ -48,14 +48,38 @@ public final class BaiwangJsSpec {
     public static final String RED_APPLY = "/cloud/applyElecRedInvoice";
     /** 3.3.4 数电红冲结果查询。 */
     public static final String RED_QUERY = "/cloud/queryRedInvRes";
-    /** 3.4.2 电子税务局登录（两步短信）。 */
+    /** 3.3.12 数电红冲开具（确认单已确认后真正开具红字发票）。 */
+    public static final String RED_ISSUE = "/cloud/doElecRedInvoice";
+    /** 3.3.15 红字确认单状态查询（同步，返回 hzqrxxztDm）。 */
+    public static final String RED_STATUS_QUERY = "/cloud/queryHzqrdzt";
+    /** 3.3.16 红字确认单确认或拒绝（qrlx=Y 同意 / N 拒绝）。 */
+    public static final String RED_CONFIRM = "/cloud/updateHzqrdState";
+    /** 3.3.17 可冲销明细查询（异步，回调 ywlxdm=hzcx）。 */
+    public static final String RED_AVAILABLE_QUERY = "/cloud/hzcxmx";
+
+    /** 3.4.4 电子税务局登录（两步短信）。 */
     public static final String LOGIN = "/cloud/dzswjLogin";
-    /** 3.4.4 获取实人认证二维码（同步）。 */
+    /** 3.4.6 获取实人认证二维码（同步，默认）。 */
     public static final String QRCODE_SYNC = "/elecEwm/queryEwmrzSnyc";
-    /** 3.4.3 获取实人认证二维码（异步）。 */
+    /** 3.4.5 获取实人认证二维码（异步，回调 ywlxdm=ewmrz）。 */
     public static final String QRCODE_ASYNC = "/elecEwm/queryEwmrz";
-    /** 3.4.5 认证结果查询（异步返回 cxnsrfx）。 */
+    /** 3.4.14 认证结果 / 纳税人风险信息查询（异步，回调 ywlxdm=cxnsrfx）。 */
     public static final String RISK_INFO = "/elecEwm/queryRiskInfo";
+
+    /** 3.4.7 发票短信邮箱重发（同步）。 */
+    public static final String DELIVERY_RESEND = "/cloud/fpReSend";
+    /** 3.4.8 电子发票下载地址查询（同步，按 ddlsh）。 */
+    public static final String INVOICE_DOWNLOAD = "/cloud/invoiceDownload";
+    /** 3.4.15 电票版式文件查询（同步，按票号，返回 pdfUrl/ofdUrl/xmlUrl）。 */
+    public static final String LAYOUT_QUERY = "/cloud/queryBswj";
+    /** 3.4.11 发票修复（V1）。 */
+    public static final String REPAIR_V1 = "/cloud/invoiceRepair";
+    /** 3.4.11(V2) 发票修复（V2，默认）。 */
+    public static final String REPAIR_V2 = "/cloud/v2/invoiceRepair";
+    /** 3.4.12 发票修复结果查询。 */
+    public static final String REPAIR_RESULT = "/cloud/repairResult";
+    /** 3.4.13 发票查询-按票号或时间（同步，批量分页）。 */
+    public static final String QUERY_BATCH = "/cloud/queryInvBatch";
 
     // ---- 回调业务类型 ywlxdm ----
 
@@ -69,6 +93,8 @@ public final class BaiwangJsSpec {
     public static final String YW_EWMRZ = "ewmrz";
     /** 认证结果/风险信息。 */
     public static final String YW_CXNSRFX = "cxnsrfx";
+    /** 可冲销明细查询结果（3.3.17）。 */
+    public static final String YW_HZCX = "hzcx";
 
     // ---- 回调 status ----
 

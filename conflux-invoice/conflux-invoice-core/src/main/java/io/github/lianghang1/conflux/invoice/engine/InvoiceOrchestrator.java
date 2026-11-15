@@ -7,6 +7,8 @@ import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.invoice.api.AuthChallenge;
 import io.github.lianghang1.conflux.invoice.api.AuthResult;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
+import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
+import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
@@ -14,7 +16,11 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
+import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
+import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.ChannelInstance;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceAccountKey;
@@ -174,7 +180,11 @@ public class InvoiceOrchestrator {
         if (StringUtils.isNotBlank(req.getChannelOrderNo())) {
             return rt.invoiceStore.findByChannelOrderNo(req.getChannelOrderNo());
         }
-        GatewayAssert.param(false, "查单参数不足：需提供 invoiceId / bizOrderNo / channelOrderNo");
+        if (StringUtils.isNotBlank(req.getInvoiceNo())) {
+            return rt.invoiceStore.findByInvoiceNo(req.getInvoiceNo(), req.getInvoiceCode());
+        }
+        GatewayAssert.param(false,
+                "查单参数不足：需提供 invoiceId / bizOrderNo / channelOrderNo / invoiceNo");
         return null;
     }
 
@@ -257,6 +267,7 @@ public class InvoiceOrchestrator {
                     "仅开票成功的蓝字发票可申请红冲，当前状态={}", original.getState());
         }
         ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
+        assertRedAvailable(original, config, req);
         LocalDateTime now = rt.now();
 
         RedApply apply = new RedApply()
@@ -309,12 +320,67 @@ public class InvoiceOrchestrator {
         ChannelConfig config = configOf(apply.getChannelCode(), apply.getAccountKey());
         InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
         RedApplyResult result = rt.registry.redHandler(apply.getChannelCode()).queryRed(ctx);
+        applyConfirmResult(apply, original, result);
+        return apply;
+    }
+
+    /**
+     * 主动确认或拒绝红字确认单（与 {@link #confirmRed(String)} 的「查状态」分开）。
+     *
+     * <p>渠道未实现该可选能力时返回 {@code CHANNEL_CAPABILITY_NOT_SUPPORTED}，
+     * 由使用方决定改走查询状态流程，不静默降级。</p>
+     */
+    public RedApply confirmRed(RedConfirmRequest req) {
+        GatewayAssert.param(req != null, "红字确认请求不能为空");
+        GatewayAssert.param(StringUtils.isNotBlank(req.getRedApplyId()), "redApplyId 不能为空");
+        RedApply apply = rt.redApplyStore.findById(req.getRedApplyId());
+        if (apply == null) {
+            throw new GatewayException(InvoiceErrorCode.RED_APPLY_NOT_FOUND,
+                    "红字确认单不存在: {}", req.getRedApplyId());
+        }
+        if (apply.getState().isTerminal() || apply.getState() != RedApplyState.WAITING_CONFIRM) {
+            return apply;
+        }
+        if (apply.getConfirmDeadline() != null && !rt.now().isBefore(apply.getConfirmDeadline())) {
+            updateRedApply(apply, new RedApplyResult().setState(RedApplyState.EXPIRED));
+            return apply;
+        }
+        Invoice original = rt.invoiceStore.findById(apply.getOriginalInvoiceId());
+        ChannelConfig config = configOf(apply.getChannelCode(), apply.getAccountKey());
+        InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
+        RedApplyResult result = rt.registry.redHandler(apply.getChannelCode()).confirm(ctx, req);
+        if (result == null) {
+            throw new GatewayException(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
+                    "渠道[{}]不支持主动确认/拒绝红字确认单，请改用查询确认状态流程",
+                    apply.getChannelCode());
+        }
+        applyConfirmResult(apply, original, result);
+        return apply;
+    }
+
+    /** 确认结果落库 + 原票状态推进（查询与主动确认共用）。 */
+    private void applyConfirmResult(RedApply apply, Invoice original, RedApplyResult result) {
         updateRedApply(apply, result);
         if (apply.getState() == RedApplyState.CONFIRMED && original != null
                 && original.getState() == InvoiceState.RED_APPLYING) {
             transition(original, InvoiceState.RED_APPLY_CONFIRMED, null);
         }
-        return apply;
+    }
+
+    /**
+     * 红冲前置校验：渠道实现了可冲销明细能力且明确返回「不可冲」时阻断。
+     * 渠道不支持（返回 null）或异步受理（结果走回调）时一律放行。
+     */
+    private void assertRedAvailable(Invoice original, ChannelConfig config, RedApplyRequest req) {
+        RedAvailableResult check = rt.registry.redHandler(original.getChannelCode())
+                .checkRedAvailable(InvoiceContext.of(config, null, original));
+        if (check == null || check.isAsyncAccepted() || check.isAvailable()) {
+            return;
+        }
+        throw new GatewayException(InvoiceErrorCode.RED_NOT_AVAILABLE,
+                "原票[{}]可冲销校验未通过，不能发起红冲: {}",
+                req.getOriginalInvoiceNo(), check.getErrorMsg() == null
+                        ? "可红冲余额不足或原票状态不允许" : check.getErrorMsg());
     }
 
     /** 确认后开具红字发票（第二段）。 */
@@ -401,6 +467,96 @@ public class InvoiceOrchestrator {
         }
         GatewayAssert.param(false, "需提供 redApplyId 或 bizRedNo");
         return null;
+    }
+
+    // ==================== 辅助能力：交付 / 修复 ====================
+
+    /** 重新交付发票（短信/邮箱）；不改变单据状态，仅返回渠道受理结果。 */
+    public DeliveryResult resend(DeliveryRequest req) {
+        GatewayAssert.param(req != null, "交付请求不能为空");
+        GatewayAssert.param(StringUtils.isNotBlank(req.getInvoiceId()), "invoiceId 不能为空");
+        if (StringUtils.isBlank(req.getPhone()) && StringUtils.isBlank(req.getEmail())) {
+            throw new GatewayException(InvoiceErrorCode.DELIVERY_TARGET_REQUIRED,
+                    "手机号或邮箱至少提供一个");
+        }
+        Invoice invoice = rt.invoiceStore.findById(req.getInvoiceId());
+        if (invoice == null) {
+            throw new GatewayException(InvoiceErrorCode.INVOICE_NOT_FOUND,
+                    "发票单据不存在: {}", req.getInvoiceId());
+        }
+        ChannelConfig config = configOf(invoice.getChannelCode(), invoice.getAccountKey());
+        InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
+        DeliveryResult result = rt.registry.deliverer(invoice.getChannelCode()).resend(ctx, req);
+        if (result == null) {
+            throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED, "渠道交付未返回结果");
+        }
+        return result;
+    }
+
+    /** 提交发票修复申请（渠道侧补偿，不改单据状态）。 */
+    public RepairResult repair(RepairRequest req) {
+        GatewayAssert.param(req != null, "修复请求不能为空");
+        Invoice invoice = locateForRepair(req);
+        String channelCode = channelOf(req, invoice);
+        ChannelConfig config = configForRepair(req, invoice, channelCode);
+        InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
+        RepairResult result = rt.registry.repairer(channelCode).apply(ctx, req);
+        if (result == null) {
+            throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED, "渠道修复未返回结果");
+        }
+        return result;
+    }
+
+    /** 查询发票修复结果（使用与申请相同的 channelOrderNo）。 */
+    public RepairResult queryRepair(RepairRequest req) {
+        GatewayAssert.param(req != null, "修复结果查询请求不能为空");
+        if (StringUtils.isBlank(req.getChannelOrderNo())) {
+            throw new GatewayException(InvoiceErrorCode.REPAIR_PARAM_REQUIRED,
+                    "channelOrderNo 不能为空");
+        }
+        Invoice invoice = locateForRepair(req);
+        String channelCode = channelOf(req, invoice);
+        ChannelConfig config = configForRepair(req, invoice, channelCode);
+        InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
+        RepairResult result = rt.registry.repairer(channelCode).query(ctx, req);
+        if (result == null) {
+            throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED, "渠道修复结果查询未返回结果");
+        }
+        return result;
+    }
+
+    private Invoice locateForRepair(RepairRequest req) {
+        if (StringUtils.isNotBlank(req.getInvoiceId())) {
+            return rt.invoiceStore.findById(req.getInvoiceId());
+        }
+        if (StringUtils.isNotBlank(req.getInvoiceNo())) {
+            return rt.invoiceStore.findByInvoiceNo(req.getInvoiceNo(), req.getInvoiceCode());
+        }
+        return null;
+    }
+
+    /** 修复可无本地单据（按票号/日期补拉），此时用请求指定的渠道编码。 */
+    private String channelOf(RepairRequest req, Invoice invoice) {
+        if (invoice != null) {
+            return invoice.getChannelCode();
+        }
+        if (StringUtils.isBlank(req.getChannelCode())) {
+            throw new GatewayException(InvoiceErrorCode.REPAIR_PARAM_REQUIRED,
+                    "无本地单据时需指定 channelCode");
+        }
+        return req.getChannelCode();
+    }
+
+    /** 有单据走账户键反查；无单据按 appId + channelCode + sellerTaxNo 定位配置。 */
+    private ChannelConfig configForRepair(RepairRequest req, Invoice invoice, String channelCode) {
+        if (invoice != null) {
+            return configOf(invoice.getChannelCode(), invoice.getAccountKey());
+        }
+        if (StringUtils.isBlank(req.getAppId()) || StringUtils.isBlank(req.getSellerTaxNo())) {
+            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
+                    "无本地单据的修复需提供 appId 与 sellerTaxNo 以定位渠道配置");
+        }
+        return rt.configProvider.getConfig(req.getAppId(), channelCode, req.getSellerTaxNo());
     }
 
     private Invoice locateOriginal(RedApplyRequest req) {

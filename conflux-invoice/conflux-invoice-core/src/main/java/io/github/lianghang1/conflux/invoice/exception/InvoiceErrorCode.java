@@ -50,6 +50,7 @@ public enum InvoiceErrorCode implements ErrorCode {
     RED_CONFIRM_PENDING(3303, "红字确认单尚未确认，不能开具红字发票", 409),
     RED_CONFIRM_EXPIRED(3304, "红字确认单已过期", 409),
     RED_CONFIRM_REJECTED(3305, "红字确认单被对方拒绝", 409),
+    RED_NOT_AVAILABLE(3306, "原票可冲销校验未通过，不能发起红冲", 409),
 
     // ---- 文件 / 持久化 34xx ----
     FILE_NOT_FOUND(3401, "发票版式文件不存在", 404),
@@ -57,7 +58,12 @@ public enum InvoiceErrorCode implements ErrorCode {
     STORE_MISSING(3403, "持久化实现未注册", 500),
     STORE_CONCURRENT_MODIFICATION(3404, "单据已被并发修改，请重试", 409),
     STORE_CLAIM_FAILED(3405, "待处理单据认领失败", 409),
-    FILE_ARCHIVE_FAILED(3406, "版式文件归档失败", 500);
+    FILE_ARCHIVE_FAILED(3406, "版式文件归档失败", 500),
+
+    // ---- 辅助能力 35xx（交付 / 修复 / 补单） ----
+    DELIVERY_TARGET_REQUIRED(3501, "交付目标（手机号或邮箱）不能为空", 400),
+    REPAIR_NOT_FOUND(3502, "修复任务不存在或未修复到发票", 404),
+    REPAIR_PARAM_REQUIRED(3503, "修复请求参数不足", 400);
 
     private final int code;
     private final String message;

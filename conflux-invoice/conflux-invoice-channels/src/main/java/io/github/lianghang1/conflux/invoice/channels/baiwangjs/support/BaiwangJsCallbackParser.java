@@ -84,12 +84,26 @@ public final class BaiwangJsCallbackParser {
         } else if (BaiwangJsSpec.YW_EWMRZ.equalsIgnoreCase(ywlxdm)
                 || BaiwangJsSpec.YW_CXNSRFX.equalsIgnoreCase(ywlxdm)) {
             parseAuth(root, event, attrs);
+        } else if (BaiwangJsSpec.YW_HZCX.equalsIgnoreCase(ywlxdm)) {
+            // 3.3.17 可冲销明细查询的异步结果：只登记金额/明细摘要，绝不改单据状态，
+            // 否则会被误当成 fpkj 开票结果推进状态机。
+            parseRedAvailable(root, event, attrs);
         } else {
             // fpkj（蓝字开票结果 / 红字开具结果）及未知类型统一按开票结果处理
             parseIssue(root, event, attrs);
         }
         event.setAttrs(attrs);
         return event;
+    }
+
+    /** hzcx：可冲销明细查询结果，登记到 attrs 供排障/后续对账，不改状态。 */
+    private static void parseRedAvailable(JsonNode root, InvoiceCallbackEvent event,
+                                          Map<String, String> attrs) {
+        put(attrs, "hzcxje", str(root, "hzcxje"));
+        put(attrs, "hzcxse", str(root, "hzcxse"));
+        put(attrs, "jshj", str(root, "jshj"));
+        put(attrs, "channelResult", "HZCX:" + nullTo(str(root, "status"), ""));
+        event.setErrorMsg(str(root, "ycyy"));
     }
 
     /** fpkj：票号、日期、金额、状态。成功不直接置 SUCCEEDED，等待 qdbswj 补法定原件。 */

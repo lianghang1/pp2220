@@ -1,13 +1,18 @@
 package io.github.lianghang1.conflux.invoice.engine;
 
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
+import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
+import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
+import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
@@ -62,9 +67,29 @@ public class InvoiceGateway {
         return orchestrator.confirmRed(redApplyId);
     }
 
+    /** 主动确认或拒绝红字确认单（渠道可选能力，与查询状态分开）。 */
+    public RedApply confirmRed(RedConfirmRequest request) {
+        return orchestrator.confirmRed(request);
+    }
+
     /** 确认后开具红字发票（两段红冲第二段）。 */
     public InvoiceResult issueRed(RedIssueRequest request) {
         return orchestrator.issueRed(request);
+    }
+
+    /** 重新交付发票（短信/邮箱重发），不改单据状态。 */
+    public DeliveryResult resend(DeliveryRequest request) {
+        return orchestrator.resend(request);
+    }
+
+    /** 提交发票修复申请（渠道侧补偿，不改单据状态）。 */
+    public RepairResult repair(RepairRequest request) {
+        return orchestrator.repair(request);
+    }
+
+    /** 查询发票修复结果。 */
+    public RepairResult queryRepair(RepairRequest request) {
+        return orchestrator.queryRepair(request);
     }
 
     /** 处理渠道回调；返回被推进的单据结果（无匹配单据时返回 null）。 */

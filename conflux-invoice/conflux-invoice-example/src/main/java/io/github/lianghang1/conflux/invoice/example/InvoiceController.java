@@ -1,13 +1,18 @@
 package io.github.lianghang1.conflux.invoice.example;
 
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
+import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
+import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
+import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairRequest;
+import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
@@ -25,10 +30,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 演示 REST 入口：完整暴露蓝字开票、查单、授权提交、两段红冲、渠道回调、文件查询。
+ * 演示 REST 入口：完整暴露蓝字开票、查单、授权提交、两段红冲、渠道回调、文件查询，
+ * 以及辅助能力（发票交付重发、发票修复、红字确认单主动确认/拒绝、按票号查单）。
  *
  * <p>回调地址需在渠道侧带上 {@code ?accountKey=...} 查询参数，供验签前反查配置
- * （见 {@code InvoiceAccountKey}）。</p>
+ * （见 {@code InvoiceAccountKey}）。交付 / 修复 / 主动确认均为<b>渠道可选能力</b>，
+ * 渠道未实现时由注册表抛 {@code CHANNEL_CAPABILITY_NOT_SUPPORTED}。</p>
  *
  * @author lianghang
  */
@@ -54,6 +61,15 @@ public class InvoiceController {
         return gateway.query(new InvoiceQueryRequest().setInvoiceId(invoiceId));
     }
 
+    /** 按票号查单（对账 / 换渠道补单）；精确路径优先于 /{invoiceId}。 */
+    @GetMapping("/by-no")
+    public InvoiceResult queryByNo(@RequestParam String invoiceNo,
+                                   @RequestParam(required = false) String invoiceCode,
+                                   @RequestParam(required = false) String appId) {
+        return gateway.query(new InvoiceQueryRequest()
+                .setAppId(appId).setInvoiceNo(invoiceNo).setInvoiceCode(invoiceCode));
+    }
+
     /** 提交授权凭证。 */
     @PostMapping("/auth")
     public InvoiceResult submitAuth(@RequestBody AuthSubmission submission) {
@@ -72,6 +88,12 @@ public class InvoiceController {
         return gateway.confirmRed(redApplyId);
     }
 
+    /** 主动确认或拒绝红字确认单（渠道可选能力，与上面的「查状态」分开）。 */
+    @PostMapping("/red/confirm-action")
+    public RedApply confirmRedAction(@RequestBody RedConfirmRequest request) {
+        return gateway.confirmRed(request);
+    }
+
     /** 确认后开具红字发票（第二段）。 */
     @PostMapping("/red/issue")
     public InvoiceResult issueRed(@RequestBody RedIssueRequest request) {
@@ -82,6 +104,24 @@ public class InvoiceController {
     @GetMapping("/{invoiceId}/files")
     public List<InvoiceFile> files(@PathVariable String invoiceId) {
         return gateway.files(invoiceId);
+    }
+
+    /** 重新交付发票（短信/邮箱重发），不改单据状态。 */
+    @PostMapping("/delivery")
+    public DeliveryResult resend(@RequestBody DeliveryRequest request) {
+        return gateway.resend(request);
+    }
+
+    /** 提交发票修复申请（渠道侧补偿，不改单据状态）。 */
+    @PostMapping("/repair")
+    public RepairResult repair(@RequestBody RepairRequest request) {
+        return gateway.repair(request);
+    }
+
+    /** 查询发票修复结果（使用与申请相同的 channelOrderNo）。 */
+    @PostMapping("/repair/query")
+    public RepairResult queryRepair(@RequestBody RepairRequest request) {
+        return gateway.queryRepair(request);
     }
 
     /** 渠道回调；按渠道协议返回应答报文。 */

@@ -164,7 +164,18 @@ gateway.confirmRed(apply.getRedApplyId()); // 对方确认 → CONFIRMED
 gateway.issueRed(...);                     // 第二段：开红字发票 → 原票 RED_SUCCEEDED
 ```
 
-`conflux-invoice-example` 提供可直接运行的 REST 宿主（`/api/invoices` 系列端点），默认 mock 渠道，零凭据即可跑通完整链路。
+`conflux-invoice-example` 提供可直接运行的 REST 宿主（`/api/invoices` 系列端点），默认 mock 渠道，零凭据即可跑通完整链路。辅助能力同样有端点：按票号查单 `GET /by-no`、发票交付重发 `POST /delivery`、发票修复 `POST /repair` 与结果查询 `POST /repair/query`、红字确认单主动确认/拒绝 `POST /red/confirm-action`。
+
+**辅助能力为渠道可选能力**：新增的 `InvoiceDeliverer` / `InvoiceRepairer` 与 `InvoiceRedHandler` 两个可选方法一律 `default null`，未实现的渠道由注册表统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`，不影响 `mock` / 企享云等渠道；同一能力的 V1/V2 或同步/异步模式走 `attrs` 切换，不为版本单开 SPI 方法。
+
+```java
+gateway.resend(new DeliveryRequest().setInvoiceId(id).setEmail("a@b.com"));   // 短信/邮箱重发
+RepairResult r = gateway.repair(new RepairRequest().setInvoiceId(id));          // 发票修复申请
+gateway.queryRepair(new RepairRequest().setChannelOrderNo(r.getChannelOrderNo()));
+gateway.confirmRed(new RedConfirmRequest().setRedApplyId(applyId).setAccept(true)); // 主动确认红字确认单
+```
+
+> 百旺金穗云按语雀《3.接口定义》逐条核对后，已实现 14 个 A/B 档接口（详见 [docs/invoice-platforms.md](docs/invoice-platforms.md) 第 3.5 节）；商品管理、机动车/二手车、乐企跨区、订单码、打印及**作废类**接口按「通用渠道平台 + 数电票只有红冲没有作废」的口径不纳入骨架。
 
 ---
 
@@ -178,7 +189,7 @@ gateway.issueRed(...);                     // 第二段：开红字发票 → �
 |---|---|---|---|---|
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全能力：开票 / 授权 / 异步 / XML 原件 / 两段红冲 / 回调 |
 | `qixiangyun` | 企享云 | SERVICE_API | **蓝字开具接口已核对** | `POST /v2/invoice/qdfp/fpkjZzs`，字段 `action/async/nsrsbh/ly_ddbh/wjgs/fplxdm/xmmx/jshj/hjse/data.xsf_yhmc`；响应 `reqId/code/success/message/data.fphm`，`code=2001` 转异步。查单/红字/授权/文件下载需按文档配置路径 |
-| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方文档）** | 专属适配器 `BaiwangJsChannelProvider`：Base64 报文 + HMAC 网关签名；蓝字开具 / 查单 **V2 优先、V1 保留可切换**；红字两段、电局登录 / 实人认证、`qdbswj` 版式回调归档 XML 法定原件。32 个协议层/编排层单测覆盖 |
+| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方文档）** | 专属适配器 `BaiwangJsChannelProvider`：Base64 报文 + HMAC 网关签名；蓝字开具 / 查单 / 发票修复 **V2 优先、V1 保留可切换**；红字两段（确认后开具 / 状态查询 / 主动确认）、登录 / 实人认证（同步+异步二维码）、3.4.15 / 3.4.8 版式文件查询、3.4.7 交付重发、3.3.17 可冲销校验、`hzcx` 回调分流、XML 法定原件。62 个协议层/编排层单测覆盖 |
 | `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 
@@ -203,8 +214,11 @@ conflux.invoice.apps.demo.channels.baiwangjs:
 ```
 
 > 其余可覆盖路径键（`issuePath` / `queryPath` / `redApplyPath` / `redQueryPath` /
-> `authStartPath` / `qrCodePath` / `riskInfoPath`）、销方票面信息与票种编码映射见
-> [docs/invoice-platforms.md](docs/invoice-platforms.md) 第 3.4 节与 example 的 `application.yml` 模板。
+> `redIssuePath` / `redStatusPath` / `redConfirmPath` / `redAvailablePath` / `authStartPath` /
+> `qrCodePath` / `qrCodeAsyncPath` / `riskInfoPath` / `deliveryPath` / `downloadPath` /
+> `layoutQueryPath` / `repairPath` / `repairResultPath` / `queryBatchPath`）、
+> `qrMode` / `repairResultMode` 模式开关、销方票面信息与票种编码映射见
+> [docs/invoice-platforms.md](docs/invoice-platforms.md) 第 3.2 / 3.4 节与 example 的 `application.yml` 模板。
 >
 > 通用 REST 适配器的签名默认是 HMAC-SHA256 占位，各平台规则不同，正式接入前须按文档覆写 `buildHeaders`；
 > 百旺金穗云已实现 `Base64(HmacSHA256(sign_str, SECRET))` 网关签名（`BaiwangJsSigner`），无需覆写。
@@ -226,7 +240,7 @@ conflux.invoice.apps.demo.channels.baiwangjs:
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **159 个用例全绿**（common 6、pay 76、invoice 77）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 32 个用例覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流，以及「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢。
+当前全量 **206 个用例全绿**（common 6、pay 76、invoice 124）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 **62 个用例**覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流（含 `hzcx`）、「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢，以及 A/B 档新增的请求组装、修复结果归一、可选能力 `default-null` 契约与门面编排（`resend` / `repair` / `queryRepair` / 主动确认 / 红冲前置校验 / 按票号查单）。
 
 ## 文档索引
 
