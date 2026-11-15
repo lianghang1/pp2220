@@ -53,6 +53,10 @@ public class Invoice implements Serializable {
     private String buyerAddress;
     private String buyerBank;
     private String buyerPhone;
+    /** 购方手机号（电票交付：短信地址，与邮箱都传时渠道只发邮箱）。 */
+    private String buyerMobile;
+    /** 购方邮箱（电票交付；多个用英文逗号分隔）。 */
+    private String buyerEmail;
     /** 框架统一票种。 */
     private InvoiceType invoiceType;
     /** 明细行。 */
@@ -63,6 +67,30 @@ public class Invoice implements Serializable {
     private BigDecimal taxAmount;
     private String remark;
     private String drawer;
+
+    /**
+     * 特殊票种标志（渠道 tspz）：00 普通票（默认）、01 成品油、03 建筑服务、
+     * 04 货物运输服务、05 不动产销售、06 不动产经营租赁、09 旅客运输服务等。
+     *
+     * <p>为空且存在 {@link #jzfwTdys} 时按 03（建筑服务）上报；
+     * 为空且存在 {@link #bdcTdysList} 时按 06（不动产经营租赁）上报。</p>
+     */
+    private String tspz;
+    /** 征收方式：0 普通征税（默认）、1 减按计征、2 差额征收-差额开票、3 差额征收-全额开票、4 减按征收-经营租赁。 */
+    private String zsfs;
+    /**
+     * 建筑服务特定业务要素（tspz=03 时必填）：
+     * {@code tdzzsxmbh 跨区域涉税项目编号、jzfwfsd 建筑服务发生地、jzxmmc 建设项目名称、
+     * kdsbz 跨地(Y/N)标志、kqysssxbgglbm 跨区域涉税事项报告编码、fullAddress 详细地址}。
+     */
+    private Map<String, String> jzfwTdys;
+    /**
+     * 不动产经营租赁特定业务要素列表（tspz=06 时必填，行数须与商品行数一致）：
+     * {@code bdcdz 不动产地址、zlqqz 租赁期起止、kdsbz 跨地(Y/N)标志、cqzsh 产权证书号、
+     * dw 单位、fullAddress 详细地址}。
+     */
+    private List<Map<String, String>> bdcTdysList;
+
     /** 是否允许渠道转异步。 */
     private boolean asyncAllowed;
     /** 使用方异步通知地址。 */

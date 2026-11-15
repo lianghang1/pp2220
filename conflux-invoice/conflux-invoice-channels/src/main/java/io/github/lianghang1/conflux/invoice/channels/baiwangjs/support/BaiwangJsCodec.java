@@ -19,6 +19,8 @@ import io.github.lianghang1.conflux.invoice.model.RedApply;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -39,6 +41,10 @@ import java.util.Map;
  * @author lianghang
  */
 public final class BaiwangJsCodec {
+
+    /** 数电原开票时间格式（文档 3.3.3）：{@code yyyy-MM-dd HH:mm:ss}。 */
+    private static final DateTimeFormatter KPRQ_DATETIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private BaiwangJsCodec() {
     }
@@ -166,6 +172,25 @@ public final class BaiwangJsCodec {
         return body;
     }
 
+    /**
+     * 特殊票种标志推断：显式指定优先；有建筑服务要素按 03、有不动产要素按 06，否则 00。
+     */
+    public static String resolveTspz(Invoice invoice) {
+        if (invoice == null) {
+            return "00";
+        }
+        if (StringUtils.isNotBlank(invoice.getTspz())) {
+            return invoice.getTspz();
+        }
+        if (invoice.getJzfwTdys() != null && !invoice.getJzfwTdys().isEmpty()) {
+            return "03";
+        }
+        if (invoice.getBdcTdysList() != null && !invoice.getBdcTdysList().isEmpty()) {
+            return "06";
+        }
+        return "00";
+    }
+
     /** 3.2.6 / 3.2.6(V2) 蓝字开票请求体。 */
     public static Map<String, Object> issueBody(InvoiceContext ctx, BaiwangJsParams params,
                                                 String ddlsh) {
@@ -174,8 +199,8 @@ public final class BaiwangJsCodec {
         put(body, "sksbh", invoice.getSellerTaxNo());
         put(body, "fplxdm", params.invoiceTypeCode(invoice.getInvoiceType()));
         put(body, "kplx", "0");
-        put(body, "tspz", "00");
-        put(body, "zsfs", "0");
+        put(body, "tspz", resolveTspz(invoice));
+        put(body, "zsfs", firstNonBlank(invoice.getZsfs(), "0"));
         put(body, "qdbz", "0");
 
         String sellerName = firstNonBlank(params.getSellerName(), invoice.getSellerName());
@@ -185,10 +210,14 @@ public final class BaiwangJsCodec {
 
         put(body, "gmfMc", invoice.getBuyerTitle());
         put(body, "gmfNsrsbh", invoice.getBuyerTaxNo());
+        // 电票交付：手机号 + 邮箱；渠道规则：两者都传时只发邮箱
+        put(body, "gmfMobile", invoice.getBuyerMobile());
+        put(body, "gmfEmail", invoice.getBuyerEmail());
         put(body, "kpr", firstNonBlank(params.getKpr(), invoice.getDrawer()));
         put(body, "sqr", params.getSqr());
         put(body, "dlzh", params.getDlzh());
         put(body, "bz", invoice.getRemark());
+        putSpecialBiz(body, invoice);
 
         BigDecimal total = invoice.getAmount();
         BigDecimal tax = invoice.getTaxAmount();
@@ -197,8 +226,27 @@ public final class BaiwangJsCodec {
         if (total != null) {
             put(body, "hjje", decimal(tax == null ? total : total.subtract(tax)));
         }
-        body.put("detailParam", detailParams(invoice, params.isV1(), false));
+        body.put("detailParam", detailParams(invoice, params.isV1(), false, resolveTspz(invoice)));
         return body;
+    }
+
+    /**
+     * 特定业务要素节点：建筑服务（jzfwTdys）/ 不动产经营租赁（bdcTdysList）。
+     * 字段名与渠道文档一致，键由使用方按文档传入。
+     */
+    private static void putSpecialBiz(Map<String, Object> body, Invoice invoice) {
+        if (invoice.getJzfwTdys() != null && !invoice.getJzfwTdys().isEmpty()) {
+            body.put("jzfwTdys", new LinkedHashMap<String, Object>(invoice.getJzfwTdys()));
+        }
+        if (invoice.getBdcTdysList() != null && !invoice.getBdcTdysList().isEmpty()) {
+            List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+            for (Map<String, String> element : invoice.getBdcTdysList()) {
+                if (element != null && !element.isEmpty()) {
+                    list.add(new LinkedHashMap<String, Object>(element));
+                }
+            }
+            body.put("bdcTdysList", list);
+        }
     }
 
     /** V1 合并 / V2 拆分 的购销方地址电话银行账号。 */
@@ -221,13 +269,20 @@ public final class BaiwangJsCodec {
         }
     }
 
-    /** 明细行；{@code negative=true} 用于红字申请（金额为负）。 */
+    /**
+     * 明细行；{@code negative=true} 用于红字申请（金额为负，须带 {@code lzmxxh} 蓝字行号）。
+     *
+     * <p>特殊票种强制规则（文档 3.2.6）：建筑服务(03)的 {@code dj}/{@code sl} 必须为空；
+     * 不动产销售(05)/经营租赁(06)的 {@code ggxh} 必须为空。</p>
+     */
     private static List<Map<String, Object>> detailParams(Invoice invoice, boolean v1,
-                                                          boolean negative) {
+                                                          boolean negative, String tspz) {
         List<Map<String, Object>> lines = new ArrayList<Map<String, Object>>();
         if (invoice.getItems() == null) {
             return lines;
         }
+        boolean construction = "03".equals(tspz);
+        boolean realEstate = "05".equals(tspz) || "06".equals(tspz);
         int index = 1;
         for (InvoiceItem item : invoice.getItems()) {
             if (item == null) {
@@ -237,19 +292,32 @@ public final class BaiwangJsCodec {
             if (v1) {
                 line.put("xh", item.getLineNo() == null ? index : item.getLineNo());
             }
+            if (negative && item.getLineNo() != null) {
+                // 红字申请明细必须携带原蓝字发票明细行号
+                line.put("lzmxxh", item.getLineNo());
+            }
             put(line, "fphxz", "0");
             put(line, "hsbz", "1");
             put(line, "spmc", item.getItemName());
             put(line, "spbm", item.getTaxClassificationCode());
-            put(line, "ggxh", item.getSpecification());
+            if (!realEstate) {
+                put(line, "ggxh", item.getSpecification());
+            }
             put(line, "dw", item.getUnit());
-            put(line, "dj", decimal(item.getUnitPrice()));
-            put(line, "sl", decimal(item.getQuantity()));
+            if (!construction) {
+                put(line, "dj", decimal(item.getUnitPrice()));
+                put(line, "sl", decimal(item.getQuantity()));
+            }
             put(line, "je", decimal(negative ? negate(item.getAmount()) : item.getAmount()));
             put(line, "se", decimal(negative ? negate(item.getTaxAmount()) : item.getTaxAmount()));
             put(line, "slv", decimal(item.getTaxRate()));
-            put(line, "lslbs", "0");
-            put(line, "yhzcbs", "0");
+            put(line, "lslbs", firstNonBlank(item.getLslbs(), "0"));
+            String yhzcbs = firstNonBlank(item.getYhzcbs(), "0");
+            put(line, "yhzcbs", yhzcbs);
+            if ("1".equals(yhzcbs)) {
+                // 优惠政策标识为 1 时 zzstsgl 必填（免税/即征即退/简易征收等）
+                put(line, "zzstsgl", item.getZzstsgl());
+            }
             lines.add(line);
             index++;
         }
@@ -269,26 +337,37 @@ public final class BaiwangJsCodec {
         return body;
     }
 
-    /** 3.3.3 数电红冲申请（两段红冲第一段）。 */
+    /**
+     * 3.3.3 数电红冲申请（两段红冲第一段）。
+     *
+     * <p>文档必填项对齐：{@code ykprq}（数电格式 {@code yyyy-MM-dd HH:mm:ss}，取原蓝票开票时间）、
+     * {@code yfplxdm}（原发票类型）、{@code sfwzzfp}（数电固定 N）、{@code chyydm}
+     * （冲红原因代码，1 开票有误=全额红冲，2/3/4 支持部分红冲）、明细行 {@code lzmxxh}
+     * （原蓝字明细序号）。</p>
+     */
     public static Map<String, Object> redApplyBody(InvoiceContext ctx, BaiwangJsParams params,
                                                    String ddlsh) {
         Invoice invoice = ctx.requireInvoice();
         RedApply apply = ctx.getRedApply();
+        String tspz = resolveTspz(invoice);
         Map<String, Object> body = baseBody(params, ddlsh);
         put(body, "dlzh", params.getDlzh());
         put(body, "sksbh", invoice.getSellerTaxNo());
         put(body, "fplxdm", params.invoiceTypeCode(invoice.getInvoiceType()));
         put(body, "kplx", "1");
-        put(body, "tspz", "00");
-        put(body, "zsfs", "0");
+        put(body, "tspz", tspz);
+        put(body, "zsfs", firstNonBlank(invoice.getZsfs(), "0"));
         put(body, "qdbz", "0");
         put(body, "xsfMc", firstNonBlank(params.getSellerName(), invoice.getSellerName()));
         put(body, "xsfNsrsbh", invoice.getSellerTaxNo());
         fillParty(body, params, invoice, params.isV1());
         put(body, "gmfMc", invoice.getBuyerTitle());
         put(body, "gmfNsrsbh", invoice.getBuyerTaxNo());
+        put(body, "gmfMobile", invoice.getBuyerMobile());
+        put(body, "gmfEmail", invoice.getBuyerEmail());
         put(body, "sqr", params.getSqr());
         put(body, "bz", apply == null ? null : apply.getReason());
+        putSpecialBiz(body, invoice);
 
         BigDecimal amount = apply == null || apply.getAmount() == null
                 ? invoice.getAmount() : apply.getAmount();
@@ -298,13 +377,27 @@ public final class BaiwangJsCodec {
         if (amount != null) {
             put(body, "hjje", decimal(negate(tax == null ? amount : amount.subtract(tax))));
         }
+        put(body, "sfwzzfp", "N");
         put(body, "yfpDm", apply == null ? invoice.getInvoiceCode()
                 : apply.getOriginalInvoiceCode());
         put(body, "yfpHm", apply == null ? invoice.getInvoiceNo()
                 : apply.getOriginalInvoiceNo());
-        put(body, "chyydm", "1");
-        body.put("detailParam", detailParams(invoice, params.isV1(), true));
+        // 原开票日期：数电格式 yyyy-MM-dd HH:mm:ss（取原蓝票开票时间）
+        put(body, "ykprq", formatKprq(invoice.getInvoiceTime()));
+        put(body, "yfplxdm", params.invoiceTypeCode(invoice.getInvoiceType()));
+        // 冲红原因代码：1 开票有误（全额红冲）、2 销货退回、3 服务终止、4 销售折让
+        put(body, "chyydm", apply == null || StringUtils.isBlank(apply.getChyydm())
+                ? "1" : apply.getChyydm());
+        body.put("detailParam", detailParams(invoice, params.isV1(), true, tspz));
         return body;
+    }
+
+    /** 数电原开票日期格式：{@code yyyy-MM-dd HH:mm:ss}（文档 3.3.3）。 */
+    private static String formatKprq(LocalDateTime time) {
+        if (time == null) {
+            return null;
+        }
+        return KPRQ_DATETIME.format(time);
     }
 
     /** 3.3.4 数电红冲结果查询。 */

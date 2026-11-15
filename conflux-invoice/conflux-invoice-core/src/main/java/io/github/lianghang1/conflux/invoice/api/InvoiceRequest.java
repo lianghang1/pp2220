@@ -42,6 +42,10 @@ public class InvoiceRequest implements Serializable {
     private String buyerAddress;
     private String buyerBank;
     private String buyerPhone;
+    /** 购方手机号（电票交付：短信地址，与邮箱都传时渠道只发邮箱）。 */
+    private String buyerMobile;
+    /** 购方邮箱（电票交付；多个用英文逗号分隔）。 */
+    private String buyerEmail;
     /** 票种（必填，框架统一语义，由渠道映射为自身编码）。 */
     private InvoiceType invoiceType;
     /** 明细行（至少 1 行）。 */
@@ -52,6 +56,18 @@ public class InvoiceRequest implements Serializable {
     private BigDecimal taxAmount;
     private String remark;
     private String drawer;
+    /**
+     * 特殊票种标志：00 普通票（默认）、01 成品油、03 建筑服务、04 货物运输服务、
+     * 05 不动产销售、06 不动产经营租赁、09 旅客运输服务等（渠道 tspz）。
+     * 为空且存在 {@link #jzfwTdys}/{@link #bdcTdysList} 时由渠道适配器自动推断。
+     */
+    private String tspz;
+    /** 征收方式：0 普通征税（默认）、1 减按计征、2 差额征收-差额开票、3 差额征收-全额开票、4 减按征收-经营租赁。 */
+    private String zsfs;
+    /** 建筑服务特定业务要素（tspz=03 必填；键值见渠道文档，如 tdzzsxmbh / jzfwfsd / jzxmmc / kdsbz / kqysssxbgglbm）。 */
+    private Map<String, String> jzfwTdys;
+    /** 不动产经营租赁特定业务要素列表（tspz=06 必填，行数与商品行数一致；键值见渠道文档，如 bdcdz / zlqqz / cqzsh / kdsbz）。 */
+    private List<Map<String, String>> bdcTdysList;
     /** 是否允许渠道转异步（默认 true，数电票常见长耗时）。 */
     private boolean asyncAllowed = true;
     /** 使用方异步通知地址。 */

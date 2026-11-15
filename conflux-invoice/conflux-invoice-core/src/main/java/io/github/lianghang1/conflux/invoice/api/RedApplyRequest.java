@@ -28,6 +28,11 @@ public class RedApplyRequest implements Serializable {
     private String originalInvoiceCode;
     /** 红冲原因（必填）。 */
     private String reason;
+    /**
+     * 冲红原因代码：1 开票有误（只能全额红冲）、2 销货退回、3 服务终止、4 销售折让。
+     * 为空时渠道适配器按 1 上报；部分红冲应使用 2/3/4。
+     */
+    private String chyydm;
     /** 红冲金额（元，为空表示全额）。 */
     private BigDecimal amount;
     /** 指定渠道（为空沿用原票渠道）。 */

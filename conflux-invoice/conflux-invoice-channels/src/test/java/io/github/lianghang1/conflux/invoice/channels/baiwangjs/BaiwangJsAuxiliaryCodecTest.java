@@ -3,11 +3,13 @@ package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 import io.github.lianghang1.conflux.common.util.JsonUtils;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
+import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.support.BaiwangJsCodec;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.support.BaiwangJsResponse;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
+import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import org.junit.jupiter.api.Test;
 
@@ -349,6 +351,116 @@ class BaiwangJsAuxiliaryCodecTest {
         assertEquals("INVOICE_DELETED", r.getErrorCode());
     }
 
+    // ---- 3.2.6 特殊票种 / 特定业务要素 / 免税明细 / 交付字段 ----
+
+    @Test
+    void issueBody_constructionSpecialBiz_forcesTspz03AndDropsDjSl() {
+        Invoice invoice = baseIssueInvoice();
+        Map<String, String> jzfw = new java.util.LinkedHashMap<String, String>();
+        jzfw.put("tdzzsxmbh", "TDZS-001");
+        jzfw.put("jzfwfsd", "上海市浦东新区");
+        jzfw.put("jzxmmc", "园区项目");
+        jzfw.put("kdsbz", "Y");
+        invoice.setJzfwTdys(jzfw);
+
+        Map<String, Object> body = BaiwangJsCodec.issueBody(issueCtx(invoice), params(), "ORDER-JZ");
+        assertEquals("03", body.get("tspz"), "建筑服务要素存在时自动推断 tspz=03");
+        assertEquals("TDZS-001", ((Map<?, ?>) body.get("jzfwTdys")).get("tdzzsxmbh"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("detailParam");
+        assertFalse(lines.get(0).containsKey("dj"), "建筑服务明细 dj 必须为空");
+        assertFalse(lines.get(0).containsKey("sl"), "建筑服务明细 sl 必须为空");
+        assertTrue(lines.get(0).containsKey("ggxh"));
+    }
+
+    @Test
+    void issueBody_realEstateSpecialBiz_forcesTspz06AndDropsGgxh() {
+        Invoice invoice = baseIssueInvoice();
+        Map<String, String> bdc = new java.util.LinkedHashMap<String, String>();
+        bdc.put("bdcdz", "上海市浦东新区XX路1号");
+        bdc.put("zlqqz", "2024-01-01 2024-12-31");
+        bdc.put("kdsbz", "Y");
+        bdc.put("cqzsh", "沪(2024)字第001号");
+        bdc.put("dw", "月");
+        invoice.setBdcTdysList(java.util.Collections.singletonList(bdc));
+
+        Map<String, Object> body = BaiwangJsCodec.issueBody(issueCtx(invoice), params(), "ORDER-BDC");
+        assertEquals("06", body.get("tspz"), "不动产要素存在时自动推断 tspz=06");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("detailParam");
+        assertFalse(lines.get(0).containsKey("ggxh"), "不动产明细 ggxh 必须为空");
+        assertTrue(lines.get(0).containsKey("dj"), "不动产明细 dj 必填");
+        assertTrue(lines.get(0).containsKey("sl"), "不动产明细 sl 必填");
+    }
+
+    @Test
+    void issueBody_taxExemptItemAndBuyerDelivery() {
+        Invoice invoice = baseIssueInvoice();
+        invoice.getItems().get(0).setLslbs("1");
+        invoice.getItems().get(0).setYhzcbs("1");
+        invoice.getItems().get(0).setZzstsgl("免税");
+        invoice.setBuyerMobile("13800000000");
+        invoice.setBuyerEmail("a@b.com,c@d.com");
+
+        Map<String, Object> body = BaiwangJsCodec.issueBody(issueCtx(invoice), params(), "ORDER-MJ");
+        assertEquals("13800000000", body.get("gmfMobile"));
+        assertEquals("a@b.com,c@d.com", body.get("gmfEmail"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("detailParam");
+        assertEquals("1", lines.get(0).get("lslbs"));
+        assertEquals("1", lines.get(0).get("yhzcbs"));
+        assertEquals("免税", lines.get(0).get("zzstsgl"), "yhzcbs=1 时 zzstsgl 必填");
+    }
+
+    @Test
+    void issueBody_defaultsNormalTaxAndExplicitTspzWins() {
+        Invoice invoice = baseIssueInvoice();
+        invoice.setTspz("01");
+        invoice.setJzfwTdys(java.util.Collections.<String, String>emptyMap());
+
+        Map<String, Object> body = BaiwangJsCodec.issueBody(issueCtx(invoice), params(), "ORDER-X");
+        assertEquals("01", body.get("tspz"), "显式 tspz 优先于要素推断");
+        assertFalse(body.containsKey("jzfwTdys"), "空要素不输出节点");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("detailParam");
+        assertEquals("0", lines.get(0).get("lslbs"), "未指定时按正常税率上报");
+        assertEquals("0", lines.get(0).get("yhzcbs"));
+        assertFalse(lines.get(0).containsKey("zzstsgl"));
+    }
+
+    // ---- 3.3.3 红冲申请必填字段（ykprq / yfplxdm / sfwzzfp / chyydm / lzmxxh）----
+
+    @Test
+    void redApplyBody_carriesRequiredRedFields() {
+        Invoice invoice = baseIssueInvoice();
+        invoice.setInvoiceTime(java.time.LocalDateTime.of(2024, 6, 6, 18, 31, 52));
+
+        Map<String, Object> body = BaiwangJsCodec.redApplyBody(issueCtx(invoice), params(), "RED-9");
+        assertEquals("2024-06-06 18:31:52", body.get("ykprq"), "数电原开票日期格式");
+        assertEquals("01", body.get("yfplxdm"), "原发票类型必填");
+        assertEquals("N", body.get("sfwzzfp"), "数电票固定 N");
+        assertEquals("1", body.get("chyydm"), "未指定时默认开票有误（全额红冲）");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("detailParam");
+        assertEquals(1, lines.get(0).get("lzmxxh"), "红字明细须带原蓝字行号");
+    }
+
+    @Test
+    void redApplyBody_chyydmFromApply() {
+        Invoice invoice = baseIssueInvoice();
+        io.github.lianghang1.conflux.invoice.model.RedApply apply =
+                new io.github.lianghang1.conflux.invoice.model.RedApply();
+        apply.setChyydm("2");
+        InvoiceContext ctx = issueCtx(invoice).setRedApply(apply);
+
+        Map<String, Object> body = BaiwangJsCodec.redApplyBody(ctx, params(), "RED-10");
+        assertEquals("2", body.get("chyydm"), "销货退回（支持部分红冲）应透传");
+    }
+
     // ---- 夹具 ----
 
     private static boolean has(List<InvoiceFile> files, InvoiceFileType type, String url) {
@@ -366,6 +478,41 @@ class BaiwangJsAuxiliaryCodecTest {
 
     private static BaiwangJsResponse response(String body) {
         return BaiwangJsCodec.parseResponse(body);
+    }
+
+    private static Invoice baseIssueInvoice() {
+        InvoiceItem item = new InvoiceItem()
+                .setLineNo(1).setItemName("技术服务费")
+                .setSpecification("规格A").setUnit("次")
+                .setTaxClassificationCode("3040407990000000000")
+                .setAmount(new java.math.BigDecimal("113.00"))
+                .setTaxAmount(new java.math.BigDecimal("13.00"))
+                .setTaxRate(new java.math.BigDecimal("0.13"))
+                .setQuantity(java.math.BigDecimal.ONE)
+                .setUnitPrice(new java.math.BigDecimal("113.00"));
+        return new Invoice()
+                .setInvoiceId("INV-A").setAppId("demo")
+                .setSellerTaxNo(TAX).setSellerName("测试销方")
+                .setBuyerTitle("测试购方").setBuyerTaxNo("91310000BUYER00001")
+                .setBuyerAddress("BuyerAddr").setBuyerPhone("021-7777")
+                .setBuyerBank("BuyerBank")
+                .setInvoiceType(io.github.lianghang1.conflux.invoice.model.InvoiceType.DIGITAL_VAT_SPECIAL)
+                .setItems(java.util.Collections.singletonList(item))
+                .setAmount(new java.math.BigDecimal("133.00"))
+                .setTaxAmount(new java.math.BigDecimal("13.00"))
+                .setInvoiceNo(FPHM).setInvoiceCode(FPDM)
+                .setState(io.github.lianghang1.conflux.invoice.model.InvoiceState.PROCESSING);
+    }
+
+    private static InvoiceContext issueCtx(Invoice invoice) {
+        io.github.lianghang1.conflux.invoice.channel.ChannelConfig config =
+                new io.github.lianghang1.conflux.invoice.channel.ChannelConfig()
+                        .setAppId("demo").setChannelCode(BaiwangJsSpec.CODE)
+                        .setSellerTaxNo(invoice.getSellerTaxNo())
+                        .setParams(params())
+                        .setAttrs(java.util.Collections.<String, String>emptyMap());
+        return io.github.lianghang1.conflux.invoice.channel.InvoiceContext
+                .of(config, null, invoice);
     }
 
     private static BaiwangJsParams params() {

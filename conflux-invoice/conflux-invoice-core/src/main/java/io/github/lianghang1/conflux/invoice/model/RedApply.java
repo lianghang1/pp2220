@@ -32,6 +32,8 @@ public class RedApply implements Serializable {
     private String originalInvoiceCode;
     /** 红冲原因。 */
     private String reason;
+    /** 冲红原因代码：1 开票有误（全额红冲）、2 销货退回、3 服务终止、4 销售折让。 */
+    private String chyydm;
     /** 红冲金额（元）。 */
     private BigDecimal amount;
     private String channelCode;
