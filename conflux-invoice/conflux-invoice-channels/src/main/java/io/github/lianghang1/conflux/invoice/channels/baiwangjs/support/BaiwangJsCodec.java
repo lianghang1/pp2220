@@ -123,6 +123,39 @@ public final class BaiwangJsCodec {
                     ? response.getMessage() : "渠道同步受理失败");
     }
 
+    /**
+     * 3.2.7 查单响应归一。<b>查单 status 与回调 status 语义不同</b>（文档 3.2.7）：
+     * {@code 2=开具成功、3=开具失败、6=已作废、8=已开未生成PDF、1=开票中}；
+     * 回调则是 {@code 1=成功、2=失败}。这里必须用 {@code QRY_*} 常量。
+     *
+     * <p>仅当明确开具成功且已拿到 XML 法定原件地址时才推进 SUCCEEDED，
+     * 其余保持挂起由回调 / 下次轮询推进，绝不把成功票误判为失败。</p>
+     */
+    public static InvoiceResult queryInvoiceResult(BaiwangJsResponse response, String ddlsh) {
+        JsonNode data = dataNode(response);
+        String status = text(data, "status");
+        List<InvoiceFile> files = layoutFiles(data);
+        boolean hasXml = false;
+        for (InvoiceFile file : files) {
+            if (file.getType() == InvoiceFileType.XML && file.hasPayload()) {
+                hasXml = true;
+            }
+        }
+        if (BaiwangJsSpec.QRY_SUCCESS.equals(status) && hasXml) {
+            return InvoiceResult.succeeded(ddlsh,
+                    text(data, "qdfphm", "fphm"), text(data, "fpdm"), null, files);
+        }
+        if (BaiwangJsSpec.QRY_FAILED.equals(status)) {
+            return InvoiceResult.failed("QUERY_FAILED", text(data, "ycyy", "message"));
+        }
+        if (BaiwangJsSpec.QRY_DELETED.equals(status)) {
+            return InvoiceResult.failed("INVOICE_DELETED",
+                    firstNonBlank(text(data, "ycyy", "message"), "发票已作废"));
+        }
+        // 1开票中 / 8未生成PDF / 0待审核 / 9已审核 / 10待扫码 等：保持挂起
+        return InvoiceResult.accepted(ddlsh, true);
+    }
+
     // ==================== 请求组装：公共 ====================
 
     /** 平台级必填公共字段。 */

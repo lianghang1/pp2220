@@ -1,12 +1,14 @@
 package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 
 import io.github.lianghang1.conflux.common.util.JsonUtils;
+import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.support.BaiwangJsCodec;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.support.BaiwangJsResponse;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
+import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -293,6 +295,60 @@ class BaiwangJsAuxiliaryCodecTest {
         assertTrue(r.getFiles().isEmpty());
     }
 
+    // ---- 3.2.7 查单状态归一（与回调语义不同：2=成功 3=失败 8=未生成PDF 1=开票中）----
+
+    @Test
+    void queryInvoiceResult_status2WithXml_succeeded() {
+        BaiwangJsResponse ok = response("{\"code\":\"0\",\"data\":{\"status\":\"2\","
+                + "\"qdfphm\":\"" + FPHM + "\",\"xmlUrl\":\"https://f.example/x.xml\","
+                + "\"pdf\":\"https://f.example/x.pdf\"}}");
+        InvoiceResult r = BaiwangJsCodec.queryInvoiceResult(ok, "ORDER-Q1");
+        assertSame(InvoiceState.SUCCEEDED, r.getState());
+        assertEquals(FPHM, r.getInvoiceNo());
+        assertTrue(hasFile(r.getFiles(), InvoiceFileType.XML, "https://f.example/x.xml"));
+    }
+
+    @Test
+    void queryInvoiceResult_status2WithoutXml_staysProcessing() {
+        // 文档 3.2.7 查单成功一般只回 pdf；缺 XML 法定原件时保持挂起，等 qdbswj 版式回调
+        BaiwangJsResponse ok = response("{\"code\":\"0\",\"data\":{\"status\":\"2\","
+                + "\"qdfphm\":\"" + FPHM + "\",\"pdf\":\"https://f.example/x.pdf\"}}");
+        InvoiceResult r = BaiwangJsCodec.queryInvoiceResult(ok, "ORDER-Q2");
+        assertSame(InvoiceState.PROCESSING, r.getState());
+    }
+
+    @Test
+    void queryInvoiceResult_status3_failed() {
+        // 关键回归：3.2.7 里 2=成功、3=失败；不能再用回调语义把成功票判死
+        BaiwangJsResponse bad = response("{\"code\":\"0\",\"data\":{\"status\":\"3\","
+                + "\"ycyy\":\"库存不足\"}}");
+        InvoiceResult r = BaiwangJsCodec.queryInvoiceResult(bad, "ORDER-Q3");
+        assertSame(InvoiceState.FAILED, r.getState());
+        assertEquals("QUERY_FAILED", r.getErrorCode());
+        assertEquals("库存不足", r.getErrorMsg());
+    }
+
+    @Test
+    void queryInvoiceResult_status1IsProcessing_notSucceeded() {
+        // 3.2.7 里 1=开票中；回调语义的 1=成功 不适用于查单
+        BaiwangJsResponse mid = response("{\"code\":\"0\",\"data\":{\"status\":\"1\"}}");
+        InvoiceResult r = BaiwangJsCodec.queryInvoiceResult(mid, "ORDER-Q4");
+        assertSame(InvoiceState.PROCESSING, r.getState());
+    }
+
+    @Test
+    void queryInvoiceResult_status8And6() {
+        BaiwangJsResponse noPdf = response(
+                "{\"code\":\"0\",\"data\":{\"status\":\"8\"}}");
+        assertSame(InvoiceState.PROCESSING,
+                BaiwangJsCodec.queryInvoiceResult(noPdf, "ORDER-Q5").getState());
+        BaiwangJsResponse deleted = response(
+                "{\"code\":\"0\",\"data\":{\"status\":\"6\",\"ycyy\":\"已作废\"}}");
+        InvoiceResult r = BaiwangJsCodec.queryInvoiceResult(deleted, "ORDER-Q6");
+        assertSame(InvoiceState.FAILED, r.getState());
+        assertEquals("INVOICE_DELETED", r.getErrorCode());
+    }
+
     // ---- 夹具 ----
 
     private static boolean has(List<InvoiceFile> files, InvoiceFileType type, String url) {
@@ -302,6 +358,14 @@ class BaiwangJsAuxiliaryCodecTest {
             }
         }
         return false;
+    }
+
+    private static boolean hasFile(List<InvoiceFile> files, InvoiceFileType type, String url) {
+        return has(files, type, url);
+    }
+
+    private static BaiwangJsResponse response(String body) {
+        return BaiwangJsCodec.parseResponse(body);
     }
 
     private static BaiwangJsParams params() {

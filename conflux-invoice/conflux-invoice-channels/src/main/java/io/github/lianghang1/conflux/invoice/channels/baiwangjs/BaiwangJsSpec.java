@@ -96,18 +96,35 @@ public final class BaiwangJsSpec {
     /** 可冲销明细查询结果（3.3.17）。 */
     public static final String YW_HZCX = "hzcx";
 
-    // ---- 回调 status ----
+    // ---- 回调 status（与查询接口语义不同，严禁混用！）----
+    // 回调（fpkj/qdbswj/qdhzsq/ewmrz，见 3.2.6 / 3.3.3 / 3.4.5 文档）：
+    // 1=成功，2=失败，3=已开具未生成PDF（税控电票），6=单据删除，1004/1003。
 
+    /** 回调：成功。 */
     public static final String ST_SUCCESS = "1";
+    /** 回调：失败。 */
     public static final String ST_FAILED = "2";
-    /** 已开具未生成 PDF（税控电子票）：继续等待版式。 */
+    /** 回调：已开具未生成 PDF（税控电子票）：继续等待版式。 */
     public static final String ST_NO_PDF = "3";
-    /** 单据删除。 */
+    /** 回调：单据删除。 */
     public static final String ST_DELETED = "6";
-    /** 需要登录电子税务局。 */
+    /** 回调：需要登录电子税务局。 */
     public static final String ST_NEED_LOGIN = "1004";
-    /** 需要实人认证（扫脸）。 */
+    /** 回调：需要实人认证（扫脸）。 */
     public static final String ST_NEED_AUTH = "1003";
+
+    // ---- 3.2.7 查单 status（与回调语义不同，严禁混用！）----
+    // 查询（queryOrder V1/V2）：0待审核 1开票中 2开具成功 3开具失败 4作废已申请
+    // 5作废中 6已作废 7作废失败 8已开未生成PDF(税控电票) 9已审核 10待扫码 11已追回 1004/1003。
+
+    /** 查单：开具成功。 */
+    public static final String QRY_SUCCESS = "2";
+    /** 查单：开具失败。 */
+    public static final String QRY_FAILED = "3";
+    /** 查单：已开未生成 PDF（税控电票）。 */
+    public static final String QRY_NO_PDF = "8";
+    /** 查单：已作废。 */
+    public static final String QRY_DELETED = "6";
 
     // ---- 同步响应 code ----
 

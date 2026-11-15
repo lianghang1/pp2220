@@ -1,6 +1,5 @@
 package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.invoice.api.AuthChallenge;
@@ -236,31 +235,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
             // 查询失败不推翻在途单据，保持 PROCESSING 由回调/下次轮询推进
             return InvoiceResult.accepted(ddlsh, true);
         }
-        return queryResult(response, ddlsh);
-    }
-
-    /** 查单响应：仅当明确给出成功状态与法定原件地址时才推进 SUCCEEDED，否则保持挂起。 */
-    private InvoiceResult queryResult(BaiwangJsResponse response, String ddlsh) {
-        JsonNode data = BaiwangJsCodec.dataNode(response);
-        String status = BaiwangJsCodec.text(data, "status");
-        List<InvoiceFile> files = BaiwangJsCodec.layoutFiles(data);
-        boolean hasXml = false;
-        for (InvoiceFile file : files) {
-            if (file.getType() == InvoiceFileType.XML && file.hasPayload()) {
-                hasXml = true;
-            }
-        }
-        if (BaiwangJsSpec.ST_SUCCESS.equals(status) && hasXml) {
-            return InvoiceResult.succeeded(ddlsh,
-                    BaiwangJsCodec.text(data, "qdfphm", "fphm"),
-                    BaiwangJsCodec.text(data, "fpdm"),
-                    null, files);
-        }
-        if (BaiwangJsSpec.ST_FAILED.equals(status)) {
-            return InvoiceResult.failed("QUERY_FAILED",
-                    BaiwangJsCodec.text(data, "ycyy", "message"));
-        }
-        return InvoiceResult.accepted(ddlsh, true);
+        return BaiwangJsCodec.queryInvoiceResult(response, ddlsh);
     }
 
     // ==================== 版式文件 ====================
