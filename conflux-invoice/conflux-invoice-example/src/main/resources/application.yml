@@ -25,3 +25,48 @@ conflux:
               appSecret: "demo-secret"
               issueOutcome: "AUTH"
               redConfirmOutcome: "CONFIRMED"
+
+          # ------------------------------------------------------------------
+          # 百旺金穗云（baiwangjs）专属适配器配置模板
+          # 以语雀官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
+          # 整段默认注释：取消注释 + 填真实凭据 + enabled 改 true 即可启用；
+          # 未启用时不影响上面 mock 渠道的零凭据启动。
+          # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
+          # ------------------------------------------------------------------
+          # baiwangjs:
+          #   # 销方税号：路由键与回调反查账户键的第二段
+          #   seller-tax-no: "91310000XXXXXXXXXX"
+          #   # 回调地址须带 accountKey=<gatewayKey>#<sellerTaxNo>，'#' 转义为 %23
+          #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwangjs?accountKey=<GATEWAY_KEY>%2391310000XXXXXXXXXX"
+          #   sandbox: true
+          #   tier: SERVICE_API
+          #   priority: 20
+          #   enabled: false
+          #   attrs:
+          #     gatewayKey: "<网关KEY>"             # HMAC 签名的 username，也是账户键第一段
+          #     gatewaySecret: "<网关SECRET>"       # HmacSHA256 密钥
+          #     qyId: "<企业唯一标识>"              # 3.1.1 查询一次后填入，必填
+          #     sellerTaxNo: "91310000XXXXXXXXXX"  # 写入报文的销方税号
+          #     dlzh: "13800000000"                # 开票员电局登录账号（手机号）
+          #     kpr: "开票员"
+          #     sqr: "申请人"
+          #     sellerName: "某某科技有限公司"
+          #     sellerAddress: "上海市某某区某某路1号"
+          #     sellerPhone: "021-88888888"
+          #     sellerBank: "某某银行某某支行"
+          #     sellerBankAccount: "6222000000000000"
+          #     apiVersion: "V2"                   # 改为 V1：路径与报文整体切到 V1
+          #     # baseUrl: "https://api.baiwangjs.com/swgx-saas/agentinvoiceservice-cloudservice-cloudservice/agentiscloud"
+          #     # timeoutMillis: 30000
+          #     # 可选：宿主另行约定回调签名时启用（配合查询参数 sign）
+          #     # callbackSignKey: "<回调验签密钥>"
+          #     # 可选：逐个覆盖接口路径（平台升级 / 私有化部署时用）
+          #     # issuePath: "/cloud/v2/applyInvoice"
+          #     # queryPath: "/cloud/v2/queryOrder"
+          #     # redApplyPath: "/cloud/applyElecRedInvoice"
+          #     # redQueryPath: "/cloud/queryRedInvRes"
+          #     # authStartPath: "/cloud/dzswjLogin"
+          #     # qrCodePath: "/elecEwm/queryEwmrzSnyc"
+          #     # riskInfoPath: "/elecEwm/queryRiskInfo"
+          #     # fplxdm.DIGITAL_VAT_SPECIAL: "01"
+          #     # fplxdm.DIGITAL_VAT_GENERAL: "02"

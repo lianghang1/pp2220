@@ -18,7 +18,7 @@ conflux-parent (聚合器, 1.0.0)
 │   └── conflux-pay-example              演示宿主
 └── conflux-invoice         0.1.0-SNAPSHOT 发票能力域（4 个子模块）
     ├── conflux-invoice-core              发票内核（可挂起状态机 / 渠道 SPI / Store 契约）
-    ├── conflux-invoice-channels          渠道实现（mock + 4 家服务商）
+    ├── conflux-invoice-channels          渠道实现（mock + 4 家服务商 + 百旺金穗云专属适配器）
     ├── conflux-invoice-spring-boot-starter
     └── conflux-invoice-example
 ```
@@ -172,31 +172,43 @@ gateway.issueRed(...);                     // 第二段：开红字发票 → �
 
 第一版先做「完全公开、有 API 文档」的平台。**框架不编造未经核实的 URL 与字段**：`RestChannelSpec.documentVerified` 标记文档核对状态，未核对的渠道默认不带任何接口路径、不暴露「假装能用」的能力，使用方按平台最新公开文档在 `attrs` 中配置路径与字段映射后即可启用。
 
+**百旺金穗云已按用户指定的语雀官方公开文档完成专属适配器**：协议自带已核对的默认路径、网关签名与回调分流，不再走「先配路径再启用」的骨架流程，详见 [docs/invoice-platforms.md](docs/invoice-platforms.md) 第 3 节。
+
 | 渠道编码 | 平台 | 通道级别 | 文档核对状态 | 已实现 |
 |---|---|---|---|---|
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全能力：开票 / 授权 / 异步 / XML 原件 / 两段红冲 / 回调 |
 | `qixiangyun` | 企享云 | SERVICE_API | **蓝字开具接口已核对** | `POST /v2/invoice/qdfp/fpkjZzs`，字段 `action/async/nsrsbh/ly_ddbh/wjgs/fplxdm/xmmx/jshj/hjse/data.xsf_yhmc`；响应 `reqId/code/success/message/data.fphm`，`code=2001` 转异步。查单/红字/授权/文件下载需按文档配置路径 |
-| `baiwangjs` | 百旺金穗云 | SERVICE_API | **待核对** | 公开文档页当前抓到的是「进项发票入账提交接口」(`/swgx-saas/swgx-api/interface/jxgl/creditSubmit`)，**并非蓝字开具接口**，需重新定位开具/红冲/查询/文件下载文档页后配置 |
+| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（语雀官方文档）** | 专属适配器 `BaiwangJsChannelProvider`：Base64 报文 + HMAC 网关签名；蓝字开具 / 查单 **V2 优先、V1 保留可切换**；红字两段、电局登录 / 实人认证、`qdbswj` 版式回调归档 XML 法定原件。32 个协议层/编排层单测覆盖 |
 | `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架已注册；待按公开文档核对路径、票种编码与签名规则 |
 
-配置驱动启用示例（以某待核对平台为例）：
+百旺金穗云启用示例（默认 V2，切 V1 只需改 `apiVersion`）：
 
 ```yaml
-conflux.invoice.apps.demo.channels.baiwangjs.attrs:
-  baseUrl: https://<平台网关>
-  issuePath: /<蓝字开具路径>
-  queryPath: /<查单路径>
-  filePath: /<版式文件下载路径>
-  redApplyPath: /<红字申请路径>
-  redQueryPath: /<红字确认查询路径>
-  redIssuePath: /<红字开具路径>
-  fplxdm.DIGITAL_VAT_SPECIAL: "<平台专票编码>"
-  appKey: ...
-  appSecret: ...
+conflux.invoice.apps.demo.channels.baiwangjs:
+  seller-tax-no: "91310000XXXXXXXXXX"
+  notify-url: "http://host/api/invoices/callback/baiwangjs?accountKey=<GATEWAY_KEY>%2391310000XXXXXXXXXX"
+  tier: SERVICE_API
+  priority: 20
+  enabled: true
+  attrs:
+    gatewayKey: "<网关KEY>"        # HMAC 签名 username，账户键第一段
+    gatewaySecret: "<网关SECRET>"  # HmacSHA256 密钥
+    qyId: "<企业唯一标识>"         # 3.1.1 查询一次后填入
+    sellerTaxNo: "91310000XXXXXXXXXX"
+    dlzh: "13800000000"            # 开票员电局登录账号
+    kpr: "开票员"
+    sqr: "申请人"
+    apiVersion: "V2"               # 改 V1：开票/查单整体切到 V1 路径与合并字段报文
 ```
 
-> 通用 REST 适配器的签名默认是 HMAC-SHA256 占位；各平台签名规则不同，正式接入前须按文档覆写 `buildHeaders`。详见 [docs/invoice-platforms.md](docs/invoice-platforms.md)。
+> 其余可覆盖路径键（`issuePath` / `queryPath` / `redApplyPath` / `redQueryPath` /
+> `authStartPath` / `qrCodePath` / `riskInfoPath`）、销方票面信息与票种编码映射见
+> [docs/invoice-platforms.md](docs/invoice-platforms.md) 第 3.4 节与 example 的 `application.yml` 模板。
+>
+> 通用 REST 适配器的签名默认是 HMAC-SHA256 占位，各平台规则不同，正式接入前须按文档覆写 `buildHeaders`；
+> 百旺金穗云已实现 `Base64(HmacSHA256(sign_str, SECRET))` 网关签名（`BaiwangJsSigner`），无需覆写。
+> **所有渠道目前均为协议层实现 + 单测，尚未做真实平台联调。**
 
 ---
 
@@ -214,10 +226,10 @@ conflux.invoice.apps.demo.channels.baiwangjs.attrs:
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **127 个用例全绿**（common 6、pay 76、invoice 45）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端。
+当前全量 **159 个用例全绿**（common 6、pay 76、invoice 77）。发票侧覆盖状态机、账户键、错误码分段、Store CAS/租约、渠道注册表、蓝字开票、授权挂起、异步查单、XML 法定原件强约束、两段红冲、回调归一、starter 装配与 example 端到端；其中百旺金穗云 32 个用例覆盖网关签名（`sign_str` 顺序 / GMT / HMAC-Base64 向量）、Base64 编解码、**V1/V2 报文与路径差异**、同步受理归一、回调 `ywlxdm` 分流，以及「票号回调 + 版式回调」两种到达顺序下编排层的收敛与票号不丢。
 
 ## 文档索引
 
 - [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表与服务商模式回调路由
 - [docs/integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单
-- [docs/invoice-platforms.md](docs/invoice-platforms.md) — 发票平台文档核对清单与接入说明
+- [docs/invoice-platforms.md](docs/invoice-platforms.md) — 发票平台文档核对清单与接入说明（第 3 节为百旺金穗云专属适配器的协议、V2/V1 路径、签名、回调分流与配置全表）

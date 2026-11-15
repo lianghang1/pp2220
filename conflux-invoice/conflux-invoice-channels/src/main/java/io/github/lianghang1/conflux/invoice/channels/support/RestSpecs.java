@@ -5,12 +5,13 @@ import io.github.lianghang1.conflux.invoice.model.ChannelTier;
 /**
  * 四家数电票服务商的渠道规格。
  *
- * <p><b>文档状态如实标注</b>：目前只有企享云「蓝字发票开具」接口的公开字段
- * 被逐项核对过；百旺金穗云公开文档页抓到的是「进项发票入账提交接口」
- * （{@code /swgx-saas/swgx-api/interface/jxgl/creditSubmit}），并非蓝字开具接口，
- * 不能拿来当开票用。百旺票税云、金蝶发票云的接口路径与字段尚未逐项核对。
- * 因此后三家的规格默认不带任何路径，注册后不会暴露「假装能用」的渠道能力；
- * 使用方按平台最新公开文档在 {@code attrs} 中配置路径与字段映射后即可启用。</p>
+ * <p><b>文档状态如实标注</b>：企享云「蓝字发票开具」接口的公开字段已逐项核对。
+ * 百旺金穗云已按用户指定的语雀官方文档（{@code baiwangqiyuanyuan/swgx}）完成核对，
+ * 但因其协议特殊（Base64 报文 + HMAC 网关签名 + 全异步回调），改由专属适配器
+ * {@code BaiwangJsChannelProvider} 实现，不走本通用 REST 适配器；
+ * 详见 {@code BaiwangJsSpec} 与 {@code docs/invoice-platforms.md}。
+ * 百旺票税云、金蝶发票云的接口路径与字段尚未逐项核对，规格默认不带任何路径，
+ * 注册后不会暴露「假装能用」的渠道能力。</p>
  *
  * @author lianghang
  */
@@ -36,17 +37,23 @@ public final class RestSpecs {
                 .setAsyncCode("2001");
     }
 
-    /** 百旺金穗云：待核对蓝字开具/红字/文件接口文档页。 */
+    /**
+     * 百旺金穗云：已按语雀官方文档核对，但<b>不由通用 REST 适配器承载</b>。
+     *
+     * <p>此前误把进项侧「入账提交接口」当成了开票接口，导致错误标注为待核对骨架；
+     * 实际销项开票、红冲、登录、认证、回调均有完整公开文档。由于本渠道是
+     * Base64 报文 + HMAC 网关签名 + 全异步回调，与通用适配器的「明文 JSON +
+     * 同步响应」假设不兼容，改由 {@link io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsChannelProvider}
+     * 独立实现。本规格仅作元数据占位，documentVerified 置 true 表示文档已核对。</p>
+     */
     public static RestChannelSpec baiwangjs() {
         return new RestChannelSpec()
                 .setChannelCode("baiwangjs")
                 .setDisplayName("百旺金穗云")
                 .setBaseUrl("https://api.baiwangjs.com")
-                .setDocumentVerified(false)
-                .setDocNote("公开文档页当前抓到的是「进项发票入账提交接口」"
-                        + "(/swgx-saas/swgx-api/interface/jxgl/creditSubmit)，并非蓝字开具接口。"
-                        + "启用前需重新定位开具/红冲/查询/文件下载接口文档，"
-                        + "并在 attrs 中配置 issuePath / queryPath / filePath 等路径与字段映射。");
+                .setDocumentVerified(true)
+                .setDocNote("已按语雀官方文档核对；由专属适配器 BaiwangJsChannelProvider 实现，"
+                        + "支持 V2 优先 / V1 可切换，接口路径见 BaiwangJsSpec。");
     }
 
     /** 百旺票税云：待核对公开文档字段。 */

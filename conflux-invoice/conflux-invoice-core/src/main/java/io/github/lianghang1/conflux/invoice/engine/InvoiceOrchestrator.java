@@ -491,8 +491,49 @@ public class InvoiceOrchestrator {
                 applyOutcome(invoice, outcome, InvoiceContext.of(config, null, invoice));
                 touched = invoice;
             }
+        } else if (hasSupplement(event)) {
+            // 补充型回调：渠道把「票号/结果」与「版式文件地址」拆成两次通知，
+            // 且先后顺序不固定；此类回调只合并票面字段/归档文件，不迁移状态，
+            // 避免先到的票号被后到的版式回调抹掉。
+            Invoice invoice = locateInvoiceByEvent(event, appId);
+            if (invoice != null) {
+                supplement(invoice, event);
+                touched = invoice;
+            }
         }
         return touched == null ? null : buildResult(touched);
+    }
+
+    private boolean hasSupplement(InvoiceCallbackEvent event) {
+        return event.getInvoiceNo() != null || event.getInvoiceCode() != null
+                || event.getInvoiceDate() != null || event.getChannelOrderNo() != null
+                || (event.getFiles() != null && !event.getFiles().isEmpty());
+    }
+
+    /** 仅合并回调带来的票面字段与版式文件，不改单据状态；写入同样走 CAS。 */
+    private void supplement(Invoice invoice, InvoiceCallbackEvent event) {
+        List<InvoiceFile> files = normalizeFiles(event.getFiles(), invoice.getInvoiceId());
+        if (!files.isEmpty()) {
+            rt.fileStore.saveAll(files);
+        }
+        long expected = invoice.getVersion();
+        if (event.getInvoiceNo() != null) {
+            invoice.setInvoiceNo(event.getInvoiceNo());
+        }
+        if (event.getInvoiceCode() != null) {
+            invoice.setInvoiceCode(event.getInvoiceCode());
+        }
+        if (event.getInvoiceDate() != null) {
+            invoice.setInvoiceDate(event.getInvoiceDate());
+        }
+        if (event.getChannelOrderNo() != null) {
+            invoice.setChannelOrderNo(event.getChannelOrderNo());
+        }
+        invoice.setUpdatedTime(rt.now()).setVersion(expected + 1);
+        if (!rt.invoiceStore.tryUpdate(invoice, expected)) {
+            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
+                    "回调票面字段合并并发冲突: {}", invoice.getInvoiceId());
+        }
     }
 
     private InvoiceResult callbackToResult(InvoiceCallbackEvent event) {
@@ -505,9 +546,34 @@ public class InvoiceOrchestrator {
                 .setAmount(event.getAmount())
                 .setTaxAmount(event.getTaxAmount())
                 .setFiles(event.getFiles())
+                .setAuthChallenge(challengeFrom(event))
                 .setErrorCode(event.getErrorCode())
                 .setErrorMsg(event.getErrorMsg())
                 .setRawPayload(event.getRawPayload());
+    }
+
+    /** 回调携带授权提示时构造挑战，避免只落到通用默认值（扫脸/登录/短信语义会丢失）。 */
+    private AuthChallenge challengeFrom(InvoiceCallbackEvent event) {
+        Map<String, String> attrs = event.getAttrs();
+        if (attrs == null || attrs.isEmpty()) {
+            return null;
+        }
+        String type = attrs.get("authType");
+        String text = attrs.get("challengeText");
+        if (StringUtils.isBlank(type) && StringUtils.isBlank(text)) {
+            return null;
+        }
+        AuthType authType = AuthType.SMS;
+        if (StringUtils.isNotBlank(type)) {
+            try {
+                authType = AuthType.valueOf(type.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                authType = AuthType.SMS;
+            }
+        }
+        return new AuthChallenge().setAuthType(authType)
+                .setChallengeText(StringUtils.isBlank(text) ? "请完成渠道授权后继续开票" : text)
+                .setChallengeUrl(attrs.get("challengeUrl"));
     }
 
     private Invoice locateInvoiceByEvent(InvoiceCallbackEvent event, String appId) {
@@ -579,10 +645,18 @@ public class InvoiceOrchestrator {
                         if (result.getChannelOrderNo() != null) {
                             inv.setChannelOrderNo(result.getChannelOrderNo());
                         }
-                        inv.setInvoiceNo(result.getInvoiceNo())
-                                .setInvoiceCode(result.getInvoiceCode())
-                                .setInvoiceDate(result.getInvoiceDate())
-                                .setInvoiceTime(rt.now());
+                        // 仅在回调确实携带时覆盖：版式回调（qdbswj）可能先于票号回调（fpkj）到达，
+                        // 无条件写入会把后续补充的票号抹成 null。
+                        if (result.getInvoiceNo() != null) {
+                            inv.setInvoiceNo(result.getInvoiceNo());
+                        }
+                        if (result.getInvoiceCode() != null) {
+                            inv.setInvoiceCode(result.getInvoiceCode());
+                        }
+                        if (result.getInvoiceDate() != null) {
+                            inv.setInvoiceDate(result.getInvoiceDate());
+                        }
+                        inv.setInvoiceTime(rt.now());
                     }
                 });
                 break;
