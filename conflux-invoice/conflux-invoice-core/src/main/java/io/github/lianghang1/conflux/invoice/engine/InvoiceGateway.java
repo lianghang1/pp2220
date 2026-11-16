@@ -1,7 +1,7 @@
 package io.github.lianghang1.conflux.invoice.engine;
 
 import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.common.util.PdfImageConverter;
+import io.github.lianghang1.conflux.invoice.support.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
@@ -129,11 +129,10 @@ public class InvoiceGateway {
      *
      * <p>直接转发 {@link PdfImageConverter#convert}：默认保持原始页面尺寸；
      * 传 {@code config.targetPaper} 可强制统一纸型。转换时机与参数完全由使用方
-     * 决定，框架不做任何自动转换。需引入 {@code org.apache.pdfbox:pdfbox}。</p>
+     * 决定，框架不做任何自动转换。</p>
      */
     public List<PdfImageConverter.PageImage> pageImages(String invoiceId,
                                                         PdfImageConverter.Config config) {
-        assertPdfBoxPresent();
         try {
             return PdfImageConverter.convert(fileBytes(invoiceId, InvoiceFileType.PDF), config);
         } catch (IOException e) {
@@ -148,11 +147,9 @@ public class InvoiceGateway {
      *
      * <p>等价于 {@code PdfImageConverter.rasterizeToPdf}：输出仍是单一 PDF 字节，
      * 「一个文件进出」的打印接口零改动；{@code paper} 传 null 保持每页原始尺寸，
-     * 传 {@code PaperSize.A4} 则全部页面等比缩放放进 A4（不裁切不变形）。
-     * 需引入 {@code org.apache.pdfbox:pdfbox}。</p>
+     * 传 {@code PaperSize.A4} 则全部页面等比缩放放进 A4（不裁切不变形）。</p>
      */
     public byte[] printAdaptedPdf(String invoiceId, PdfImageConverter.PaperSize paper, int dpi) {
-        assertPdfBoxPresent();
         PdfImageConverter.Config config = new PdfImageConverter.Config();
         config.dpi = dpi;
         if (paper != null) {
@@ -165,16 +162,6 @@ public class InvoiceGateway {
         } catch (IOException e) {
             throw new GatewayException(InvoiceErrorCode.FILE_MATERIALIZE_FAILED,
                     "PDF 打印适配失败: invoiceId={}", invoiceId, e);
-        }
-    }
-
-    /** pdfbox 为 optional 依赖：缺失时给出可排查的领域错误而非 NoClassDefFoundError。 */
-    private void assertPdfBoxPresent() {
-        try {
-            Class.forName("org.apache.pdfbox.pdmodel.PDDocument");
-        } catch (ClassNotFoundException e) {
-            throw new GatewayException(InvoiceErrorCode.FILE_PRINT_UNSUPPORTED,
-                    "打印适配能力需要 pdfbox：请在使用方引入 org.apache.pdfbox:pdfbox（2.x）");
         }
     }
 

@@ -56,13 +56,6 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
         </dependency>
-        <!-- PDF 转图片/栅格化工具（PdfImageConverter）：optional，
-             仅使用发票 PDF 处理能力时需自行引入，不影响其他使用方 -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <optional>true</optional>
-        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -86,10 +79,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
-                <configuration>
-                    <!-- PdfImageConverter 渲染走 java.awt，测试环境强制 headless -->
-                    <argLine>-Djava.awt.headless=true</argLine>
-                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -2,7 +2,7 @@ package io.github.lianghang1.conflux.invoice.engine;
 
 import com.sun.net.httpserver.HttpServer;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.common.util.PdfImageConverter;
+import io.github.lianghang1.conflux.invoice.support.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.ChannelInstance;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceAccountKey;

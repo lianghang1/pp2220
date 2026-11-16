@@ -1,6 +1,6 @@
 package io.github.lianghang1.conflux.invoice.example;
 
-import io.github.lianghang1.conflux.common.util.PdfImageConverter;
+import io.github.lianghang1.conflux.invoice.support.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;

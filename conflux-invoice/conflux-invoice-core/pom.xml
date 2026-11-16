@@ -39,22 +39,28 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
+
+        <!-- pdfbox：PdfImageConverter（页转图/栅格化打印适配）运行依赖，
+             版本经 BOM 管理。排除其传递的 commons-logging（与 jcl-over-slf4j
+             类冲突），经 jcl-over-slf4j 桥接到 slf4j -->
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- 仅测试用：printAdaptedPdf / pageImages 端到端用例需要生成真实 PDF；
-             主代码对 pdfbox 零依赖（运行期由 FILE_PRINT_UNSUPPORTED 守护）。
-             版本经父 pom import 的 conflux-dependencies BOM 管理 -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
