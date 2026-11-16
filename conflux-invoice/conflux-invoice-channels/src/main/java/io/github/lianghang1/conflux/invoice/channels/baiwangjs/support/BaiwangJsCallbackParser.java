@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 百旺金穗云异步回调解析：Base64 明文 → 按 {@code ywlxdm} 分流 → 框架语义事件。
@@ -42,6 +43,7 @@ import java.util.Map;
  *
  * @author lianghang
  */
+@Slf4j
 public final class BaiwangJsCallbackParser {
 
     private static final DateTimeFormatter KPRQ = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -273,6 +275,7 @@ public final class BaiwangJsCallbackParser {
         try {
             return LocalDate.parse(kprq.substring(0, 8), KPRQ);
         } catch (Exception e) {
+            log.debug("百旺金穗云回调开票日期解析失败，按 null 处理，原值: {}", kprq, e);
             return null;
         }
     }

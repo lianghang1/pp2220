@@ -19,6 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 票通业务报文组装与结果归一（文档 2.4~2.34 请求/响应表逐字段核对）。
  *
@@ -33,6 +35,7 @@ import java.util.Map;
  *
  * @author lianghang
  */
+@Slf4j
 public final class PiaoTongCodec {
 
     private static final DateTimeFormatter DATE_TIME =
@@ -425,6 +428,7 @@ public final class PiaoTongCodec {
         try {
             return new BigDecimal(text.trim());
         } catch (NumberFormatException e) {
+            log.warn("票通云金额字段解析失败，按 null 处理，原值: {}", text, e);
             return null;
         }
     }

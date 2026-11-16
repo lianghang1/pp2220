@@ -550,6 +550,7 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
         try {
             return LocalDateTime.parse(value.replace(' ', 'T'));
         } catch (Exception e) {
+            log.debug("时间字段解析失败，按 null 处理，原值: {}", value, e);
             return null;
         }
     }

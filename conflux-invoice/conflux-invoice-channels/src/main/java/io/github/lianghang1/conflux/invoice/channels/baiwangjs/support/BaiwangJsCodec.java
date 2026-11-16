@@ -16,6 +16,7 @@ import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +41,7 @@ import java.util.Map;
  *
  * @author lianghang
  */
+@Slf4j
 public final class BaiwangJsCodec {
 
     /** 数电原开票时间格式（文档 3.3.3）：{@code yyyy-MM-dd HH:mm:ss}。 */
@@ -687,6 +689,7 @@ public final class BaiwangJsCodec {
         try {
             return new BigDecimal(value);
         } catch (NumberFormatException e) {
+            log.warn("百旺金穗云金额字段解析失败，按 null 处理，原值: {}", value, e);
             return null;
         }
     }
