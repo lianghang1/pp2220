@@ -440,6 +440,7 @@ public final class PiaoTongCodec {
         try {
             return LocalDate.parse(text.trim().substring(0, 10));
         } catch (Exception e) {
+            log.debug("票通云日期解析失败，按 null 处理，原值: {}", text, e);
             return null;
         }
     }

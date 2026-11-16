@@ -108,6 +108,7 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
         try {
             return LocalDateTime.parse(time, NOTIFY_TIME);
         } catch (Exception e) {
+            log.debug("支付宝回调时间解析失败，按 null 处理，原值: {}", time, e);
             return null;
         }
     }

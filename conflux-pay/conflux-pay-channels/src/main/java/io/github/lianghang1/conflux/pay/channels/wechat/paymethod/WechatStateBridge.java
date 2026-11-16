@@ -1,6 +1,7 @@
 package io.github.lianghang1.conflux.pay.channels.wechat.paymethod;
 
 import io.github.lianghang1.conflux.pay.model.PaymentState;
+import lombok.extern.slf4j.Slf4j;
 /**
  * 微信支付侧状态与时间的归一化桥接（V2/V3 报文共用）。
  *
@@ -9,6 +10,7 @@ import io.github.lianghang1.conflux.pay.model.PaymentState;
  *
  * @author lianghang
  */
+@Slf4j
 final class WechatStateBridge {
 
     private WechatStateBridge() {
@@ -49,6 +51,7 @@ final class WechatStateBridge {
             return java.time.OffsetDateTime.parse(time,
                     java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDateTime();
         } catch (Exception e) {
+            log.debug("微信时间解析失败，按 null 处理，原值: {}", time, e);
             return null;
         }
     }

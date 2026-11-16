@@ -8,6 +8,7 @@ import io.github.lianghang1.conflux.pay.model.TransferState;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 微信侧状态与时间到网关统一模型的翻译器。
@@ -19,6 +20,7 @@ import java.time.format.DateTimeFormatter;
  *
  * @author lianghang
  */
+@Slf4j
 public final class WechatStateTranslator {
 
     private WechatStateTranslator() {
@@ -102,6 +104,7 @@ public final class WechatStateTranslator {
         try {
             return OffsetDateTime.parse(isoTime, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDateTime();
         } catch (Exception e) {
+            log.debug("微信 ISO8601 时间解析失败，按 null 处理，原值: {}", isoTime, e);
             return null;
         }
     }

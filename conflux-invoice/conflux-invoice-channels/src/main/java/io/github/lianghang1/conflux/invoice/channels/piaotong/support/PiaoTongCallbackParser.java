@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 票通回调推送解析（2.13 推送发票主要信息 / 2.14 推送全票面）。
@@ -43,6 +44,7 @@ import java.util.Map;
  *
  * @author lianghang
  */
+@Slf4j
 public final class PiaoTongCallbackParser {
 
     private static final DateTimeFormatter DATE_TIME =
@@ -171,6 +173,7 @@ public final class PiaoTongCallbackParser {
         try {
             return LocalDate.parse(text.trim().substring(0, 10));
         } catch (Exception e) {
+            log.debug("票通云回调日期解析失败，按 null 处理，原值: {}", text, e);
             return null;
         }
     }
