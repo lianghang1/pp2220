@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.lianghang1</groupId>
+    <artifactId>conflux-dependencies</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>conflux-dependencies</name>
+    <description>Conflux 共享依赖版本 BOM（single source of truth）：common / pay / invoice
+        三个能力域以 import scope 引入，共享三方件（Spring Boot / OkHttp / Guava / PDFBox）
+        版本在此单源管理，升版只改本文件。各域专属依赖（微信/支付宝 SDK、票通等）与
+        conflux-common 构件版本仍留在各自域 pom，域自治不变。根聚合器保持「不发布、
+        不做 parent」的既有设计，BOM 以 import 方式提供版本而无需公共 parent。</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 共享三方件版本：唯一声明处。注意 spring-boot-maven-plugin 不受
+             dependencyManagement 管理，pay/invoice 域 pom 中的 ${spring-boot.version}
+             插件版本需与本处同步升级。 -->
+        <spring-boot.version>2.7.18</spring-boot.version>
+        <okhttp.version>4.12.0</okhttp.version>
+        <guava.version>32.1.3-jre</guava.version>
+        <pdfbox.version>2.0.31</pdfbox.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot 官方 BOM：jackson/slf4j/assertj/junit 等全部经此管理 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- 共享三方件：三个域共同使用、必须版本一致的构件 -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>${pdfbox.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

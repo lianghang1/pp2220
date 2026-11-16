@@ -13,6 +13,7 @@
         各能力域（common / pay / invoice）有独立的父 pom 与独立版本号，互不影响发版节奏。</description>
 
     <modules>
+        <module>conflux-dependencies</module>
         <module>conflux-common</module>
         <module>conflux-pay</module>
         <module>conflux-invoice</module>

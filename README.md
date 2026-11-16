@@ -6,10 +6,11 @@
 
 ## 工程结构
 
-根 `pom.xml`（`conflux-parent`）是**纯聚合器**：不发布、不作为任何模块的 parent。每个能力域有独立父 pom 与独立版本号，互不影响发版节奏。
+根 `pom.xml`（`conflux-parent`）是**纯聚合器**：不发布、不作为任何模块的 parent。每个能力域有独立父 pom 与独立版本号，互不影响发版节奏。共享三方件版本由 `conflux-dependencies` BOM **单源管理**：common / pay / invoice 三域以 `import` scope 引入，Spring Boot / OkHttp / Guava / PDFBox 升版只改 BOM 一处；各域专属依赖（微信/支付宝 SDK 等）与 `conflux-common` 构件版本仍留在各自域 pom。唯一例外是 `spring-boot-maven-plugin` 插件版本（不受 dependencyManagement 管理），升级 Spring Boot 时需与 BOM 的 `spring-boot.version` 同步。
 
 ```
 conflux-parent (聚合器, 1.0.0)
+├── conflux-dependencies    1.0.0          共享依赖版本 BOM（packaging=pom，single source of truth）
 ├── conflux-common          1.0.0          公共基座（工具 / 异常骨架 / HTTP 传输层）
 ├── conflux-pay             1.0.0-SNAPSHOT 支付能力域（4 个子模块）
 │   ├── conflux-pay-core                 内核：模型、状态机、SPI、编排引擎，零 Spring 依赖
@@ -33,7 +34,7 @@ conflux-parent (聚合器, 1.0.0)
 
 公共基座只持 `ErrorCode` 契约与 1xxx 通用码；`JsonUtils` 只抛 JDK 标准 `IllegalArgumentException`，不依赖任何业务异常。OkHttp 只出现在 `common` 的 `HttpTransport`，pay 与 invoice 渠道一律经该传输层发请求，不直接依赖 OkHttp。
 
-`common/util/PdfImageConverter` 提供发票 PDF 的图片化与栅格化能力（打印/展示防丢字场景：特殊字体 PDF 直接打印易丢字，栅格化后文字固化为像素）：三种模式——按原始页面尺寸逐页转图（PNG/JPEG，携带 DPI 物理元数据）、强制统一纸型（A4/A5/A3/B5/LETTER，内容等比缩放不裁切不变形，支持内容区域压缩与方向自动）、栅格化为单一 PDF（接口"一个文件进出"无需改动）。基于 PDFBox 2.x 且依赖声明为 `optional`，仅使用该能力时需自行引入 `org.apache.pdfbox:pdfbox`；服务端运行需 `java.awt.headless=true`（现代 JVM 默认已开启）。发票门面已把该能力按需开放：`gateway.pageImages(invoiceId, config)` 逐页转图、`gateway.printAdaptedPdf(invoiceId, paper, dpi)` 栅格化重组 A4 PDF，转换时机与参数由使用方决定，框架不自动转换；pdfbox 缺失时抛 `FILE_PRINT_UNSUPPORTED` 而非 `NoClassDefFoundError`。
+`common/util/PdfImageConverter` 提供发票 PDF 的图片化与栅格化能力（打印/展示防丢字场景：特殊字体 PDF 直接打印易丢字，栅格化后文字固化为像素）：三种模式——按原始页面尺寸逐页转图（PNG/JPEG，携带 DPI 物理元数据）、强制统一纸型（A4/A5/A3/B5/LETTER，内容等比缩放不裁切不变形，支持内容区域压缩与方向自动）、栅格化为单一 PDF（接口"一个文件进出"无需改动）。基于 PDFBox 2.x 且依赖声明为 `optional`，仅使用该能力时需自行引入 `org.apache.pdfbox:pdfbox`（`import` 本仓库的 `conflux-dependencies` BOM 可直接获得与 SDK 一致的版本）；服务端运行需 `java.awt.headless=true`（现代 JVM 默认已开启）。发票门面已把该能力按需开放：`gateway.pageImages(invoiceId, config)` 逐页转图、`gateway.printAdaptedPdf(invoiceId, paper, dpi)` 栅格化重组 A4 PDF，转换时机与参数由使用方决定，框架不自动转换；pdfbox 缺失时抛 `FILE_PRINT_UNSUPPORTED` 而非 `NoClassDefFoundError`。
 
 ---
 
