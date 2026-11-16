@@ -55,6 +55,19 @@ public final class SignUtil {
         }
     }
 
+    /**
+     * 常量时间 hex 比较（不区分大小写）：验签结果比对专用，
+     * 消除逐字符 equals 的时序侧信道。任一入参为 null 返回 false。
+     */
+    public static boolean constantTimeEquals(String expected, String actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.toLowerCase().getBytes(StandardCharsets.US_ASCII),
+                actual.toLowerCase().getBytes(StandardCharsets.US_ASCII));
+    }
+
     private static String toHex(byte[] bytes) {
         char[] out = new char[bytes.length * 2];
         for (int i = 0; i < bytes.length; i++) {

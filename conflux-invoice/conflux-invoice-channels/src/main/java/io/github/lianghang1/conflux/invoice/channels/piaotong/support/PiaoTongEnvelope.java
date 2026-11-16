@@ -66,7 +66,7 @@ public final class PiaoTongEnvelope {
      * 4 位平台简称 + 14 位日期时间 + 2 位随机数，同一次业务全程复用。
      */
     public static String invoiceSerialNo(PiaoTongParams params) {
-        String suffix = String.valueOf((int) (Math.random() * 90) + 10);
+        String suffix = String.valueOf(java.util.concurrent.ThreadLocalRandom.current().nextInt(10, 100));
         return params.getAliasName() + LocalDateTime.now().format(COMPACT) + suffix;
     }
 

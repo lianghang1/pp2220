@@ -57,9 +57,6 @@ public class InMemoryInvoiceStore implements InvoiceStore {
             if (stored.getChannelOrderNo() != null) {
                 channelIndex.put(stored.getChannelOrderNo(), stored.getInvoiceId());
             }
-            if (stored.getInvoiceNo() != null) {
-                // 票号索引由 findByInvoiceNo 线性查找，无需额外结构
-            }
             return true;
         }
     }

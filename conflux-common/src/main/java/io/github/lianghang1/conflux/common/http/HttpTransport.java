@@ -47,7 +47,10 @@ public final class HttpTransport {
 
     private static final Logger LOG = LoggerFactory.getLogger(HttpTransport.class);
 
-    private static final OkHttpClient BASE = new OkHttpClient.Builder().build();
+    /** 共享基座：关闭 OkHttp 自动重发（连接复用失效时可能重发 POST 导致重复提交），
+     * 幂等 GET 的重试统一走 {@link #getWithRetry} 显式控制。 */
+    private static final OkHttpClient BASE = new OkHttpClient.Builder()
+            .retryOnConnectionFailure(false).build();
     private static final ConcurrentHashMap<String, OkHttpClient> CLIENTS =
             new ConcurrentHashMap<String, OkHttpClient>();
 

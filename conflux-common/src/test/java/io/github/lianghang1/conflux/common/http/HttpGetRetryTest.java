@@ -41,6 +41,7 @@ class HttpGetRetryTest {
         server.createContext("/flaky", exchange -> {
             int n = hits.incrementAndGet();
             if (n < 3) {
+                exchange.getResponseHeaders().set("Connection", "close");
                 exchange.sendResponseHeaders(503, -1);
             } else {
                 byte[] data = "ok".getBytes();
@@ -65,6 +66,7 @@ class HttpGetRetryTest {
         server.createContext("/limited", exchange -> {
             int n = hits.incrementAndGet();
             if (n < 2) {
+                exchange.getResponseHeaders().set("Connection", "close");
                 exchange.sendResponseHeaders(429, -1);
             } else {
                 byte[] data = "ok".getBytes();
@@ -102,6 +104,7 @@ class HttpGetRetryTest {
         AtomicInteger hits = new AtomicInteger();
         server.createContext("/always503", exchange -> {
             hits.incrementAndGet();
+            exchange.getResponseHeaders().set("Connection", "close");
             exchange.sendResponseHeaders(503, -1);
         });
 

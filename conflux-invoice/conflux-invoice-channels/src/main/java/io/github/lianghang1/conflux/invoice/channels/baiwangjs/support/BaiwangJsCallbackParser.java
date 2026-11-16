@@ -246,7 +246,7 @@ public final class BaiwangJsCallbackParser {
         }
         String expected = io.github.lianghang1.conflux.common.util.SignUtil
                 .hmacSha256Hex(json, key);
-        if (!expected.equalsIgnoreCase(sign)) {
+        if (!io.github.lianghang1.conflux.common.util.SignUtil.constantTimeEquals(expected, sign)) {
             throw new GatewayException(InvoiceErrorCode.SIGN_INVALID,
                     "百旺金穗云回调验签失败");
         }

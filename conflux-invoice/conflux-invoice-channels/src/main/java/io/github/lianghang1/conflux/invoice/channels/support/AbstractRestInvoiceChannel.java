@@ -482,6 +482,7 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
         return (RestInvoiceParams) raw;
     }
 
+    /** 渠道状态串 → 框架状态：未知值不迁移状态（返回 null 只补字段），等下次查单/回调收敛。 */
     private static InvoiceState parseInvoiceState(String value) {
         try {
             return InvoiceState.valueOf(value.trim().toUpperCase());
@@ -489,7 +490,8 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
             if ("SUCCESS".equalsIgnoreCase(value) || "ISSUED".equalsIgnoreCase(value)) {
                 return InvoiceState.SUCCEEDED;
             }
-            return InvoiceState.FAILED;
+            log.warn("未知状态串[{}]，本次不迁移状态，等下次查单/回调收敛", value);
+            return null;
         }
     }
 
