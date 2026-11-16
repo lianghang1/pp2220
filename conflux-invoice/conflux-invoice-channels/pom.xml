@@ -31,6 +31,12 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- 百望云 BOPSDK：官方 SDK 自包含 com.baiwang.open.*，其 jackson/dom4j/bcprov
+             等依赖在 SDK pom 中均标为 optional，需按运行实际需要在此显式补齐 -->
+        <dependency>
+            <groupId>com.baiwang.bop</groupId>
+            <artifactId>baiwang-bopsdk</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
