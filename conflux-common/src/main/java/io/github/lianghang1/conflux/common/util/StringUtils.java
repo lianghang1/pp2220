@@ -1,11 +1,9 @@
 package io.github.lianghang1.conflux.common.util;
 
-import com.google.common.base.CaseFormat;
-
 /**
  * 字符串工具统一入口：继承 commons-lang3 的
  * {@code org.apache.commons.lang3.StringUtils}（全量静态方法穿透可用），
- * 仅追加 lang3/guava 都没有的高频自有语义。
+ * 仅追加 lang3 没有的高频自有语义。
  *
  * @author lianghang
  */
@@ -14,16 +12,47 @@ public class StringUtils extends org.apache.commons.lang3.StringUtils {
     private StringUtils() {
     }
 
-    /** 驼峰 → 下划线（userName → user_name），委托 guava CaseFormat */
+    /** 驼峰 → 下划线（userName → user_name） */
     public static String camelToSnake(String text) {
-        return text == null ? null
-                : CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        StringBuilder sb = new StringBuilder(text.length() + 4);
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (i > 0) {
+                    sb.append('_');
+                }
+                sb.append(Character.toLowerCase(c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
-    /** 下划线 → 驼峰（user_name → userName），委托 guava CaseFormat */
+    /** 下划线 → 驼峰（user_name → userName） */
     public static String snakeToCamel(String text) {
-        return text == null ? null
-                : CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, text);
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        StringBuilder sb = new StringBuilder(text.length());
+        boolean upperNext = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '_') {
+                upperNext = true;
+            } else if (upperNext && sb.length() > 0) {
+                sb.append(Character.toUpperCase(c));
+                upperNext = false;
+            } else if (sb.length() == 0) {
+                sb.append(Character.toLowerCase(c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     /**

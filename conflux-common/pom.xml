@@ -24,7 +24,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- 共享依赖版本 single source：spring-boot/okhttp/guava/pdfbox 全部经此 BOM -->
+            <!-- 共享依赖版本 single source：版本统一经 BOM -->
             <dependency>
                 <groupId>io.github.lianghang1</groupId>
                 <artifactId>conflux-dependencies</artifactId>
@@ -47,10 +47,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
