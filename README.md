@@ -6,7 +6,7 @@
 
 ## 工程结构
 
-根 `pom.xml`（`conflux-parent`）是**纯聚合器**：不发布、不作为任何模块的 parent。每个能力域有独立父 pom 与独立版本号，互不影响发版节奏。共享三方件版本由 `conflux-dependencies` BOM **单源管理**：common / pay / invoice 三域以 `import` scope 引入，Spring Boot / OkHttp / Guava / PDFBox 升版只改 BOM 一处；各域专属依赖（微信/支付宝 SDK 等）与 `conflux-common` 构件版本仍留在各自域 pom。唯一例外是 `spring-boot-maven-plugin` 插件版本（不受 dependencyManagement 管理），升级 Spring Boot 时需与 BOM 的 `spring-boot.version` 同步。
+根 `pom.xml`（`conflux-parent`）是**纯聚合器**：不发布、不作为任何模块的 parent。每个能力域有独立父 pom 与独立版本号，互不影响发版节奏。三方依赖版本由 `conflux-dependencies` BOM **全量单源管理**：common / pay / invoice 三域以 `import` scope 引入、依赖声明一律不写 version——收录标准是「第三方 jar 即进 BOM」（不论当前被几个域使用，避免单域/跨域两段式维护），Spring Boot / OkHttp / Guava / PDFBox / 微信 / 支付宝 / TTL 升版只改 BOM 一处。内部构件版本（`conflux-common` 及各域自产模块）仍留各自域 pom。唯一例外是 `spring-boot-maven-plugin` 插件版本（不受 dependencyManagement 管理），升级 Spring Boot 时需与 BOM 的 `spring-boot.version` 同步。
 
 ```
 conflux-parent (聚合器, 1.0.0)

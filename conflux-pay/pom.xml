@@ -31,10 +31,6 @@
              不受 dependencyManagement 管理，升版需与 BOM 同步。 -->
         <spring-boot.version>2.7.18</spring-boot.version>
         <conflux-common.version>1.0.0</conflux-common.version>
-        <!-- 本域专属三方件 -->
-        <weixin-java-pay.version>4.7.2.B</weixin-java-pay.version>
-        <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
-        <ttl.version>2.14.5</ttl.version>
     </properties>
 
     <dependencyManagement>
@@ -71,23 +67,7 @@
                 <artifactId>conflux-pay-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
-            <!-- 本域专属三方件（BOM 未覆盖） -->
-            <dependency>
-                <groupId>com.github.binarywang</groupId>
-                <artifactId>weixin-java-pay</artifactId>
-                <version>${weixin-java-pay.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.alipay.sdk</groupId>
-                <artifactId>alipay-sdk-java</artifactId>
-                <version>${alipay-sdk.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.alibaba</groupId>
-                <artifactId>transmittable-thread-local</artifactId>
-                <version>${ttl.version}</version>
-            </dependency>
+            <!-- 渠道 SDK 类三方件（weixin/alipay/ttl）版本经 BOM 管理，此处不再重复 -->
         </dependencies>
     </dependencyManagement>
 
