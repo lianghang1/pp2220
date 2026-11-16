@@ -7,6 +7,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +40,12 @@ public final class HttpTransport {
     private static final long DEFAULT_CONNECT_MILLIS = 10000L;
     private static final long DEFAULT_READ_MILLIS = 30000L;
     private static final long DEFAULT_WRITE_MILLIS = 10000L;
+
+    /** 重试默认值：额外重试 2 次（共 3 次尝试），退避基数 300ms（300 → 600）。 */
+    private static final int DEFAULT_RETRY_TIMES = 2;
+    private static final long RETRY_BACKOFF_BASE_MILLIS = 300L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(HttpTransport.class);
 
     private static final OkHttpClient BASE = new OkHttpClient.Builder().build();
     private static final ConcurrentHashMap<String, OkHttpClient> CLIENTS =
@@ -111,6 +119,68 @@ public final class HttpTransport {
             throw new HttpTransportException("HTTP 传输失败: " + method + " " + url, e);
         } catch (IllegalArgumentException e) {
             throw new HttpTransportException("HTTP 请求构建失败（URL/参数非法）: " + method + " " + url, e);
+        }
+    }
+
+    /**
+     * 幂等 GET 重试入口：仅限幂等场景（版式文件下载、查单类轮询等）。
+     *
+     * <p>网络 {@link HttpTransportException} 与可重试响应（429、5xx）按指数退避重试：
+     * 第 n 次重试前等待 {@code backoffBaseMillis * 2^(n-1)}；重试次数耗尽后，
+     * 若最后一次拿到的是可重试响应则原样返回（成败判定仍归调用方），
+     * 若是 IO 异常则抛出最后一次的异常。POST 等非幂等方法不提供重试。</p>
+     */
+    public static HttpResponse getWithRetry(String url, Map<String, String> headers,
+                                             long connectMillis, long readMillis, long writeMillis) {
+        return getWithRetry(url, headers, connectMillis, readMillis, writeMillis,
+                DEFAULT_RETRY_TIMES, RETRY_BACKOFF_BASE_MILLIS);
+    }
+
+    /** 幂等 GET 重试（自定义重试次数与退避基数）。 */
+    public static HttpResponse getWithRetry(String url, Map<String, String> headers,
+                                             long connectMillis, long readMillis, long writeMillis,
+                                             int maxRetries, long backoffBaseMillis) {
+        if (maxRetries < 0) {
+            throw new IllegalArgumentException("maxRetries 必须 >= 0: " + maxRetries);
+        }
+        int total = maxRetries + 1;
+        HttpResponse retryable = null;
+        HttpTransportException ioError = null;
+        for (int attempt = 1; attempt <= total; attempt++) {
+            if (attempt > 1) {
+                sleep(backoffBaseMillis << (attempt - 2));
+            }
+            try {
+                HttpResponse resp = execute("GET", url, headers, null, null,
+                        connectMillis, readMillis, writeMillis);
+                if (!isRetryable(resp.getStatusCode())) {
+                    return resp;
+                }
+                retryable = resp;
+                LOG.debug("HTTP GET 收到可重试响应 {}（第 {}/{} 次尝试）: {}",
+                        resp.getStatusCode(), attempt, total, url);
+            } catch (HttpTransportException e) {
+                ioError = e;
+                LOG.debug("HTTP GET 传输异常（第 {}/{} 次尝试）: {}", attempt, total, url, e);
+            }
+        }
+        if (ioError != null) {
+            throw ioError;
+        }
+        return retryable;
+    }
+
+    /** 可重试状态码：429（限流）与 5xx（服务端临时故障）。 */
+    private static boolean isRetryable(int code) {
+        return code == 429 || (code >= 500 && code < 600);
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new HttpTransportException("HTTP 重试退避等待被中断", e);
         }
     }
 

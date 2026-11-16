@@ -167,7 +167,7 @@ public class InvoiceFileMaterializer {
         String url = file.getUrl();
         HttpResponse response;
         try {
-            response = HttpTransport.getBinary(url, null,
+            response = HttpTransport.getWithRetry(url, null,
                     10000L, options.getDownloadTimeoutMillis(), 10000L);
         } catch (RuntimeException e) {
             throwFailure(file, "下载 IO 异常: " + e.getMessage());
