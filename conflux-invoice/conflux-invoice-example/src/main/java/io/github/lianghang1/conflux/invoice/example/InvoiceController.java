@@ -9,6 +9,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
@@ -32,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 演示 REST 入口：完整暴露蓝字开票、查单、授权提交、两段红冲、渠道回调、文件查询，
+ * 演示 REST 入口：完整暴露蓝字开票、查单、授权提交、两段红冲、快捷红冲、渠道回调、文件查询，
  * 以及辅助能力（发票交付重发、发票修复、红字确认单主动确认/拒绝、按票号查单）。
  *
  * <p>回调地址需在渠道侧带上 {@code ?accountKey=...} 查询参数，供验签前反查配置
@@ -82,6 +83,12 @@ public class InvoiceController {
     @PostMapping("/red/apply")
     public RedApply applyRed(@RequestBody RedApplyRequest request) {
         return gateway.applyRed(request);
+    }
+
+    /** 快捷红冲：一次调用覆盖红冲全流程，用 outcome 区分走到哪一步。 */
+    @PostMapping("/red/quick")
+    public QuickRedResult quickRed(@RequestBody RedApplyRequest request) {
+        return gateway.quickRed(request);
     }
 
     /** 查询红字确认单确认状态。 */

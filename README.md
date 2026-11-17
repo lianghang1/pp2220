@@ -162,9 +162,9 @@ InvoiceResult done = gateway.submitAuth(new AuthSubmission()
         .setSessionId(r.getAuthChallenge().getSessionId()).setCaptcha("123456"));
 // done.getState() == SUCCEEDED，done.hasLegalXml() == true
 
-RedApply apply = gateway.applyRed(...);   // 第一段：申请红字确认单（WAITING_CONFIRM）
-gateway.confirmRed(apply.getRedApplyId()); // 对方确认 → CONFIRMED
-gateway.issueRed(...);                     // 第二段：开红字发票 → 原票 RED_SUCCEEDED
+RedApply apply = gateway.applyRed(...);        // 第一段：申请红字确认单（WAITING_CONFIRM）
+gateway.queryRedApply(apply.getRedApplyId());  // 查询对方确认状态 → CONFIRMED
+gateway.issueRed(...);                         // 第二段：开红字发票 → 原票 RED_SUCCEEDED
 ```
 
 `conflux-invoice-example` 提供可直接运行的 REST 宿主（`/api/invoices` 系列端点），默认 mock 渠道，零凭据即可跑通完整链路。辅助能力同样有端点：按票号查单 `GET /by-no`、发票交付重发 `POST /delivery`、发票修复 `POST /repair` 与结果查询 `POST /repair/query`、红字确认单主动确认/拒绝 `POST /red/confirm-action`。
