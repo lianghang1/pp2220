@@ -6,10 +6,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 下游通知记录持久化 SPI。
+ * 下游通知记录持久化 SPI。可选能力：未注册时下游通知不落库、重试兜底不可用。
  *
  * <p>建议索引：{@code nextNotifyTime + completed} 组合索引（到期扫描）、
- * {@code orderId} 普通索引、{@code notifyId} 主键。</p>
+ * {@code notifyId} 主键。</p>
  *
  * @author lianghang
  */
@@ -23,7 +23,4 @@ public interface NotifyLogStore {
 
     /** 查询到期未完成的通知记录（nextNotifyTime <= threshold 且 completed=false），按 nextNotifyTime 升序返回前 limit 条。 */
     List<NotifyLog> findDueNotifies(LocalDateTime threshold, int limit);
-
-    /** 查询单据的全部通知记录（排查用）。 */
-    List<NotifyLog> findByOrderId(String orderId);
 }

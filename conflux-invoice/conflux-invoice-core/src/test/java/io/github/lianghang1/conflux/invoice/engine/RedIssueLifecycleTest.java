@@ -30,7 +30,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 红冲生命周期闭环回归：覆盖异步红票成功后的状态联动，以及快捷红冲幂等重入的结果还原。
+ * 红冲生命周期闭环回归：覆盖异步红票成功后的状态联动，以及历史中间态的补齐能力。
  *
  * @author lianghang
  */
@@ -80,7 +80,7 @@ class RedIssueLifecycleTest {
                 .setBuyerTitle("购方").setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setAmount(new BigDecimal("100.00")).setTaxAmount(new BigDecimal("6.00"))
                 .setInvoiceNo("FPHM").setInvoiceCode("FPDM")
-                .setState(InvoiceState.SUCCEEDED).setVersion(0L)
+                .setState(InvoiceState.SUCCEEDED)
                 .setCreatedTime(now).setUpdatedTime(now));
     }
 
@@ -180,41 +180,12 @@ class RedIssueLifecycleTest {
         String applyId = qr.getRedApply().getRedApplyId();
         // 模拟历史中间态：确认单已 ISSUED，但原票仍停在 RED_APPLYING
         RedApply apply = h.redStore.findById(applyId);
-        long ver = apply.getVersion();
-        apply.setState(RedApplyState.ISSUED).setVersion(ver + 1);
-        h.redStore.tryUpdate(apply, ver);
+        apply.setState(RedApplyState.ISSUED);
+        h.redStore.update(apply);
 
         String redId = h.invoiceStore.findByBizOrderNo("demo", "R4-RED").getInvoiceId();
         gw.query(new InvoiceQueryRequest().setInvoiceId(redId));
         assertSame(InvoiceState.RED_SUCCEEDED, gw.findById("INV-1").getState(),
                 "确认单已 ISSUED 时仍应补齐原票联动");
-    }
-
-    /**
-     * Bug B：quickRed 幂等重入时，尽管确认单尚未回写 redInvoiceId（红票在途），
-     * 仍应通过红票业务单号反查到已建单据并还原 accepted 结果。
-     */
-    @Test
-    void quickRedIdempotentReentryKeepsRedInvoice() {
-        P p = new P();
-        StoreHolder h = new StoreHolder();
-        p.red = asyncIssuedRed();
-        InvoiceGateway gw = gw(p, h);
-        saveBlue(h);
-        RedApplyRequest req = new RedApplyRequest().setAppId("demo").setBizRedNo("R2")
-                .setOriginalInvoiceId("INV-1").setReason("错开")
-                .setAmount(new BigDecimal("100.00"));
-
-        QuickRedResult first = gw.quickRed(req);
-        assertTrue(first.isAccepted());
-        assertNotNull(first.getRedInvoice(), "首次受理应返回 PROCESSING 的红票单据");
-
-        QuickRedResult second = gw.quickRed(req);
-        assertTrue(second.isAccepted());
-        assertNotNull(second.getRedInvoice(), "幂等重入应还原已建红票单据，不能为 null");
-        assertEquals(first.getRedInvoice().getInvoiceId(), second.getRedInvoice().getInvoiceId(),
-                "重入应返回同一张红票单据");
-        assertNotNull(h.invoiceStore.findByBizOrderNo("demo", "R2-RED"),
-                "红票单据已建单");
     }
 }

@@ -2,8 +2,8 @@ package io.github.lianghang1.conflux.pay.example.job;
 
 import io.github.lianghang1.conflux.pay.api.PaymentQueryRequest;
 import io.github.lianghang1.conflux.pay.engine.PaymentGateway;
+import io.github.lianghang1.conflux.pay.example.store.GatewayRecordStores.ScannablePaymentStore;
 import io.github.lianghang1.conflux.pay.model.Payment;
-import io.github.lianghang1.conflux.pay.store.PaymentStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +24,7 @@ import java.util.List;
 public class GatewayHousekeepingJobs {
 
     private final PaymentGateway paymentGateway;
-    private final PaymentStore paymentStore;
+    private final ScannablePaymentStore paymentStore;
 
     /** 每 10 秒投递到期未完成的下游通知。 */
     @Scheduled(fixedDelay = 10000, initialDelay = 10000)

@@ -48,20 +48,9 @@ class PaymentOrchestrator {
         String channel = StringUtils.isNotBlank(request.getChannelCode())
                 ? request.getChannelCode() : method.getDefaultChannel();
 
-        Payment payment = rt.paymentStore.findByBizOrderNo(request.getAppId(), request.getBizOrderNo());
-        if (payment == null) {
-            payment = buildPayment(request, method, channel);
-            rt.paymentStore.save(payment);
-            rt.publisher.publishPayment(PaymentEvent.EventType.PAYMENT_CREATED, payment);
-        } else {
-            assertSameIntent(payment, request, method, channel);
-            boolean retryable = payment.getState() == PaymentState.CREATED
-                    && StringUtils.isBlank(payment.getPayPayload());
-            if (!retryable) {
-                return PaymentResult.of(payment);
-            }
-            log.info("订单处于创建态且无唤起参数，按重试语义重新发起渠道调用: paymentId={}", payment.getPaymentId());
-        }
+        Payment payment = buildPayment(request, method, channel);
+        rt.paymentStore.save(payment);
+        rt.publisher.publishPayment(PaymentEvent.EventType.PAYMENT_CREATED, payment);
 
         assertMethodSupported(channel, method);
         invokeChannel(payment);
@@ -123,16 +112,6 @@ class PaymentOrchestrator {
                 .setExpiredTime(request.getExpireSeconds() == null ? null : rt.now().plusSeconds(request.getExpireSeconds()))
                 .setCreatedTime(rt.now())
                 .setUpdatedTime(rt.now());
-    }
-
-    private void assertSameIntent(Payment existing, PaymentRequest request, PayMethod method, String channel) {
-        boolean same = existing.getAmount() != null && existing.getAmount().equals(request.getAmount())
-                && method.getCode().equals(existing.getMethod())
-                && channel.equals(existing.getChannelCode());
-        if (!same) {
-            throw GatewayException.of(GatewayErrorCode.DUPLICATE_ORDER,
-                    "相同业务单号的订单已存在且参数不一致: bizOrderNo={}", request.getBizOrderNo());
-        }
     }
 
     private void assertMethodSupported(String channel, PayMethod method) {

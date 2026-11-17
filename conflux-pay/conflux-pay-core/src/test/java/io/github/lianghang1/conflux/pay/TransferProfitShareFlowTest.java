@@ -68,20 +68,6 @@ class TransferProfitShareFlowTest {
     }
 
     @Test
-    void duplicateTransferRequestShouldBeIdempotent() {
-        TransferRequest request = new TransferRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
-                .setBizTransferNo("TR-2")
-                .setMethod(TestChannelProvider.METHOD_TRANS)
-                .setPayeeAccount("payee-openid-002")
-                .setAmount(3000L);
-        TransferResult first = harness.gateway.createTransfer(request);
-        TransferResult second = harness.gateway.createTransfer(request);
-
-        assertThat(second.getTransferId()).isEqualTo(first.getTransferId());
-    }
-
-    @Test
     void transferWithoutPayeeShouldBeRejected() {
         assertThatThrownBy(() -> harness.gateway.createTransfer(new TransferRequest()
                 .setAppId(GatewayTestHarness.APP_ID)

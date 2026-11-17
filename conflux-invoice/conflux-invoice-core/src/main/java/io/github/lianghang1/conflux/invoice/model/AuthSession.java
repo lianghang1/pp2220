@@ -39,7 +39,6 @@ public class AuthSession implements Serializable {
     /** 渠道自定义会话数据。 */
     private Map<String, String> payload;
 
-    private long version;
     private LocalDateTime createdTime;
     private LocalDateTime updatedTime;
 

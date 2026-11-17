@@ -53,8 +53,6 @@ public class RedApply implements Serializable {
     private String errorCode;
     private String errorMsg;
 
-    /** 乐观锁版本号。 */
-    private long version;
     private LocalDateTime createdTime;
     private LocalDateTime updatedTime;
 }

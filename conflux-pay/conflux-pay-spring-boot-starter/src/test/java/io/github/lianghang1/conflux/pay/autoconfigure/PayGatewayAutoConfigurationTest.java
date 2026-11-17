@@ -104,11 +104,6 @@ class PayGatewayAutoConfigurationTest {
         }
 
         @Override
-        public List<Payment> findPayingBefore(LocalDateTime threshold, int limit) {
-            return new ArrayList<Payment>();
-        }
-
-        @Override
         public List<Payment> findByChannelAndDate(String channelCode, String appId, LocalDate billDate) {
             return new ArrayList<Payment>();
         }

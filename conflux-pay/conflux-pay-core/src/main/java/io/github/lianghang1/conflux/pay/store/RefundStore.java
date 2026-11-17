@@ -6,10 +6,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 退款单持久化 SPI。
+ * 退款单持久化 SPI。可选能力：未注册时退款入口报 STORE_MISSING。
  *
- * <p>建议索引：{@code appId + bizRefundNo} 唯一（幂等键）、
- * {@code paymentId} 普通索引（累计退款额计算）、{@code refundId} 主键。</p>
+ * <p>建议索引：{@code appId + bizRefundNo} 普通（业务单号查询）、
+ * {@code paymentId} 普通索引（可退余额计算）、{@code refundId} 主键。</p>
  *
  * @author lianghang
  */

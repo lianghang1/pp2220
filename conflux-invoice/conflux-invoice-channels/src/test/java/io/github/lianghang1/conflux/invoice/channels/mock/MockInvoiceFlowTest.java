@@ -49,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 端到端流程测试：用 mock 渠道跑通「开票 → 授权挂起 → 提交授权 → XML 归档 →
- * 红字申请 → 确认 → 开红票」，并验证异步、失败、幂等、法定原件、回调等分支。
+ * 红字申请 → 确认 → 开红票」，并验证异步、失败、法定原件、回调等分支。
  *
  * @author lianghang
  */
@@ -73,11 +73,6 @@ class MockInvoiceFlowTest {
         assertTrue(authed.hasLegalXml(), "开票成功必须归档 XML 法定原件");
         assertEquals(3, gateway.files(authed.getInvoiceId()).size());
         assertNotNull(gateway.findById(authed.getInvoiceId()).getInvoiceNo());
-
-        // 幂等重入：相同业务单号直接返回原单据，不重复开票
-        InvoiceResult again = gateway.issue(request("B1"));
-        assertEquals(authed.getInvoiceId(), again.getInvoiceId());
-        assertSame(InvoiceState.SUCCEEDED, again.getState());
 
         // 两段红冲
         RedApply apply = gateway.applyRed(new RedApplyRequest()
@@ -137,18 +132,6 @@ class MockInvoiceFlowTest {
                 () -> gateway.issueRed(new RedIssueRequest()
                         .setAppId("demo").setRedApplyId(apply.getRedApplyId())));
         assertSame(InvoiceErrorCode.RED_CONFIRM_PENDING, ex.getErrorCode());
-    }
-
-    @Test
-    void idempotentReissueWithDifferentAmountIsRejected() {
-        InvoiceGateway gateway = gateway(new MockInvoiceParams().setIssueOutcome("SUCCESS"));
-        gateway.issue(request("B5"));
-        InvoiceRequest changed = request("B5")
-                .setAmount(new BigDecimal("200.00"))
-                .setItems(Collections.singletonList(new InvoiceItem()
-                        .setItemName("技术服务费").setAmount(new BigDecimal("200.00"))));
-        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.issue(changed));
-        assertSame(InvoiceErrorCode.DUPLICATE_BIZ_ORDER, ex.getErrorCode());
     }
 
     @Test

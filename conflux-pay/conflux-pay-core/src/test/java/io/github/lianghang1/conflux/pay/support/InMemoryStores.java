@@ -76,16 +76,6 @@ public final class InMemoryStores {
         }
 
         @Override
-        public List<Payment> findPayingBefore(LocalDateTime threshold, int limit) {
-            return data.values().stream()
-                    .filter(p -> p.getState() == PaymentState.CREATED || p.getState() == PaymentState.PAYING)
-                    .filter(p -> p.getCreatedTime() != null && p.getCreatedTime().isBefore(threshold))
-                    .sorted(Comparator.comparing(Payment::getCreatedTime))
-                    .limit(limit)
-                    .collect(Collectors.toList());
-        }
-
-        @Override
         public List<Payment> findByChannelAndDate(String channelCode, String appId, LocalDate billDate) {
             List<Payment> result = new ArrayList<Payment>();
             for (Payment payment : data.values()) {
@@ -259,17 +249,6 @@ public final class InMemoryStores {
                     .collect(Collectors.toList());
         }
 
-        @Override
-        public List<NotifyLog> findByOrderId(String orderId) {
-            List<NotifyLog> result = new ArrayList<NotifyLog>();
-            for (NotifyLog notifyLog : data.values()) {
-                if (notifyLog.getOrderId().equals(orderId)) {
-                    result.add(notifyLog);
-                }
-            }
-            return result;
-        }
-
         public List<NotifyLog> all() {
             return new ArrayList<NotifyLog>(data.values());
         }
@@ -287,19 +266,6 @@ public final class InMemoryStores {
         @Override
         public void update(ReconDiscrepancy discrepancy) {
             data.put(discrepancy.getReconId(), discrepancy);
-        }
-
-        @Override
-        public List<ReconDiscrepancy> findByDate(String channelCode, String appId, LocalDate billDate) {
-            List<ReconDiscrepancy> result = new ArrayList<ReconDiscrepancy>();
-            for (ReconDiscrepancy discrepancy : data.values()) {
-                if (discrepancy.getChannelCode().equals(channelCode)
-                        && discrepancy.getAppId().equals(appId)
-                        && discrepancy.getBillDate().equals(billDate)) {
-                    result.add(discrepancy);
-                }
-            }
-            return result;
         }
 
         public List<ReconDiscrepancy> all() {

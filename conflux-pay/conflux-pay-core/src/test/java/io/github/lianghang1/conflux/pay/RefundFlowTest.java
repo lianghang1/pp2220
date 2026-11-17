@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 退款流程测试：可退余额校验、部分/全额退款联动、幂等、非法状态拦截。
+ * 退款流程测试：可退余额校验、部分/全额退款联动、非法状态拦截。
  *
  * @author lianghang
  */
@@ -80,19 +80,6 @@ class RefundFlowTest {
                 .setPaymentId(paymentId).setAmount(4000L)))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.REFUND_EXCEED_REFUNDABLE));
-    }
-
-    @Test
-    void duplicateRefundRequestShouldBeIdempotent() {
-        RefundResult first = harness.gateway.createRefund(new RefundRequest()
-                .setAppId(GatewayTestHarness.APP_ID).setBizRefundNo("RF-E")
-                .setPaymentId(paymentId).setAmount(1000L));
-        RefundResult second = harness.gateway.createRefund(new RefundRequest()
-                .setAppId(GatewayTestHarness.APP_ID).setBizRefundNo("RF-E")
-                .setPaymentId(paymentId).setAmount(1000L));
-
-        assertThat(second.getRefundId()).isEqualTo(first.getRefundId());
-        assertThat(harness.refundStore.all()).hasSize(1);
     }
 
     @Test

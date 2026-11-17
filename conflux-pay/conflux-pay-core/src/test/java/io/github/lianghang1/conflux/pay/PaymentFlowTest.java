@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 支付主流程测试：下单、幂等、重试语义、查单补单、关单、事件发布。
+ * 支付主流程测试：下单、查单补单、关单、事件发布。
  *
  * @author lianghang
  */
@@ -56,26 +56,7 @@ class PaymentFlowTest {
     }
 
     @Test
-    void duplicateRequestShouldBeIdempotent() {
-        PaymentResult first = harness.gateway.createPayment(request("NO-2"));
-        PaymentResult second = harness.gateway.createPayment(request("NO-2"));
-
-        assertThat(second.getPaymentId()).isEqualTo(first.getPaymentId());
-        assertThat(harness.paymentStore.all()).hasSize(1);
-    }
-
-    @Test
-    void duplicateRequestWithDifferentAmountShouldBeRejected() {
-        harness.gateway.createPayment(request("NO-3"));
-
-        PaymentRequest changed = request("NO-3").setAmount(9999L);
-        assertThatThrownBy(() -> harness.gateway.createPayment(changed))
-                .isInstanceOfSatisfying(GatewayException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.DUPLICATE_ORDER));
-    }
-
-    @Test
-    void channelFailureShouldKeepCreatedStateAndSameRequestRetries() {
+    void channelFailureShouldKeepCreatedState() {
         harness.channelProvider.failNextCreate.set(true);
         assertThatThrownBy(() -> harness.gateway.createPayment(request("NO-4")))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
@@ -84,10 +65,6 @@ class PaymentFlowTest {
         Payment stored = harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "NO-4");
         assertThat(stored.getState()).isEqualTo(PaymentState.CREATED);
         assertThat(stored.getErrorCode()).isEqualTo(String.valueOf(GatewayErrorCode.CHANNEL_CALL_FAILED.getCode()));
-
-        PaymentResult retried = harness.gateway.createPayment(request("NO-4"));
-        assertThat(retried.getState()).isEqualTo(PaymentState.PAYING);
-        assertThat(harness.paymentStore.all()).hasSize(1);
     }
 
     @Test

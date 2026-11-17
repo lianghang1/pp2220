@@ -438,7 +438,7 @@ class InvoiceAuxiliaryCapabilityTest {
                 .setAmount(new BigDecimal("100.00"))
                 .setTaxAmount(new BigDecimal("6.00"))
                 .setInvoiceNo(invoiceNo).setInvoiceCode(invoiceCode)
-                .setState(state).setCreatedTime(now).setUpdatedTime(now).setVersion(0L));
+                .setState(state).setCreatedTime(now).setUpdatedTime(now));
     }
 
     private RedApply saveRedApply(RedApplyState state) {
@@ -449,7 +449,7 @@ class InvoiceAuxiliaryCapabilityTest {
                 .setOriginalInvoiceNo(FPHM).setOriginalInvoiceCode(FPDM)
                 .setReason("退货").setAmount(new BigDecimal("100.00"))
                 .setChannelCode(CODE).setAccountKey(ACCOUNT_KEY)
-                .setState(state).setVersion(0L)
+                .setState(state)
                 .setCreatedTime(now).setUpdatedTime(now);
         redApplyStore.save(apply);
         return apply;

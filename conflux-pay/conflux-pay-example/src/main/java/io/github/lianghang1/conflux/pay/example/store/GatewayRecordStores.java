@@ -36,8 +36,18 @@ import java.util.Optional;
 @Configuration
 public class GatewayRecordStores {
 
+    /**
+     * 使用方自有扩展接口：补单扫描属于宿主定时任务的自有查询需求，
+     * 不进框架 SPI，宿主按自己的存储实现扩展即可。
+     */
+    public interface ScannablePaymentStore extends PaymentStore {
+
+        /** 查询指定时间之前仍处于支付中（CREATED/PAYING）的订单，按 createdTime 升序返回前 limit 条。 */
+        List<Payment> findPayingBefore(LocalDateTime threshold, int limit);
+    }
+
     @Bean
-    public PaymentStore paymentStore(GatewayRecordRepository repository) {
+    public ScannablePaymentStore paymentStore(GatewayRecordRepository repository) {
         return new JsonPaymentStore(repository, "PAYMENT");
     }
 
@@ -153,7 +163,7 @@ public class GatewayRecordStores {
     }
 
     /** 支付单存储。 */
-    static class JsonPaymentStore extends AbstractJsonRecordStore<Payment> implements PaymentStore {
+    static class JsonPaymentStore extends AbstractJsonRecordStore<Payment> implements ScannablePaymentStore {
 
         JsonPaymentStore(GatewayRecordRepository repository, String recordType) {
             super(repository, recordType, Payment.class);
@@ -482,16 +492,6 @@ public class GatewayRecordStores {
             return result;
         }
 
-        @Override
-        public List<NotifyLog> findByOrderId(String orderId) {
-            List<NotifyLog> result = new ArrayList<NotifyLog>();
-            for (NotifyLog notifyLog : readAll()) {
-                if (notifyLog.getOrderId().equals(orderId)) {
-                    result.add(notifyLog);
-                }
-            }
-            return result;
-        }
     }
 
     /** 对账差错存储。 */
@@ -529,19 +529,6 @@ public class GatewayRecordStores {
         @Override
         public void update(ReconDiscrepancy discrepancy) {
             write(discrepancy);
-        }
-
-        @Override
-        public List<ReconDiscrepancy> findByDate(String channelCode, String appId, LocalDate billDate) {
-            List<ReconDiscrepancy> result = new ArrayList<ReconDiscrepancy>();
-            for (ReconDiscrepancy discrepancy : readAll()) {
-                if (discrepancy.getChannelCode().equals(channelCode)
-                        && discrepancy.getAppId().equals(appId)
-                        && discrepancy.getBillDate().equals(billDate)) {
-                    result.add(discrepancy);
-                }
-            }
-            return result;
         }
     }
 }

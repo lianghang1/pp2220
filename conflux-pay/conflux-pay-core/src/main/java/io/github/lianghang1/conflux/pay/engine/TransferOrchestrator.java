@@ -45,18 +45,6 @@ class TransferOrchestrator {
         PayMethod method = PayMethod.of(request.getMethod());
         String channel = method.getDefaultChannel();
 
-        Transfer existing = rt.transferStore.findByBizTransferNo(request.getAppId(), request.getBizTransferNo());
-        if (existing != null) {
-            boolean same = existing.getAmount().equals(request.getAmount())
-                    && method.getCode().equals(existing.getMethod())
-                    && request.getPayeeAccount().equals(existing.getPayeeAccount());
-            if (!same) {
-                throw GatewayException.of(GatewayErrorCode.DUPLICATE_ORDER,
-                        "相同业务转账单号的转账已存在且参数不一致: bizTransferNo={}", request.getBizTransferNo());
-            }
-            return TransferResult.of(existing);
-        }
-
         Transfer transfer = new Transfer()
                 .setTransferId(IdGenerator.nextTransferId())
                 .setAppId(request.getAppId())

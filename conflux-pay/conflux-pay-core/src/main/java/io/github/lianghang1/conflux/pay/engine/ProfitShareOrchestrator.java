@@ -58,15 +58,6 @@ class ProfitShareOrchestrator {
                     "订单当前状态不允许分账: paymentId={}, state={}", payment.getPaymentId(), payment.getState());
         }
 
-        ProfitShare existing = rt.profitShareStore.findByBizShareNo(request.getAppId(), request.getBizShareNo());
-        if (existing != null) {
-            if (!existing.getPaymentId().equals(payment.getPaymentId())) {
-                throw GatewayException.of(GatewayErrorCode.DUPLICATE_ORDER,
-                        "相同业务分账单号的分账已存在且关联订单不一致: bizShareNo={}", request.getBizShareNo());
-            }
-            return ProfitShareResult.of(existing);
-        }
-
         long total = 0L;
         for (ProfitShareReceiver receiver : request.getReceivers()) {
             total += receiver.getAmount();

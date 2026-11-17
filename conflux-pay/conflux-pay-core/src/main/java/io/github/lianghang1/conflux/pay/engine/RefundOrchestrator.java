@@ -51,17 +51,6 @@ class RefundOrchestrator {
         }
         String channel = payment.getChannelCode();
 
-        Refund existing = rt.refundStore.findByBizRefundNo(request.getAppId(), request.getBizRefundNo());
-        if (existing != null) {
-            boolean same = existing.getPaymentId().equals(payment.getPaymentId())
-                    && existing.getAmount().equals(request.getAmount());
-            if (!same) {
-                throw GatewayException.of(GatewayErrorCode.DUPLICATE_ORDER,
-                        "相同业务退款单号的退款已存在且参数不一致: bizRefundNo={}", request.getBizRefundNo());
-            }
-            return RefundResult.of(existing);
-        }
-
         assertRefundable(payment, request.getAmount());
 
         Refund refund = new Refund()

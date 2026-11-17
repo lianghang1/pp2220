@@ -3,9 +3,9 @@ package io.github.lianghang1.conflux.pay.store;
 import io.github.lianghang1.conflux.pay.model.ProfitShare;
 
 /**
- * 分账单持久化 SPI。
+ * 分账单持久化 SPI。可选能力：未注册时分账入口报 STORE_MISSING。
  *
- * <p>建议索引：{@code appId + bizShareNo} 唯一（幂等键）、{@code paymentId} 普通索引、
+ * <p>建议索引：{@code appId + bizShareNo} 普通（业务单号查询）、{@code paymentId} 普通索引、
  * {@code shareId} 主键；receivers 明细建议以 JSON 列随单存储。</p>
  *
  * @author lianghang

@@ -49,7 +49,7 @@ class InvoiceStateMachineTest {
     }
 
     @Test
-    void sameStateIsIdempotentForDuplicateCallbacks() {
+    void sameStateTransitionIsLegal() {
         for (InvoiceState state : InvoiceState.values()) {
             assertTrue(InvoiceStateMachine.can(state, state));
         }

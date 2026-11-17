@@ -135,8 +135,7 @@ class InvoiceFileGatewayCapabilityTest {
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setAmount(new BigDecimal("100.00"))
                 .setState(InvoiceState.SUCCEEDED)
-                .setCreatedTime(LocalDateTime.now()).setUpdatedTime(LocalDateTime.now())
-                .setVersion(0L);
+                .setCreatedTime(LocalDateTime.now()).setUpdatedTime(LocalDateTime.now());
     }
 
     private void archive(String invoiceId, InvoiceFile file) {

@@ -127,7 +127,6 @@ class BaiwangJsSupplementFlowTest {
         Invoice persisted = gateway.findById(INVOICE_ID);
         assertEquals(FPHM, persisted.getInvoiceNo());
         assertSame(InvoiceState.SUCCEEDED, persisted.getState());
-        assertTrue(persisted.getVersion() >= 1L, "补充型回调也走 CAS 写入");
     }
 
     @Test
@@ -201,7 +200,7 @@ class BaiwangJsSupplementFlowTest {
                 .setAmount(new BigDecimal("100.00"))
                 .setTaxAmount(new BigDecimal("6.00"))
                 .setState(InvoiceState.PROCESSING)
-                .setCreatedTime(now).setUpdatedTime(now).setVersion(0L));
+                .setCreatedTime(now).setUpdatedTime(now));
 
         return new InvoiceGateway(new InvoiceRuntime(
                 registry, configProvider, invoiceStore, new InMemoryRedApplyStore(),

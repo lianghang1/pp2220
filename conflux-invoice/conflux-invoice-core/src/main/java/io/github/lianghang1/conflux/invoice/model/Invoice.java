@@ -13,12 +13,6 @@ import java.util.Map;
 /**
  * 发票单据实体（持久化对象）。
  *
- * <p><b>并发契约</b>：{@link #version} 是乐观锁版本号。引擎每次状态迁移都通过
- * {@code InvoiceStore.tryUpdate(invoice, expectedVersion)} 做 CAS 写入，写入失败
- * 即放弃本次迁移并让补单/回调重试——避免支付域里「全量覆盖且无 expectedState」
- * 导致的回调与补单互相覆盖。{@link #claimOwner} / {@link #claimExpireTime}
- * 是补单扫描的租约字段，配合 {@code claimProcessingBefore} 原子认领，避免多实例重复处理。</p>
- *
  * <p><b>法定原件</b>：开票成功的判定不仅看渠道状态码，还要求归档至少一份
  * {@code InvoiceFileType.XML} 原件，文件单独存 {@code InvoiceFileStore}。</p>
  *
@@ -113,14 +107,6 @@ public class Invoice implements Serializable {
     private String redApplyId;
     /** 红字发票指向的原蓝票。 */
     private String originalInvoiceId;
-
-    // ---- 并发控制 ----
-    /** 乐观锁版本号（CAS 契约，由 Store 递增）。 */
-    private long version;
-    /** 补单租约持有者。 */
-    private String claimOwner;
-    /** 补单租约到期时间。 */
-    private LocalDateTime claimExpireTime;
 
     private LocalDateTime createdTime;
     private LocalDateTime updatedTime;

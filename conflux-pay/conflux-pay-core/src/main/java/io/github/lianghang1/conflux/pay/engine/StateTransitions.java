@@ -24,9 +24,7 @@ import java.util.List;
  * 状态迁移执行器：四类单据终态迁移的唯一入口，负责「更新台账 → 发布事件 →
  * 入队下游通知」的固定次序。
  *
- * <p>幂等保护：迁移前校验当前状态，重复迁移静默跳过（渠道回调可能重复到达）。
- * 全部方法线程安全由调用方保证——同一订单的迁移由引擎串行触发（回调线程、
- * 补单线程间可能并发，Store 实现方的按主键覆盖写入保证最终一致）。</p>
+ * <p>迁移不做重复判定与并发控制，重复回调的幂等与并发一致性由使用方 Store 保证。</p>
  *
  * @author lianghang
  */
@@ -39,29 +37,18 @@ class StateTransitions {
         this.rt = rt;
     }
 
-    /**
-     * 支付成功迁移：更新台账、发布事件、入队通知。
-     * @return 是否实际发生迁移（false 表示订单已是成功态）
-     */
-    boolean markPaymentSucceeded(Payment payment, LocalDateTime succeedTime) {
-        if (payment.getState() == PaymentState.SUCCEEDED) {
-            return false;
-        }
+    /** 支付成功迁移：更新台账、发布事件、入队通知。 */
+    void markPaymentSucceeded(Payment payment, LocalDateTime succeedTime) {
         payment.setState(PaymentState.SUCCEEDED);
         payment.setSucceedTime(succeedTime != null ? succeedTime : rt.now());
         payment.setUpdatedTime(rt.now());
         rt.paymentStore.update(payment);
         rt.publisher.publishPayment(PaymentEvent.EventType.PAYMENT_SUCCEEDED, payment);
         enqueueNotify(payment);
-        return true;
     }
 
     /** 支付失败迁移：记录错误信息、更新台账、发布事件。 */
     void markPaymentFailed(Payment payment, String errorCode, String errorMsg) {
-        if (payment.getState().isTerminal() && payment.getState() != PaymentState.FAILED) {
-            log.warn("忽略对终态订单的失败迁移: paymentId={}, state={}", payment.getPaymentId(), payment.getState());
-            return;
-        }
         payment.setState(PaymentState.FAILED);
         payment.setErrorCode(errorCode);
         payment.setErrorMsg(errorMsg);
@@ -72,9 +59,6 @@ class StateTransitions {
 
     /** 支付单关闭迁移。 */
     void markPaymentClosed(Payment payment) {
-        if (payment.getState() == PaymentState.CLOSED) {
-            return;
-        }
         payment.setState(PaymentState.CLOSED);
         payment.setUpdatedTime(rt.now());
         rt.paymentStore.update(payment);
@@ -84,9 +68,6 @@ class StateTransitions {
 
     /** 退款成功迁移：更新退款单并联动支付单的退款聚合状态。 */
     void onRefundSucceeded(Refund refund, Payment payment) {
-        if (refund.getState() == RefundState.SUCCEEDED) {
-            return;
-        }
         refund.setState(RefundState.SUCCEEDED);
         refund.setSucceedTime(rt.now());
         refund.setUpdatedTime(rt.now());
@@ -100,9 +81,6 @@ class StateTransitions {
 
     /** 退款失败迁移。 */
     void onRefundFailed(Refund refund) {
-        if (refund.getState().isTerminal()) {
-            return;
-        }
         refund.setState(RefundState.FAILED);
         refund.setUpdatedTime(rt.now());
         rt.refundStore.update(refund);
@@ -136,9 +114,6 @@ class StateTransitions {
 
     /** 转账终态迁移。 */
     void onTransferFinished(Transfer transfer, TransferState state, LocalDateTime succeedTime) {
-        if (transfer.getState().isTerminal()) {
-            return;
-        }
         transfer.setState(state);
         if (state == TransferState.SUCCEEDED) {
             transfer.setSucceedTime(succeedTime != null ? succeedTime : rt.now());
@@ -153,9 +128,6 @@ class StateTransitions {
 
     /** 分账终态迁移。 */
     void onProfitShareFinished(ProfitShare share, ProfitShareState state, LocalDateTime finishTime) {
-        if (share.getState().isTerminal()) {
-            return;
-        }
         share.setState(state);
         if (state == ProfitShareState.FINISHED) {
             share.setFinishTime(finishTime != null ? finishTime : rt.now());

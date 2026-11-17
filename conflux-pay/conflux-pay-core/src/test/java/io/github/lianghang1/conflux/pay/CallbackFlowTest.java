@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 渠道回调流程测试：验签、状态迁移、幂等应答、金额一致性、下游通知入队。
+ * 渠道回调流程测试：验签、状态迁移、金额一致性、下游通知入队。
  *
  * @author lianghang
  */
@@ -71,18 +71,6 @@ class CallbackFlowTest {
         assertThat(log.getOrderId()).isNotBlank();
         assertThat(log.getRequestContent()).contains("PAYMENT").contains("SUCCEEDED").contains("8800");
         assertThat(harness.notifyLogStore.all()).hasSize(1);
-    }
-
-    @Test
-    void duplicateCallbackShouldBeIdempotentWithoutDoubleNotify() {
-        createPaying("CB-2");
-
-        harness.gateway.handleCallback(callbackRequest("CB-2", "CH-CB-2", true, 8800L));
-        harness.gateway.handleCallback(callbackRequest("CB-2", "CH-CB-2", true, 8800L));
-
-        assertThat(harness.notifier.submitted).hasSize(1);
-        assertThat(harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "CB-2").getState())
-                .isEqualTo(PaymentState.SUCCEEDED);
     }
 
     @Test

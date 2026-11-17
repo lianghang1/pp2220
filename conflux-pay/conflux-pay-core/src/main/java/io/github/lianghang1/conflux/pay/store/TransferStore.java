@@ -3,9 +3,9 @@ package io.github.lianghang1.conflux.pay.store;
 import io.github.lianghang1.conflux.pay.model.Transfer;
 
 /**
- * 转账单持久化 SPI。
+ * 转账单持久化 SPI。可选能力：未注册时转账入口报 STORE_MISSING。
  *
- * <p>建议索引：{@code appId + bizTransferNo} 唯一（幂等键）、{@code transferId} 主键。</p>
+ * <p>建议索引：{@code appId + bizTransferNo} 普通（业务单号查询）、{@code transferId} 主键。</p>
  *
  * @author lianghang
  */

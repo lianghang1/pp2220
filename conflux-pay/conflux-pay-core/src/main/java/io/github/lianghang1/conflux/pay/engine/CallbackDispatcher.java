@@ -108,10 +108,6 @@ class CallbackDispatcher {
                     payment.getPaymentId(), payment.getAmount(), event.getAmount());
         }
         if (event.isSuccess()) {
-            if (payment.getState().isTerminal()) {
-                log.info("忽略已终态支付单的成功回调: paymentId={}, state={}", payment.getPaymentId(), payment.getState());
-                return;
-            }
             if (StringUtils.isNotBlank(event.getChannelOrderNo())
                     && StringUtils.isBlank(payment.getChannelOrderNo())) {
                 payment.setChannelOrderNo(event.getChannelOrderNo());
@@ -119,9 +115,6 @@ class CallbackDispatcher {
             rt.transitions.markPaymentSucceeded(payment,
                     event.getOccurTime() != null ? event.getOccurTime() : rt.now());
         } else {
-            if (payment.getState().isTerminal()) {
-                return;
-            }
             rt.transitions.markPaymentFailed(payment, "CHANNEL_CALLBACK", "渠道通知支付失败");
         }
     }
@@ -137,18 +130,12 @@ class CallbackDispatcher {
                     "回调退款单不存在: appId={}, bizOrderNo={}", event.getAppId(), event.getBizOrderNo());
         }
         if (event.isSuccess()) {
-            if (refund.getState().isTerminal()) {
-                return;
-            }
             if (StringUtils.isNotBlank(event.getChannelOrderNo())
                     && StringUtils.isBlank(refund.getChannelRefundNo())) {
                 refund.setChannelRefundNo(event.getChannelOrderNo());
             }
             rt.transitions.onRefundSucceeded(refund, rt.paymentStore.findById(refund.getPaymentId()));
         } else {
-            if (refund.getState().isTerminal()) {
-                return;
-            }
             rt.transitions.onRefundFailed(refund);
         }
     }
@@ -159,9 +146,6 @@ class CallbackDispatcher {
         if (transfer == null) {
             throw GatewayException.of(GatewayErrorCode.ORDER_NOT_FOUND,
                     "回调转账单不存在: appId={}, bizOrderNo={}", event.getAppId(), event.getBizOrderNo());
-        }
-        if (transfer.getState().isTerminal()) {
-            return;
         }
         if (StringUtils.isNotBlank(event.getChannelOrderNo())
                 && StringUtils.isBlank(transfer.getChannelTransferNo())) {
@@ -179,9 +163,6 @@ class CallbackDispatcher {
         if (share == null) {
             throw GatewayException.of(GatewayErrorCode.ORDER_NOT_FOUND,
                     "回调分账单不存在: appId={}, bizOrderNo={}", event.getAppId(), event.getBizOrderNo());
-        }
-        if (share.getState().isTerminal()) {
-            return;
         }
         if (StringUtils.isNotBlank(event.getChannelOrderNo())
                 && StringUtils.isBlank(share.getChannelShareNo())) {

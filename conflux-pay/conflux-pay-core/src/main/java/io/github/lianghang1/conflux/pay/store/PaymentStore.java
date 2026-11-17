@@ -3,7 +3,6 @@ package io.github.lianghang1.conflux.pay.store;
 import io.github.lianghang1.conflux.pay.model.Payment;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -34,12 +33,6 @@ public interface PaymentStore {
 
     /** 按渠道侧单号查询；不存在返回 null。 */
     Payment findByChannelOrderNo(String channelOrderNo);
-
-    /**
-     * 查询指定时间之前仍处于支付中（CREATED/PAYING）的订单（补单扫描用），
-     * 按 createdTime 升序返回前 limit 条。
-     */
-    List<Payment> findPayingBefore(LocalDateTime threshold, int limit);
 
     /**
      * 查询指定渠道、指定账单日期的全部非 CREATED 订单（对账用）。

@@ -55,17 +55,15 @@ import java.util.function.Consumer;
 /**
  * 发票编排引擎：开票 / 授权 / 查单 / 两段红冲 / 回调共用同一套状态机与持久化契约。
  *
- * <p><b>与支付编排器的三个关键差异</b>：</p>
+ * <p><b>与支付编排器的两个关键差异</b>：</p>
  * <ol>
  *   <li>渠道结果不是「成功/失败」二元，而是四种：异步受理（PROCESSING）、
  *       需要人工授权（WAITING_AUTH）、同步成功（SUCCEEDED）、失败（FAILED）；</li>
  *   <li>开票成功前必须归档至少一份 {@link InvoiceFileType#XML} 法定原件，
  *       否则拒绝置为 SUCCEEDED；</li>
- *   <li>每次状态迁移都走 {@link #transition} 的 CAS 写入
- *       （{@code InvoiceStore.tryUpdate(invoice, expectedVersion)}），
- *       并发冲突时放弃本次迁移并抛 {@code STORE_CONCURRENT_MODIFICATION} 让补单/回调重试，
- *       避免支付域「回调线程与补单线程互相全量覆盖」的契约缺位。</li>
  * </ol>
+ *
+ * <p>状态迁移经 {@link #transition} 统一写入并校验合法性；幂等与并发控制由使用方 Store 保证。</p>
  *
  * @author lianghang
  */
@@ -95,15 +93,9 @@ public class InvoiceOrchestrator {
 
     // ==================== 蓝字开票 ====================
 
-    /** 蓝字发票开具；相同 appId + bizOrderNo 且关键参数一致时幂等返回原单据。 */
+    /** 蓝字发票开具。 */
     public InvoiceResult issue(InvoiceRequest req) {
         validateIssueRequest(req);
-
-        Invoice existing = rt.invoiceStore.findByBizOrderNo(req.getAppId(), req.getBizOrderNo());
-        if (existing != null) {
-            assertIdempotent(existing, req);
-            return buildResult(existing);
-        }
 
         ChannelInstance instance = router.route(req.getAppId(), req.getSellerTaxNo(),
                 req.getInvoiceType(), req.getChannelCode());
@@ -141,7 +133,6 @@ public class InvoiceOrchestrator {
                 .setNotifyUrl(req.getNotifyUrl())
                 .setSandbox(req.isSandbox())
                 .setState(InvoiceState.CREATED)
-                .setVersion(0L)
                 .setCreatedTime(now)
                 .setUpdatedTime(now)
                 .setAttrs(req.getAttrs());
@@ -272,10 +263,6 @@ public class InvoiceOrchestrator {
     /** 申请红字确认单（第一段）。 */
     public RedApply applyRed(RedApplyRequest req) {
         validateRedRequest(req);
-        RedApply existing = rt.redApplyStore.findByBizRedNo(req.getAppId(), req.getBizRedNo());
-        if (existing != null) {
-            return existing;
-        }
         Invoice original = requireRedOriginal(req);
         ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
         RedApply apply = buildRedApply(req, original);
@@ -321,7 +308,6 @@ public class InvoiceOrchestrator {
                 .setAccountKey(original.getAccountKey())
                 .setState(RedApplyState.APPLYING)
                 .setNotifyUrl(req.getNotifyUrl())
-                .setVersion(0L)
                 .setCreatedTime(now)
                 .setUpdatedTime(now);
     }
@@ -345,10 +331,6 @@ public class InvoiceOrchestrator {
      */
     public QuickRedResult quickRed(RedApplyRequest req) {
         validateRedRequest(req);
-        RedApply existing = rt.redApplyStore.findByBizRedNo(req.getAppId(), req.getBizRedNo());
-        if (existing != null) {
-            return quickRedResultOf(existing);
-        }
         Invoice original = requireRedOriginal(req);
         ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
         RedApply apply = buildRedApply(req, original);
@@ -374,25 +356,6 @@ public class InvoiceOrchestrator {
 
         updateRedApply(apply, outcome.getRedApply());
         markOriginalRedApplying(original, apply.getRedApplyId());
-        return QuickRedResult.waitingConfirm(apply);
-    }
-
-    /** 已存在确认单时按当前状态还原快捷红冲结果。 */
-    private QuickRedResult quickRedResultOf(RedApply apply) {
-        if (apply.getState().canIssueRed() || apply.getState() == RedApplyState.ISSUED) {
-            Invoice red = StringUtils.isBlank(apply.getRedInvoiceId()) ? null
-                    : rt.invoiceStore.findById(apply.getRedInvoiceId());
-            if (red == null) {
-                // 红票在途时确认单尚未回写 redInvoiceId（仅开票成功才写入），
-                // 按红票业务单号反查已建单据；校验 redApplyId 避免误命中同名业务单
-                Invoice candidate = rt.invoiceStore.findByBizOrderNo(
-                        apply.getAppId(), apply.getBizRedNo() + "-RED");
-                if (candidate != null && apply.getRedApplyId().equals(candidate.getRedApplyId())) {
-                    red = candidate;
-                }
-            }
-            return QuickRedResult.accepted(apply, red == null ? null : buildResult(red));
-        }
         return QuickRedResult.waitingConfirm(apply);
     }
 
@@ -536,7 +499,6 @@ public class InvoiceOrchestrator {
                 .setRedApplyId(apply.getRedApplyId())
                 .setNotifyUrl(notifyUrl)
                 .setState(InvoiceState.CREATED)
-                .setVersion(0L)
                 .setCreatedTime(now)
                 .setUpdatedTime(now)
                 .setAttrs(attrs);
@@ -570,18 +532,12 @@ public class InvoiceOrchestrator {
         if (apply == null) {
             return;
         }
-        // 确认单联动：已 ISSUED 视为完成，跳过 CAS；原票联动在下方独立按状态机幂等推进，
-        // 以便补上「确认单已置 ISSUED 但原票未联动」的历史中间态。
+        // 确认单联动：已 ISSUED 视为完成；原票联动在下方按状态机推进。
         if (apply.getState() != RedApplyState.ISSUED) {
-            long expected = apply.getVersion();
             apply.setRedInvoiceId(red.getInvoiceId())
                     .setState(RedApplyState.ISSUED)
-                    .setUpdatedTime(rt.now())
-                    .setVersion(expected + 1);
-            if (!rt.redApplyStore.tryUpdate(apply, expected)) {
-                throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                        "红字确认单并发冲突: {}", redApplyId);
-            }
+                    .setUpdatedTime(rt.now());
+            rt.redApplyStore.update(apply);
         }
         Invoice original = rt.invoiceStore.findById(apply.getOriginalInvoiceId());
         if (original == null) {
@@ -713,7 +669,6 @@ public class InvoiceOrchestrator {
         if (result == null) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED, "渠道红字申请未返回结果");
         }
-        long expected = apply.getVersion();
         if (result.getChannelOrderNo() != null) {
             apply.setChannelOrderNo(result.getChannelOrderNo());
         }
@@ -731,12 +686,8 @@ public class InvoiceOrchestrator {
         }
         apply.setErrorCode(result.getErrorCode())
                 .setErrorMsg(result.getErrorMsg())
-                .setUpdatedTime(rt.now())
-                .setVersion(expected + 1);
-        if (!rt.redApplyStore.tryUpdate(apply, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "红字确认单并发冲突: {}", apply.getRedApplyId());
-        }
+                .setUpdatedTime(rt.now());
+        rt.redApplyStore.update(apply);
     }
 
     // ==================== 渠道回调 ====================
@@ -804,7 +755,7 @@ public class InvoiceOrchestrator {
                 || (event.getFiles() != null && !event.getFiles().isEmpty());
     }
 
-    /** 仅合并回调带来的票面字段与版式文件，不改单据状态；写入同样走 CAS。 */
+    /** 仅合并回调带来的票面字段与版式文件，不改单据状态。 */
     private void supplement(Invoice invoice, InvoiceCallbackEvent event) {
         List<InvoiceFile> files = normalizeFiles(event.getFiles(), invoice.getInvoiceId());
         if (!files.isEmpty()) {
@@ -812,7 +763,6 @@ public class InvoiceOrchestrator {
             fileMaterializer.materialize(files, false);
             rt.fileStore.saveAll(files);
         }
-        long expected = invoice.getVersion();
         if (event.getInvoiceNo() != null) {
             invoice.setInvoiceNo(event.getInvoiceNo());
         }
@@ -825,11 +775,8 @@ public class InvoiceOrchestrator {
         if (event.getChannelOrderNo() != null) {
             invoice.setChannelOrderNo(event.getChannelOrderNo());
         }
-        invoice.setUpdatedTime(rt.now()).setVersion(expected + 1);
-        if (!rt.invoiceStore.tryUpdate(invoice, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "回调票面字段合并并发冲突: {}", invoice.getInvoiceId());
-        }
+        invoice.setUpdatedTime(rt.now());
+        rt.invoiceStore.update(invoice);
     }
 
     private InvoiceResult callbackToResult(InvoiceCallbackEvent event) {
@@ -1110,7 +1057,6 @@ public class InvoiceOrchestrator {
         if (created) {
             session = new AuthSession().setCreatedTime(rt.now());
         }
-        long expected = session.getVersion();
         session.setSessionId(challenge.getSessionId())
                 .setInvoiceId(invoice.getInvoiceId())
                 .setAppId(invoice.getAppId())
@@ -1122,31 +1068,24 @@ public class InvoiceOrchestrator {
                 .setChallengeText(challenge.getChallengeText())
                 .setExpireTime(challenge.getExpireTime())
                 .setPayload(challenge.getExtra())
-                .setUpdatedTime(rt.now())
-                .setVersion(expected + 1);
+                .setUpdatedTime(rt.now());
         if (created) {
             rt.authSessionStore.save(session);
-        } else if (!rt.authSessionStore.tryUpdate(session, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "授权会话并发冲突: {}", session.getSessionId());
+        } else {
+            rt.authSessionStore.update(session);
         }
         return session;
     }
 
     private void updateSessionState(AuthSession session, AuthSessionState state) {
-        long expected = session.getVersion();
-        session.setState(state).setUpdatedTime(rt.now()).setVersion(expected + 1);
-        if (!rt.authSessionStore.tryUpdate(session, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "授权会话并发冲突: {}", session.getSessionId());
-        }
+        session.setState(state).setUpdatedTime(rt.now());
+        rt.authSessionStore.update(session);
     }
 
     private void applyChallengeToSession(AuthSession session, AuthChallenge challenge) {
         if (challenge == null) {
             return;
         }
-        long expected = session.getVersion();
         session.setAuthType(challenge.getAuthType() == null
                         ? session.getAuthType() : challenge.getAuthType())
                 .setChallengeUrl(challenge.getChallengeUrl())
@@ -1156,39 +1095,21 @@ public class InvoiceOrchestrator {
                 .setPayload(challenge.getExtra() == null
                         ? session.getPayload() : challenge.getExtra())
                 .setState(AuthSessionState.PENDING)
-                .setUpdatedTime(rt.now())
-                .setVersion(expected + 1);
-        if (!rt.authSessionStore.tryUpdate(session, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "授权会话并发冲突: {}", session.getSessionId());
-        }
+                .setUpdatedTime(rt.now());
+        rt.authSessionStore.update(session);
     }
 
-    // ==================== 状态迁移（CAS） ====================
+    // ==================== 状态迁移 ====================
 
-    /**
-     * 唯一状态迁移入口：校验合法性 → 应用附加字段 → CAS 写入 → 发布事件。
-     *
-     * @return 是否实际发生迁移（同态重复回调返回 false）
-     */
-    private boolean transition(Invoice invoice, InvoiceState target, Consumer<Invoice> mutator) {
-        if (invoice.getState() == target) {
-            return false;
-        }
+    /** 状态迁移入口：校验合法性 → 应用附加字段 → 写入 → 发布事件。 */
+    private void transition(Invoice invoice, InvoiceState target, Consumer<Invoice> mutator) {
         InvoiceStateMachine.assertTransition(invoice.getState(), target);
         if (mutator != null) {
             mutator.accept(invoice);
         }
         invoice.setState(target).setUpdatedTime(rt.now());
-        long expected = invoice.getVersion();
-        invoice.setVersion(expected + 1);
-        if (!rt.invoiceStore.tryUpdate(invoice, expected)) {
-            throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                    "状态迁移并发冲突: invoiceId={}, expectedVersion={}, target={}",
-                    invoice.getInvoiceId(), expected, target);
-        }
+        rt.invoiceStore.update(invoice);
         rt.publish(eventTypeOf(target), invoice, null, "状态迁移 -> " + target);
-        return true;
     }
 
     private InvoiceEvent.Type eventTypeOf(InvoiceState target) {
@@ -1279,18 +1200,6 @@ public class InvoiceOrchestrator {
         GatewayAssert.param(StringUtils.isNotBlank(req.getOriginalInvoiceId())
                         || StringUtils.isNotBlank(req.getOriginalInvoiceNo()),
                 "需提供 originalInvoiceId 或 originalInvoiceNo");
-    }
-
-    private void assertIdempotent(Invoice existing, InvoiceRequest req) {
-        boolean same = Objects.equals(existing.getSellerTaxNo(), req.getSellerTaxNo())
-                && Objects.equals(existing.getBuyerTitle(), req.getBuyerTitle())
-                && existing.getInvoiceType() == req.getInvoiceType()
-                && existing.getAmount() != null && req.getAmount() != null
-                && existing.getAmount().compareTo(req.getAmount()) == 0;
-        if (!same) {
-            throw new GatewayException(InvoiceErrorCode.DUPLICATE_BIZ_ORDER,
-                    "业务单号[{}]已存在且参数不一致", req.getBizOrderNo());
-        }
     }
 
     private void assertAmountMatch(Invoice invoice, InvoiceResult outcome) {
