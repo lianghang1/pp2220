@@ -45,6 +45,12 @@ class BaiwangProviderTest {
     }
 
     @Test
+    void providesNativeQuickRed() throws Exception {
+        assertThat(BaiwangChannelProvider.class.getDeclaredMethod("quickRed", InvoiceContext.class))
+                .isNotNull();
+    }
+
+    @Test
     void parseParamsMergesAliasesAndDefaults() {
         Map<String, String> props = new LinkedHashMap<String, String>();
         props.put("clientId", "app-1");

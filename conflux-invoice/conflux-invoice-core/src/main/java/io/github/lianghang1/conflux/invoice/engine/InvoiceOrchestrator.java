@@ -275,6 +275,20 @@ public class InvoiceOrchestrator {
         if (existing != null) {
             return existing;
         }
+        Invoice original = requireRedOriginal(req);
+        ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
+        RedApply apply = buildRedApply(req, original);
+        rt.redApplyStore.save(apply);
+
+        InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
+        RedApplyResult result = rt.registry.redHandler(original.getChannelCode()).apply(ctx);
+        updateRedApply(apply, result);
+        markOriginalRedApplying(original, apply.getRedApplyId());
+        return apply;
+    }
+
+    /** 定位并校验红冲原票。 */
+    private Invoice requireRedOriginal(RedApplyRequest req) {
         Invoice original = locateOriginal(req);
         if (original == null) {
             throw new GatewayException(InvoiceErrorCode.INVOICE_NOT_FOUND, "红冲原票不存在");
@@ -285,9 +299,13 @@ public class InvoiceOrchestrator {
         }
         ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
         assertRedAvailable(original, config, req);
-        LocalDateTime now = rt.now();
+        return original;
+    }
 
-        RedApply apply = new RedApply()
+    /** 由请求与原票构建红字确认单单据（未落库）。 */
+    private RedApply buildRedApply(RedApplyRequest req, Invoice original) {
+        LocalDateTime now = rt.now();
+        return new RedApply()
                 .setRedApplyId(InvoiceIds.redApply())
                 .setAppId(req.getAppId())
                 .setBizRedNo(req.getBizRedNo())
@@ -305,30 +323,50 @@ public class InvoiceOrchestrator {
                 .setVersion(0L)
                 .setCreatedTime(now)
                 .setUpdatedTime(now);
-        rt.redApplyStore.save(apply);
+    }
 
-        InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
-        RedApplyResult result = rt.registry.redHandler(original.getChannelCode()).apply(ctx);
-        updateRedApply(apply, result);
-        final String redApplyId = apply.getRedApplyId();
+    /** 标记原票进入红冲申请中。 */
+    private void markOriginalRedApplying(Invoice original, final String redApplyId) {
         transition(original, InvoiceState.RED_APPLYING, new Consumer<Invoice>() {
             @Override
             public void accept(Invoice inv) {
                 inv.setRedApplyId(redApplyId);
             }
         });
-        return apply;
     }
 
     /**
      * 快捷红冲：一次调用覆盖红冲全流程。
      *
-     * <p>渠道在申请阶段即判定无需确认（状态 CONFIRMED）时，自动接续开具红字发票，
-     * 返回 ACCEPTED（含红票受理结果）；仍需对方确认时返回 WAITING_CONFIRM 的确认单，
-     * 由使用方后续确认并开具。</p>
+     * <p>渠道提供原生一步能力时直接开具红票并返回 ACCEPTED；未提供原生能力、
+     * 且申请阶段即判定无需确认（状态 CONFIRMED）时，接续开具红票后返回 ACCEPTED；
+     * 仍需对方确认时返回 WAITING_CONFIRM 的确认单，由使用方后续确认并开具。</p>
      */
     public QuickRedResult quickRed(RedApplyRequest req) {
-        RedApply apply = applyRed(req);
+        validateRedRequest(req);
+        RedApply existing = rt.redApplyStore.findByBizRedNo(req.getAppId(), req.getBizRedNo());
+        if (existing != null) {
+            return quickRedResultOf(existing);
+        }
+        Invoice original = requireRedOriginal(req);
+        ChannelConfig config = configOf(original.getChannelCode(), original.getAccountKey());
+        RedApply apply = buildRedApply(req, original);
+        rt.redApplyStore.save(apply);
+        InvoiceContext applyCtx = InvoiceContext.of(config, null, original).setRedApply(apply);
+
+        InvoiceResult nativeResult = rt.registry.redHandler(original.getChannelCode())
+                .quickRed(applyCtx);
+        if (nativeResult != null) {
+            markOriginalRedApplying(original, apply.getRedApplyId());
+            Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
+            InvoiceContext redCtx = InvoiceContext.of(config, null, red).setRedApply(apply);
+            InvoiceResult redInvoice = settleRedIssue(apply, original, red, nativeResult, redCtx);
+            return QuickRedResult.accepted(apply, redInvoice);
+        }
+
+        RedApplyResult applyResult = rt.registry.redHandler(original.getChannelCode()).apply(applyCtx);
+        updateRedApply(apply, applyResult);
+        markOriginalRedApplying(original, apply.getRedApplyId());
         if (!apply.getState().canIssueRed()) {
             return QuickRedResult.waitingConfirm(apply);
         }
@@ -340,8 +378,18 @@ public class InvoiceOrchestrator {
         return QuickRedResult.accepted(apply, redInvoice);
     }
 
+    /** 已存在确认单时按当前状态还原快捷红冲结果。 */
+    private QuickRedResult quickRedResultOf(RedApply apply) {
+        if (apply.getState().canIssueRed() || apply.getState() == RedApplyState.ISSUED) {
+            Invoice red = StringUtils.isBlank(apply.getRedInvoiceId()) ? null
+                    : rt.invoiceStore.findById(apply.getRedInvoiceId());
+            return QuickRedResult.accepted(apply, red == null ? null : buildResult(red));
+        }
+        return QuickRedResult.waitingConfirm(apply);
+    }
+
     /** 查询红字确认单确认状态（第二段之前的确认环节）。 */
-    public RedApply confirmRed(String redApplyId) {
+    public RedApply queryRedApply(String redApplyId) {
         RedApply apply = rt.redApplyStore.findById(redApplyId);
         if (apply == null) {
             throw new GatewayException(InvoiceErrorCode.RED_APPLY_NOT_FOUND,
@@ -363,7 +411,7 @@ public class InvoiceOrchestrator {
     }
 
     /**
-     * 主动确认或拒绝红字确认单（与 {@link #confirmRed(String)} 的「查状态」分开）。
+     * 主动确认或拒绝红字确认单（与 {@link #queryRedApply(String)} 的「查状态」分开）。
      *
      * <p>渠道未实现该可选能力时返回 {@code CHANNEL_CAPABILITY_NOT_SUPPORTED}，
      * 由使用方决定改走查询状态流程，不静默降级。</p>
@@ -428,6 +476,18 @@ public class InvoiceOrchestrator {
         if (apply == null) {
             throw new GatewayException(InvoiceErrorCode.RED_APPLY_NOT_FOUND, "红字确认单不存在");
         }
+        assertRedIssueAllowed(apply);
+
+        Invoice original = rt.invoiceStore.findById(apply.getOriginalInvoiceId());
+        ChannelConfig config = configOf(apply.getChannelCode(), apply.getAccountKey());
+        Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
+        InvoiceContext ctx = InvoiceContext.of(config, null, red).setRedApply(apply);
+        InvoiceResult outcome = rt.registry.redHandler(apply.getChannelCode()).issueRed(ctx);
+        return settleRedIssue(apply, original, red, outcome, ctx);
+    }
+
+    /** 红字开票前置门禁：确认单须处于可开具状态且未过期。 */
+    private void assertRedIssueAllowed(RedApply apply) {
         if (apply.getState() == RedApplyState.EXPIRED) {
             throw new GatewayException(InvoiceErrorCode.RED_CONFIRM_EXPIRED, "红字确认单已过期");
         }
@@ -442,13 +502,14 @@ public class InvoiceOrchestrator {
             updateRedApply(apply, new RedApplyResult().setState(RedApplyState.EXPIRED));
             throw new GatewayException(InvoiceErrorCode.RED_CONFIRM_EXPIRED, "红字确认单已过期");
         }
+    }
 
-        Invoice original = rt.invoiceStore.findById(apply.getOriginalInvoiceId());
-        ChannelConfig config = configOf(apply.getChannelCode(), apply.getAccountKey());
+    /** 建立红字发票单据并推进到提交中。 */
+    private Invoice createRedInvoice(RedApply apply, Invoice original, ChannelConfig config,
+                                     String notifyUrl) {
         LocalDateTime now = rt.now();
         Map<String, String> attrs = new HashMap<String, String>();
         attrs.put("RED_INVOICE", "true");
-
         Invoice red = new Invoice()
                 .setInvoiceId(InvoiceIds.invoice())
                 .setAppId(apply.getAppId())
@@ -465,7 +526,7 @@ public class InvoiceOrchestrator {
                 .setAmount(apply.getAmount())
                 .setOriginalInvoiceId(apply.getOriginalInvoiceId())
                 .setRedApplyId(apply.getRedApplyId())
-                .setNotifyUrl(req.getNotifyUrl())
+                .setNotifyUrl(notifyUrl)
                 .setState(InvoiceState.CREATED)
                 .setVersion(0L)
                 .setCreatedTime(now)
@@ -474,11 +535,13 @@ public class InvoiceOrchestrator {
         rt.invoiceStore.save(red);
         rt.publish(InvoiceEvent.Type.CREATED, red, null, "红字发票单据建单完成");
         transition(red, InvoiceState.SUBMITTING, null);
+        return red;
+    }
 
-        InvoiceContext ctx = InvoiceContext.of(config, null, red).setRedApply(apply);
-        InvoiceResult outcome = rt.registry.redHandler(apply.getChannelCode()).issueRed(ctx);
+    /** 归一渠道红票结果并推进确认单与原票状态。 */
+    private InvoiceResult settleRedIssue(RedApply apply, Invoice original, Invoice red,
+                                         InvoiceResult outcome, InvoiceContext ctx) {
         applyOutcome(red, outcome, ctx);
-
         if (red.getState() == InvoiceState.SUCCEEDED) {
             long expected = apply.getVersion();
             apply.setRedInvoiceId(red.getInvoiceId())

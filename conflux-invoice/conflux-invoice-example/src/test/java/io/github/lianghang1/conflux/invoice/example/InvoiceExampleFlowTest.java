@@ -59,7 +59,7 @@ class InvoiceExampleFlowTest {
                 .setOriginalInvoiceId(issued.getInvoiceId()).setReason("抬头填错"));
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
         assertSame(RedApplyState.CONFIRMED,
-                gateway.confirmRed(apply.getRedApplyId()).getState());
+                gateway.queryRedApply(apply.getRedApplyId()).getState());
 
         InvoiceResult red = gateway.issueRed(new RedIssueRequest()
                 .setAppId("demo").setRedApplyId(apply.getRedApplyId()));

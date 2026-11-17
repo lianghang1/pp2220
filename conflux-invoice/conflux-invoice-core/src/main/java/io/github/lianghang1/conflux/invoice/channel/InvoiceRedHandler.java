@@ -28,6 +28,15 @@ public interface InvoiceRedHandler {
     InvoiceResult issueRed(InvoiceContext ctx);
 
     /**
+     * 原生快捷红冲：渠道一次调用完成确认单生成与红票开具。
+     *
+     * <p>默认返回 null 表示渠道无原生一步能力，编排层回退到 apply → issueRed 两段式串联。</p>
+     */
+    default InvoiceResult quickRed(InvoiceContext ctx) {
+        return null;
+    }
+
+    /**
      * 红冲前置校验：查询原票可冲销明细 / 可红冲金额。
      *
      * <p><b>可选能力</b>：默认返回 null，编排层跳过校验。渠道不支持时不应阻断红冲，

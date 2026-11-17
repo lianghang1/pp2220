@@ -325,6 +325,27 @@ class InvoiceAuxiliaryCapabilityTest {
         assertSame(InvoiceState.PROCESSING, redInvoice.getState());
     }
 
+    /** 快捷红冲：渠道提供原生一步能力时直接用其结果，不再走 apply/issueRed。 */
+    @Test
+    void quickRed_usesNativeCapabilityWhenAvailable() {
+        fixture();
+        saveInvoice("INV-1", InvoiceState.SUCCEEDED, FPHM, FPDM);
+        StubRedHandler red = new StubRedHandler();
+        red.quickRedResult = InvoiceResult.accepted("BW-REDSERIAL", true);
+        provider.setRedHandler(red);
+
+        QuickRedResult result = gateway.quickRed(redRequest("BIZ-RED-QN"));
+        assertNotNull(result);
+        assertTrue(result.isAccepted());
+        assertNotNull(result.getRedApply());
+        assertNotNull(result.getRedInvoice(), "原生一步应返回红票受理结果");
+        assertEquals(1, red.quickRedCalls);
+        assertEquals(0, red.issueRedCalls, "原生一步不应再走 issueRed");
+        Invoice redInvoice = invoiceStore.findByBizOrderNo("demo", "BIZ-RED-QN-RED");
+        assertNotNull(redInvoice, "原生一步也应建立红字发票单据");
+        assertSame(InvoiceState.PROCESSING, redInvoice.getState());
+    }
+
     /** 快捷红冲：需对方确认时不自动开票，返回确认单由使用方后续处理。 */
     @Test
     void quickRed_returnsWaitingWhenConfirmNeeded() {
@@ -488,7 +509,9 @@ class InvoiceAuxiliaryCapabilityTest {
         private RedAvailableResult available;
         private RedApplyResult confirmResult;
         private RedApplyResult applyResult;
+        private InvoiceResult quickRedResult;
         private int issueRedCalls;
+        private int quickRedCalls;
 
         @Override
         public RedApplyResult apply(InvoiceContext ctx) {
@@ -505,6 +528,12 @@ class InvoiceAuxiliaryCapabilityTest {
         public InvoiceResult issueRed(InvoiceContext ctx) {
             issueRedCalls++;
             return InvoiceResult.accepted("RED-1", true);
+        }
+
+        @Override
+        public InvoiceResult quickRed(InvoiceContext ctx) {
+            quickRedCalls++;
+            return quickRedResult;
         }
 
         @Override

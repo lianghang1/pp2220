@@ -322,6 +322,12 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
         }
     }
 
+    /** 原生快捷红冲：fastRed(type=1) 一次调用生成确认单并自动开具红票。 */
+    @Override
+    public InvoiceResult quickRed(InvoiceContext ctx) {
+        return issueRed(ctx);
+    }
+
     /** 主动确认/否认红字确认单：sRedconfirm().operate。 */
     @Override
     public RedApplyResult confirm(InvoiceContext ctx, RedConfirmRequest request) {

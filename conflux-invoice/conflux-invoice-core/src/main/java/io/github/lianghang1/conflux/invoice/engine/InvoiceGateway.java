@@ -80,8 +80,8 @@ public class InvoiceGateway {
     }
 
     /** 查询红字确认单确认状态（第二段之前的确认环节）。 */
-    public RedApply confirmRed(String redApplyId) {
-        return orchestrator.confirmRed(redApplyId);
+    public RedApply queryRedApply(String redApplyId) {
+        return orchestrator.queryRedApply(redApplyId);
     }
 
     /** 主动确认或拒绝红字确认单（渠道可选能力，与查询状态分开）。 */

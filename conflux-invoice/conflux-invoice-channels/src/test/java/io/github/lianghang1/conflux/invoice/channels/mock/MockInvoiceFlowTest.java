@@ -88,7 +88,7 @@ class MockInvoiceFlowTest {
         assertSame(InvoiceState.RED_APPLYING,
                 gateway.findById(authed.getInvoiceId()).getState());
 
-        RedApply confirmed = gateway.confirmRed(apply.getRedApplyId());
+        RedApply confirmed = gateway.queryRedApply(apply.getRedApplyId());
         assertSame(RedApplyState.CONFIRMED, confirmed.getState());
         assertSame(InvoiceState.RED_APPLY_CONFIRMED,
                 gateway.findById(authed.getInvoiceId()).getState());

@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * 红字确认单「主动确认 / 拒绝」请求（与查询确认状态分开）。
  *
- * <p>查询状态是 {@code confirmRed(redApplyId)} 的语义：向渠道确认对方是否已确认；
+ * <p>查询状态是 {@code queryRedApply(redApplyId)} 的语义：向渠道确认对方是否已确认；
  * 本对象是动作语义：我方作为确认方主动同意或拒绝（渠道需提供该能力）。</p>
  *
  * @author lianghang

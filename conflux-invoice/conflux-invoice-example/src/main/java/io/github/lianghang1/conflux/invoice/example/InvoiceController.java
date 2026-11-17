@@ -85,9 +85,9 @@ public class InvoiceController {
     }
 
     /** 查询红字确认单确认状态。 */
-    @PostMapping("/red/confirm/{redApplyId}")
-    public RedApply confirmRed(@PathVariable String redApplyId) {
-        return gateway.confirmRed(redApplyId);
+    @PostMapping("/red/query/{redApplyId}")
+    public RedApply queryRedApply(@PathVariable String redApplyId) {
+        return gateway.queryRedApply(redApplyId);
     }
 
     /** 主动确认或拒绝红字确认单（渠道可选能力，与上面的「查状态」分开）。 */
