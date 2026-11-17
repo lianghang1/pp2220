@@ -5,6 +5,7 @@ import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
@@ -302,6 +303,59 @@ class InvoiceAuxiliaryCapabilityTest {
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
     }
 
+    /** 快捷红冲：渠道免确认时自动接续 issueRed，一步到位。 */
+    @Test
+    void quickRed_autoIssuesWhenConfirmed() {
+        fixture();
+        saveInvoice("INV-1", InvoiceState.SUCCEEDED, FPHM, FPDM);
+        StubRedHandler red = new StubRedHandler();
+        red.applyResult = RedApplyResult.confirmed("HZ001");
+        provider.setRedHandler(red);
+
+        QuickRedResult result = gateway.quickRed(redRequest("BIZ-RED-Q1"));
+        assertNotNull(result);
+        assertTrue(result.isAccepted());
+        assertFalse(result.isWaitingConfirm());
+        assertNotNull(result.getRedApply());
+        assertNotNull(result.getRedInvoice(), "ACCEPTED 应携带红票受理结果");
+        assertEquals(1, red.issueRedCalls);
+        assertSame(InvoiceState.RED_APPLYING, gateway.findById("INV-1").getState());
+        Invoice redInvoice = invoiceStore.findByBizOrderNo("demo", "BIZ-RED-Q1-RED");
+        assertNotNull(redInvoice, "自动开票后应建立红字发票单据");
+        assertSame(InvoiceState.PROCESSING, redInvoice.getState());
+    }
+
+    /** 快捷红冲：需对方确认时不自动开票，返回确认单由使用方后续处理。 */
+    @Test
+    void quickRed_returnsWaitingWhenConfirmNeeded() {
+        fixture();
+        saveInvoice("INV-1", InvoiceState.SUCCEEDED, FPHM, FPDM);
+        StubRedHandler red = new StubRedHandler();
+        red.applyResult = RedApplyResult.waiting("RED-1", LocalDateTime.now().plusHours(72L));
+        provider.setRedHandler(red);
+
+        QuickRedResult result = gateway.quickRed(redRequest("BIZ-RED-Q2"));
+        assertNotNull(result);
+        assertTrue(result.isWaitingConfirm());
+        assertFalse(result.isAccepted());
+        assertNotNull(result.getRedApply());
+        assertSame(RedApplyState.WAITING_CONFIRM, result.getRedApply().getState());
+        assertNull(result.getRedInvoice(), "待确认时不应有红票结果");
+        assertEquals(0, red.issueRedCalls);
+    }
+
+    /** 快捷红冲：复用 applyRed 的原票状态校验，非成功蓝票拒绝。 */
+    @Test
+    void quickRed_rejectsNonSucceededInvoice() {
+        fixture();
+        saveInvoice("INV-1", InvoiceState.PROCESSING, FPHM, FPDM);
+        provider.setRedHandler(new StubRedHandler());
+
+        GatewayException ex = assertThrows(GatewayException.class,
+                () -> gateway.quickRed(redRequest("BIZ-RED-Q3")));
+        assertSame(InvoiceErrorCode.STATE_ILLEGAL, ex.getErrorCode());
+    }
+
     /** BW-50：查单支持按票号定位本地单据，复用 Store.findByInvoiceNo。 */
     @Test
     void query_locatesByInvoiceNo() {
@@ -433,10 +487,13 @@ class InvoiceAuxiliaryCapabilityTest {
     private static final class StubRedHandler implements InvoiceRedHandler {
         private RedAvailableResult available;
         private RedApplyResult confirmResult;
+        private RedApplyResult applyResult;
+        private int issueRedCalls;
 
         @Override
         public RedApplyResult apply(InvoiceContext ctx) {
-            return RedApplyResult.waiting("RED-1", LocalDateTime.now().plusHours(72L));
+            return applyResult != null ? applyResult
+                    : RedApplyResult.waiting("RED-1", LocalDateTime.now().plusHours(72L));
         }
 
         @Override
@@ -446,6 +503,7 @@ class InvoiceAuxiliaryCapabilityTest {
 
         @Override
         public InvoiceResult issueRed(InvoiceContext ctx) {
+            issueRedCalls++;
             return InvoiceResult.accepted("RED-1", true);
         }
 

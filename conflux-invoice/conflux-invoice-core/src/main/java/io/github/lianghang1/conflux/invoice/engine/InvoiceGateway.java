@@ -10,6 +10,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
@@ -66,6 +67,16 @@ public class InvoiceGateway {
     /** 申请红字确认单（两段红冲第一段）。 */
     public RedApply applyRed(RedApplyRequest request) {
         return orchestrator.applyRed(request);
+    }
+
+    /**
+     * 快捷红冲：一次调用覆盖红冲全流程，用结果的 outcome 区分走到哪一步。
+     *
+     * <p>渠道无需确认时自动接续开具红字发票，返回 ACCEPTED（含红票受理结果）；
+     * 需对方确认时返回 WAITING_CONFIRM 的确认单，由使用方后续确认并开具。</p>
+     */
+    public QuickRedResult quickRed(RedApplyRequest request) {
+        return orchestrator.quickRed(request);
     }
 
     /** 查询红字确认单确认状态（第二段之前的确认环节）。 */
