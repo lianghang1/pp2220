@@ -35,9 +35,9 @@ public class AlipayRefundHandler implements RefundHandler {
     public RefundInvocation createRefund(Refund refund, Payment payment, ChannelConfig config) {
         AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
         AlipayTradeRefundModel model = new AlipayTradeRefundModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setRefundAmount(AlipayStateTranslator.toYuan(refund.getAmount()));
-        model.setOutRequestNo(refund.getRefundId());
+        model.setOutRequestNo(refund.getBizRefundNo());
         model.setRefundReason(StringUtils.isNotBlank(refund.getReason()) ? refund.getReason() : "退款");
         request.setBizModel(model);
         AlipayTradeRefundResponse response = holder.execute("退款", config, (client, authToken) -> {
@@ -55,7 +55,7 @@ public class AlipayRefundHandler implements RefundHandler {
     public RefundSnapshot queryRefund(Refund refund, ChannelConfig config) {
         AlipayTradeFastpayRefundQueryRequest request = new AlipayTradeFastpayRefundQueryRequest();
         AlipayTradeFastpayRefundQueryModel model = new AlipayTradeFastpayRefundQueryModel();
-        model.setOutRequestNo(refund.getRefundId());
+        model.setOutRequestNo(refund.getBizRefundNo());
         request.setBizModel(model);
         AlipayTradeFastpayRefundQueryResponse response =
                 holder.execute("退款查单", config, (client, authToken) -> {

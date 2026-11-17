@@ -21,8 +21,6 @@ public class Payment implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关支付单号 */
-    private String paymentId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务单号（appId 内唯一，幂等键） */
@@ -41,8 +39,6 @@ public class Payment implements Serializable {
     private String body;
     /** 下单客户端 IP */
     private String clientIp;
-    /** 下游通知地址（支付成功后网关主动 HTTP 通知，可空） */
-    private String notifyUrl;
     /** 支付单状态 */
     private PaymentState state;
     /** 支付唤起参数（PayPayload 的 JSON，可空） */
@@ -55,12 +51,6 @@ public class Payment implements Serializable {
     private String errorMsg;
     /** 支付成功时间 */
     private LocalDateTime succeedTime;
-    /** 支付单过期时间（可空） */
-    private LocalDateTime expiredTime;
     /** 下单扩展参数（JSON） */
     private String extParams;
-    /** 创建时间 */
-    private LocalDateTime createdTime;
-    /** 更新时间 */
-    private LocalDateTime updatedTime;
 }

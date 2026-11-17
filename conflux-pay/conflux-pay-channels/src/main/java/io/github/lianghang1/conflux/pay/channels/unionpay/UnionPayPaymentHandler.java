@@ -71,7 +71,7 @@ public class UnionPayPaymentHandler implements PaymentHandler {
     public PaymentSnapshot queryPayment(Payment payment, ChannelConfig config) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderNo", payment.getBizOrderNo());
         requestParams.put("orderTime", java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
         requestParams.put("txnAmt", payment.getAmount());
@@ -99,7 +99,7 @@ public class UnionPayPaymentHandler implements PaymentHandler {
     public void closePayment(Payment payment, ChannelConfig config) {
         UnionPayParams params = UnionPayClient.paramsOf(config);
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderNo", payment.getBizOrderNo());
         requestParams.put("orderTime", java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
         requestParams.put("txnAmt", payment.getAmount());

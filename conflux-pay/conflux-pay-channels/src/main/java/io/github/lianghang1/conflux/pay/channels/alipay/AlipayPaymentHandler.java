@@ -70,7 +70,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
     public PaymentSnapshot queryPayment(Payment payment, ChannelConfig config) {
         AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
         AlipayTradeQueryModel model = new AlipayTradeQueryModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         request.setBizModel(model);
         AlipayTradeQueryResponse response = holder.execute("查单", config, (client, authToken) -> {
             if (StringUtils.isNotBlank(authToken)) {
@@ -94,7 +94,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
     public void closePayment(Payment payment, ChannelConfig config) {
         AlipayTradeCloseRequest request = new AlipayTradeCloseRequest();
         AlipayTradeCloseModel model = new AlipayTradeCloseModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         request.setBizModel(model);
         AlipayTradeCloseResponse response = holder.execute("关单", config, (client, authToken) -> {
             if (StringUtils.isNotBlank(authToken)) {
@@ -102,7 +102,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
             }
             return client.execute(request);
         });
-        log.info("支付宝关单完成: paymentId={}, tradeNo={}", payment.getPaymentId(), response.getTradeNo());
+        log.info("支付宝关单完成: paymentId={}, tradeNo={}", payment.getBizOrderNo(), response.getTradeNo());
     }
 
     private AlipayPayMethod payMethodOf(Payment payment) {

@@ -44,8 +44,6 @@ public class PaymentRequest implements Serializable {
     private String body;
     /** 下单客户端 IP */
     private String clientIp;
-    /** 下游通知地址（选填；支付成功后网关 HTTP 通知该地址） */
-    private String notifyUrl;
     /** 支付有效期（秒，选填；由渠道包决定是否使用） */
     private Long expireSeconds;
     /** 渠道附加参数（选填，如 JSAPI 方式的 openid；key 约定见各渠道文档） */

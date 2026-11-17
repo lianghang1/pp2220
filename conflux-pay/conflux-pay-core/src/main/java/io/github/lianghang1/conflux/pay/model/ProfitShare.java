@@ -21,14 +21,10 @@ public class ProfitShare implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关分账单号 */
-    private String shareId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务分账单号（appId 内唯一，幂等键） */
     private String bizShareNo;
-    /** 关联的网关支付单号 */
-    private String paymentId;
     /** 关联的使用方业务单号（冗余） */
     private String bizOrderNo;
     /** 渠道编码（继承自支付单） */
@@ -49,12 +45,6 @@ public class ProfitShare implements Serializable {
     private String errorMsg;
     /** 分账完成时间 */
     private LocalDateTime finishTime;
-    /** 下游通知地址（分账终态后通知，可空） */
-    private String notifyUrl;
     /** 扩展参数（JSON） */
     private String extParams;
-    /** 创建时间 */
-    private LocalDateTime createdTime;
-    /** 更新时间 */
-    private LocalDateTime updatedTime;
 }

@@ -19,8 +19,6 @@ public class TransferResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关转账单号 */
-    private String transferId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务转账单号 */
@@ -43,7 +41,6 @@ public class TransferResult implements Serializable {
     /** 由转账单记录构建结果。 */
     public static TransferResult of(Transfer transfer) {
         return new TransferResult()
-                .setTransferId(transfer.getTransferId())
                 .setAppId(transfer.getAppId())
                 .setBizTransferNo(transfer.getBizTransferNo())
                 .setMethod(transfer.getMethod())

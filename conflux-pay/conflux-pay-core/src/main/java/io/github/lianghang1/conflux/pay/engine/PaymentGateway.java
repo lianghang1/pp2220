@@ -1,6 +1,7 @@
 package io.github.lianghang1.conflux.pay.engine;
 
-import io.github.lianghang1.conflux.pay.api.ChannelCallbackReply;
+import io.github.lianghang1.conflux.pay.api.BillSheet;
+import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
 import io.github.lianghang1.conflux.pay.api.PaymentQueryRequest;
 import io.github.lianghang1.conflux.pay.api.PaymentRequest;
@@ -8,7 +9,6 @@ import io.github.lianghang1.conflux.pay.api.PaymentResult;
 import io.github.lianghang1.conflux.pay.api.ProfitShareQueryRequest;
 import io.github.lianghang1.conflux.pay.api.ProfitShareRequest;
 import io.github.lianghang1.conflux.pay.api.ProfitShareResult;
-import io.github.lianghang1.conflux.pay.api.ReconReport;
 import io.github.lianghang1.conflux.pay.api.RefundQueryRequest;
 import io.github.lianghang1.conflux.pay.api.RefundRequest;
 import io.github.lianghang1.conflux.pay.api.RefundResult;
@@ -18,28 +18,22 @@ import io.github.lianghang1.conflux.pay.api.TransferResult;
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
 import io.github.lianghang1.conflux.pay.channel.ChannelRegistry;
 import io.github.lianghang1.conflux.pay.config.ChannelConfigProvider;
-import io.github.lianghang1.conflux.pay.event.PaymentEventListener;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.pay.store.NotifyLogStore;
-import io.github.lianghang1.conflux.pay.store.PaymentStore;
-import io.github.lianghang1.conflux.pay.store.ProfitShareStore;
-import io.github.lianghang1.conflux.pay.store.ReconDiscrepancyStore;
-import io.github.lianghang1.conflux.pay.store.RefundStore;
-import io.github.lianghang1.conflux.pay.store.TransferStore;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 支付网关门面：统一支付 API 的唯一入口，双形态共享——
+ * 聚合支付网关门面：统一支付 API 的唯一入口，双形态共享——
  * 纯 jar 场景经 {@link #builder()} 手动组装，Spring Boot 场景由 starter 装配为单例 Bean。
  *
- * <p>能力入口：下单/查单/关单、退款、转账、分账、渠道回调处理、对账、下游通知重试兜底。
- * 必填依赖为渠道配置提供者与支付单存储；退款/转账/分账/通知/对账存储按需注册，
- * 缺失时对应能力在入口处报明确异常（STORE_MISSING）。</p>
+ * <p>SDK 为无状态渠道聚合层：统一出入参、统一结果归一、回调验签归一、账单拉取归一。
+ * 不持有台账、不推进状态、不做业务校验——落库、状态推进、幂等判重、金额校验、
+ * 业务联动（订单/库存等）全部由使用方完成。</p>
+ *
+ * <p>接入契约：渠道受理成功不等于业务最终态，最终态来自渠道回调或查单，
+ * 使用方必须实现回调入口或定时查单（至少其一）。</p>
  *
  * <p>线程安全：构建后不可变，所有方法可并发调用。</p>
  *
@@ -53,25 +47,14 @@ public class PaymentGateway {
     private final TransferOrchestrator transferOrchestrator;
     private final ProfitShareOrchestrator profitShareOrchestrator;
     private final CallbackDispatcher callbackDispatcher;
-    private final ReconciliationRunner reconciliationRunner;
 
     private PaymentGateway(Builder builder) {
-        DownstreamNotifier notifier = builder.notifyLogStore == null
-                ? NoopNotifier.instance()
-                : (builder.notifier != null ? builder.notifier
-                : new HttpDownstreamNotifier(builder.notifyLogStore,
-                new RetryPolicy(builder.notifyRetrySeconds), builder.notifySecret,
-                builder.notifyHttpTimeoutMillis, builder.clock));
-        this.runtime = new GatewayRuntime(builder.registry, builder.configProvider, builder.paymentStore,
-                builder.refundStore, builder.transferStore, builder.profitShareStore,
-                builder.notifyLogStore, builder.reconDiscrepancyStore, notifier,
-                builder.clock, builder.listeners);
+        this.runtime = new GatewayRuntime(builder.registry, builder.configProvider, builder.clock);
         this.paymentOrchestrator = new PaymentOrchestrator(runtime);
         this.refundOrchestrator = new RefundOrchestrator(runtime);
         this.transferOrchestrator = new TransferOrchestrator(runtime);
         this.profitShareOrchestrator = new ProfitShareOrchestrator(runtime);
         this.callbackDispatcher = new CallbackDispatcher(runtime);
-        this.reconciliationRunner = new ReconciliationRunner(runtime);
     }
 
     /** 创建构建器。 */
@@ -91,29 +74,29 @@ public class PaymentGateway {
 
     // ---------- 支付 ----------
 
-    /** 统一下单。 */
+    /** 统一下单：调用渠道，返回归一受理结果（唤起参数或即时扣款结果）。 */
     public PaymentResult createPayment(PaymentRequest request) {
         return paymentOrchestrator.create(request);
     }
 
-    /** 支付单查询（非终态订单自动向渠道复核，兼做补单）。 */
+    /** 渠道查单：返回渠道侧归一快照，状态推进由使用方完成。 */
     public PaymentResult queryPayment(PaymentQueryRequest request) {
         return paymentOrchestrator.query(request);
     }
 
-    /** 关闭支付单。 */
-    public PaymentResult closePayment(String paymentId) {
-        return paymentOrchestrator.close(paymentId);
+    /** 关闭渠道订单；渠道报已支付时自动复查一次并按渠道真实状态返回。 */
+    public PaymentResult closePayment(PaymentQueryRequest request) {
+        return paymentOrchestrator.close(request);
     }
 
     // ---------- 退款 ----------
 
-    /** 发起退款。 */
+    /** 发起退款（需携带原单金额与原单渠道单号）。 */
     public RefundResult createRefund(RefundRequest request) {
         return refundOrchestrator.create(request);
     }
 
-    /** 退款单查询（处理中自动向渠道复核）。 */
+    /** 渠道退款查单。 */
     public RefundResult queryRefund(RefundQueryRequest request) {
         return refundOrchestrator.query(request);
     }
@@ -125,19 +108,19 @@ public class PaymentGateway {
         return transferOrchestrator.create(request);
     }
 
-    /** 转账单查询（处理中自动向渠道复核）。 */
+    /** 渠道转账查单。 */
     public TransferResult queryTransfer(TransferQueryRequest request) {
         return transferOrchestrator.query(request);
     }
 
     // ---------- 分账 ----------
 
-    /** 发起分账。 */
+    /** 发起分账（需携带原支付单渠道单号）。 */
     public ProfitShareResult createProfitShare(ProfitShareRequest request) {
         return profitShareOrchestrator.create(request);
     }
 
-    /** 分账单查询（处理中自动向渠道复核）。 */
+    /** 渠道分账查单。 */
     public ProfitShareResult queryProfitShare(ProfitShareQueryRequest request) {
         return profitShareOrchestrator.query(request);
     }
@@ -145,12 +128,11 @@ public class PaymentGateway {
     // ---------- 渠道回调 ----------
 
     /**
-     * 处理渠道回调：使用方在自己的回调入口收集原始请求后调用本方法，
-     * 将返回的应答原样写回渠道。验签失败/订单不存在/金额不一致等异常上抛，
-     * 由使用方决定以失败应答触发渠道重推。
+     * 验签并解析渠道回调，返回归一化事件。使用方按事件中的业务单号定位自己的
+     * 订单，判重、金额校验与状态推进自行完成后，将应答报文写回渠道。
      */
-    public ChannelCallbackReply handleCallback(ChannelCallbackRequest request) {
-        return callbackDispatcher.handle(request);
+    public CallbackEvent parseCallback(ChannelCallbackRequest request) {
+        return callbackDispatcher.parse(request);
     }
 
     /** 渠道认可的处理成功应答报文（回调处理异常时使用方以失败应答触发渠道重推）。 */
@@ -163,36 +145,21 @@ public class PaymentGateway {
         return runtime.registry.callbackHandler(channelCode).failureReply();
     }
 
-    // ---------- 对账 ----------
+    // ---------- 账单 ----------
 
-    /** 执行指定应用、渠道、日期的对账（建议由使用方定时任务每日调用）。 */
-    public ReconReport reconcile(String channelCode, String appId, LocalDate billDate) {
-        return reconciliationRunner.reconcile(channelCode, appId, billDate);
+    /** 拉取指定应用、指定日期的渠道账单（归一化条目），对账比对由使用方完成。 */
+    public BillSheet fetchBill(String channelCode, String appId, LocalDate billDate) {
+        return runtime.registry.billHandler(channelCode)
+                .fetchBill(appId, billDate, runtime.configProvider.getConfig(appId, channelCode));
     }
 
-    // ---------- 下游通知 ----------
-
-    /** 投递到期未完成的下游通知（建议由使用方定时任务每 10~15 秒调用）。 */
-    public void retryPendingNotifies(int limit) {
-        runtime.notifier.dispatchDue(limit);
-    }
+    // ---------- 构建 ----------
 
     /** 网关构建器。 */
     public static class Builder {
 
         private final ChannelRegistry registry = new ChannelRegistry();
         private ChannelConfigProvider configProvider;
-        private PaymentStore paymentStore;
-        private RefundStore refundStore;
-        private TransferStore transferStore;
-        private ProfitShareStore profitShareStore;
-        private NotifyLogStore notifyLogStore;
-        private ReconDiscrepancyStore reconDiscrepancyStore;
-        private final List<PaymentEventListener> listeners = new ArrayList<PaymentEventListener>();
-        private DownstreamNotifier notifier;
-        private int[] notifyRetrySeconds = RetryPolicy.DEFAULT_DELAYS_SECONDS;
-        private String notifySecret;
-        private long notifyHttpTimeoutMillis = 10_000L;
         private Clock clock = Clock.systemDefaultZone();
 
         /** 注册渠道提供者（替代外部自行组装 ChannelRegistry）。 */
@@ -207,87 +174,16 @@ public class PaymentGateway {
             return this;
         }
 
-        /** 支付单存储（必填）。 */
-        public Builder paymentStore(PaymentStore paymentStore) {
-            this.paymentStore = paymentStore;
-            return this;
-        }
-
-        /** 退款单存储（退款功能需要）。 */
-        public Builder refundStore(RefundStore refundStore) {
-            this.refundStore = refundStore;
-            return this;
-        }
-
-        /** 转账单存储（转账功能需要）。 */
-        public Builder transferStore(TransferStore transferStore) {
-            this.transferStore = transferStore;
-            return this;
-        }
-
-        /** 分账单存储（分账功能需要）。 */
-        public Builder profitShareStore(ProfitShareStore profitShareStore) {
-            this.profitShareStore = profitShareStore;
-            return this;
-        }
-
-        /** 通知记录存储（下游通知功能需要）。 */
-        public Builder notifyLogStore(NotifyLogStore notifyLogStore) {
-            this.notifyLogStore = notifyLogStore;
-            return this;
-        }
-
-        /** 对账差错存储（对账功能需要）。 */
-        public Builder reconDiscrepancyStore(ReconDiscrepancyStore reconDiscrepancyStore) {
-            this.reconDiscrepancyStore = reconDiscrepancyStore;
-            return this;
-        }
-
-        /** 追加订单事件监听器（可多次调用）。 */
-        public Builder listener(PaymentEventListener listener) {
-            if (listener != null) {
-                listeners.add(listener);
-            }
-            return this;
-        }
-
-        /** 自定义通知投递器（缺省为 HTTP 投递器）。 */
-        public Builder notifier(DownstreamNotifier notifier) {
-            this.notifier = notifier;
-            return this;
-        }
-
-        /** 下游通知重试间隔（秒），缺省 15/15/30/3m/10m/20m/30m…。 */
-        public Builder notifyRetrySeconds(int[] notifyRetrySeconds) {
-            this.notifyRetrySeconds = notifyRetrySeconds;
-            return this;
-        }
-
-        /** 下游通知 HMAC 签名密钥（null 表示不签名）。 */
-        public Builder notifySecret(String notifySecret) {
-            this.notifySecret = notifySecret;
-            return this;
-        }
-
-        /** 下游通知单次投递超时（毫秒）。 */
-        public Builder notifyHttpTimeoutMillis(long notifyHttpTimeoutMillis) {
-            this.notifyHttpTimeoutMillis = notifyHttpTimeoutMillis;
-            return this;
-        }
-
         /** 时钟（测试注入固定时钟用）。 */
         public Builder clock(Clock clock) {
             this.clock = clock;
             return this;
         }
 
-        /** 构建；渠道配置提供者与支付单存储必填。 */
+        /** 构建；渠道配置提供者必填。 */
         public PaymentGateway build() {
             if (configProvider == null) {
                 throw new GatewayException(GatewayErrorCode.CONFIG_MISSING, "未设置渠道配置提供者");
-            }
-            if (paymentStore == null) {
-                throw new GatewayException(GatewayErrorCode.STORE_MISSING, "未设置支付单存储");
             }
             return new PaymentGateway(this);
         }

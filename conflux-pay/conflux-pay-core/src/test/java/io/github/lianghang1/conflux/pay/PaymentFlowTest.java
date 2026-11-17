@@ -3,24 +3,19 @@ package io.github.lianghang1.conflux.pay;
 import io.github.lianghang1.conflux.pay.api.PaymentQueryRequest;
 import io.github.lianghang1.conflux.pay.api.PaymentRequest;
 import io.github.lianghang1.conflux.pay.api.PaymentResult;
-import io.github.lianghang1.conflux.pay.event.PaymentEvent;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.pay.model.Payment;
 import io.github.lianghang1.conflux.pay.model.PayPayloadType;
 import io.github.lianghang1.conflux.pay.model.PaymentState;
 import io.github.lianghang1.conflux.pay.support.GatewayTestHarness;
 import io.github.lianghang1.conflux.pay.support.TestChannelProvider;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 支付主流程测试：下单、查单补单、关单、事件发布。
+ * 支付流程测试：下单、查单、关单的渠道归一语义（SDK 无状态）。
  *
  * @author lianghang
  */
@@ -34,8 +29,14 @@ class PaymentFlowTest {
                 .setBizOrderNo(bizOrderNo)
                 .setMethod(TestChannelProvider.METHOD_PAY)
                 .setAmount(10000L)
-                .setSubject("测试商品")
-                .setNotifyUrl("http://127.0.0.1/business/notify");
+                .setSubject("测试商品");
+    }
+
+    private PaymentQueryRequest locate(String bizOrderNo) {
+        return new PaymentQueryRequest()
+                .setAppId(GatewayTestHarness.APP_ID)
+                .setBizOrderNo(bizOrderNo)
+                .setChannelCode(TestChannelProvider.CODE);
     }
 
     @Test
@@ -43,28 +44,18 @@ class PaymentFlowTest {
         PaymentResult result = harness.gateway.createPayment(request("NO-1"));
 
         assertThat(result.getState()).isEqualTo(PaymentState.PAYING);
-        assertThat(result.getPaymentId()).isNotBlank();
+        assertThat(result.getBizOrderNo()).isEqualTo("NO-1");
         assertThat(result.getChannelOrderNo()).isEqualTo("CH-NO-1");
         assertThat(result.getPayPayload()).isNotNull();
         assertThat(result.getPayPayload().getType()).isEqualTo(PayPayloadType.QRCODE);
-
-        Payment stored = harness.paymentStore.findById(result.getPaymentId());
-        assertThat(stored.getState()).isEqualTo(PaymentState.PAYING);
-        assertThat(stored.getPayPayload()).contains("test-qr://");
-        assertThat(stored.getCurrency()).isEqualTo("CNY");
-        assertThat(stored.getCreatedTime()).isNotNull();
     }
 
     @Test
-    void channelFailureShouldKeepCreatedState() {
+    void channelFailureShouldPropagate() {
         harness.channelProvider.failNextCreate.set(true);
         assertThatThrownBy(() -> harness.gateway.createPayment(request("NO-4")))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.CHANNEL_CALL_FAILED));
-
-        Payment stored = harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "NO-4");
-        assertThat(stored.getState()).isEqualTo(PaymentState.CREATED);
-        assertThat(stored.getErrorCode()).isEqualTo(String.valueOf(GatewayErrorCode.CHANNEL_CALL_FAILED.getCode()));
     }
 
     @Test
@@ -76,56 +67,48 @@ class PaymentFlowTest {
     }
 
     @Test
-    void queryShouldReissuePayingOrderFromChannelState() {
-        PaymentResult created = harness.gateway.createPayment(request("NO-6"));
+    void missingChannelCodeShouldBeRejectedOnQuery() {
+        assertThatThrownBy(() -> harness.gateway.queryPayment(
+                new PaymentQueryRequest().setAppId(GatewayTestHarness.APP_ID).setBizOrderNo("NO-X")))
+                .isInstanceOf(GatewayException.class);
+    }
 
-        harness.channelProvider.channelPaymentStates.put(created.getPaymentId(), PaymentState.SUCCEEDED);
+    @Test
+    void queryShouldReturnChannelState() {
+        harness.gateway.createPayment(request("NO-6"));
+        harness.channelProvider.channelPaymentStates.put("NO-6", PaymentState.SUCCEEDED);
 
-        PaymentResult queried = harness.gateway.queryPayment(new PaymentQueryRequest()
-                .setAppId(GatewayTestHarness.APP_ID).setBizOrderNo("NO-6"));
+        PaymentResult queried = harness.gateway.queryPayment(locate("NO-6"));
 
         assertThat(queried.getState()).isEqualTo(PaymentState.SUCCEEDED);
         assertThat(queried.getSucceedTime()).isNotNull();
-        assertThat(harness.paymentStore.findById(created.getPaymentId()).getState()).isEqualTo(PaymentState.SUCCEEDED);
     }
 
     @Test
-    void closeShouldMovePayingOrderToClosed() {
-        PaymentResult created = harness.gateway.createPayment(request("NO-7"));
+    void closeShouldReturnClosedState() {
+        harness.gateway.createPayment(request("NO-7"));
 
-        PaymentResult closed = harness.gateway.closePayment(created.getPaymentId());
+        PaymentResult closed = harness.gateway.closePayment(locate("NO-7"));
+
         assertThat(closed.getState()).isEqualTo(PaymentState.CLOSED);
-        assertThat(harness.paymentStore.findById(created.getPaymentId()).getState()).isEqualTo(PaymentState.CLOSED);
     }
 
     @Test
-    void closeSucceededOrderShouldBeRejected() {
-        PaymentResult created = harness.gateway.createPayment(request("NO-8"));
-        harness.channelProvider.channelPaymentStates.put(created.getPaymentId(), PaymentState.SUCCEEDED);
-        harness.gateway.queryPayment(new PaymentQueryRequest().setPaymentId(created.getPaymentId()));
+    void closePaidOrderShouldReturnChannelSucceededState() {
+        harness.gateway.createPayment(request("NO-8"));
+        harness.channelProvider.channelPaymentStates.put("NO-8", PaymentState.SUCCEEDED);
 
-        assertThatThrownBy(() -> harness.gateway.closePayment(created.getPaymentId()))
-                .isInstanceOfSatisfying(GatewayException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.STATE_ILLEGAL));
+        PaymentResult result = harness.gateway.closePayment(locate("NO-8"));
+
+        assertThat(result.getState()).isEqualTo(PaymentState.SUCCEEDED);
     }
 
     @Test
-    void eventsShouldBePublishedInOrder() {
-        List<PaymentEvent.EventType> received = new CopyOnWriteArrayList<PaymentEvent.EventType>();
-        GatewayTestHarness listenable = new GatewayTestHarness(event -> received.add(event.getType()));
+    void repeatedCreateWithSameBizOrderNoShouldHitChannelIdempotency() {
+        // 渠道商户单号即 bizOrderNo，重复下单由渠道幂等键兜底（SDK 不做查重）
+        PaymentResult first = harness.gateway.createPayment(request("NO-DUP"));
+        PaymentResult second = harness.gateway.createPayment(request("NO-DUP"));
 
-        PaymentResult created = listenable.gateway.createPayment(
-                new PaymentRequest()
-                        .setAppId(GatewayTestHarness.APP_ID)
-                        .setBizOrderNo("NO-EVENT")
-                        .setMethod(TestChannelProvider.METHOD_PAY)
-                        .setAmount(5000L));
-        listenable.channelProvider.channelPaymentStates.put(created.getPaymentId(), PaymentState.SUCCEEDED);
-        listenable.gateway.queryPayment(new PaymentQueryRequest().setPaymentId(created.getPaymentId()));
-
-        assertThat(received).containsExactly(
-                PaymentEvent.EventType.PAYMENT_CREATED,
-                PaymentEvent.EventType.PAYMENT_PAYING,
-                PaymentEvent.EventType.PAYMENT_SUCCEEDED);
+        assertThat(first.getChannelOrderNo()).isEqualTo(second.getChannelOrderNo());
     }
 }

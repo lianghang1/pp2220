@@ -54,7 +54,7 @@ public class WxBarPayMethod implements UnionPayMethod {
                 .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey,
                         e -> e.getValue() == null ? null : String.valueOf(e.getValue())));
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderNo", payment.getBizOrderNo());
         requestParams.put("orderTime", java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
         requestParams.put("txnAmt", payment.getAmount());

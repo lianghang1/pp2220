@@ -37,7 +37,7 @@ public class AlipayTransferHandler implements TransferHandler {
     public TransferInvocation createTransfer(Transfer transfer, ChannelConfig config) {
         AlipayFundTransUniTransferRequest request = new AlipayFundTransUniTransferRequest();
         AlipayFundTransUniTransferModel model = new AlipayFundTransUniTransferModel();
-        model.setOutBizNo(transfer.getTransferId());
+        model.setOutBizNo(transfer.getBizTransferNo());
         model.setTransAmount(AlipayStateTranslator.toYuan(transfer.getAmount()));
         model.setProductCode("TRANS_ACCOUNT_NO_PWD");
         model.setBizScene("DIRECT_TRANSFER");
@@ -58,7 +58,7 @@ public class AlipayTransferHandler implements TransferHandler {
             return client.execute(request);
         });
         log.info("支付宝转账已受理: transferId={}, payee={}, status={}",
-                transfer.getTransferId(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2), response.getStatus());
+                transfer.getBizTransferNo(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2), response.getStatus());
         return new TransferInvocation()
                 .setChannelTransferNo(response.getOrderId())
                 .setState(AlipayStateTranslator.toTransferState(response.getStatus()));
@@ -70,7 +70,7 @@ public class AlipayTransferHandler implements TransferHandler {
                 new com.alipay.api.request.AlipayFundTransCommonQueryRequest();
         com.alipay.api.domain.AlipayFundTransCommonQueryModel model =
                 new com.alipay.api.domain.AlipayFundTransCommonQueryModel();
-        model.setOutBizNo(transfer.getTransferId());
+        model.setOutBizNo(transfer.getBizTransferNo());
         model.setProductCode("TRANS_ACCOUNT_NO_PWD");
         request.setBizModel(model);
         com.alipay.api.response.AlipayFundTransCommonQueryResponse response =

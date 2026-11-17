@@ -66,13 +66,13 @@ public class TestChannelProvider implements ChannelProvider {
     public static final String METHOD_TRANS = "TEST_TRANS";
     public static final String VALID_SIGN = "valid-sign";
 
-    /** 渠道侧支付单状态（paymentId → 状态），由测试用例操控以模拟补单/查单。 */
+    /** 渠道侧支付单状态（bizOrderNo → 状态），由测试用例操控以模拟补单/查单。 */
     public final Map<String, PaymentState> channelPaymentStates = new ConcurrentHashMap<String, PaymentState>();
-    /** 渠道侧退款单状态（refundId → 状态）。 */
+    /** 渠道侧退款单状态（bizRefundNo → 状态）。 */
     public final Map<String, RefundState> channelRefundStates = new ConcurrentHashMap<String, RefundState>();
-    /** 渠道侧转账单状态（transferId → 状态）。 */
+    /** 渠道侧转账单状态（bizTransferNo → 状态）。 */
     public final Map<String, TransferState> channelTransferStates = new ConcurrentHashMap<String, TransferState>();
-    /** 渠道侧分账单状态（shareId → 状态）。 */
+    /** 渠道侧分账单状态（bizShareNo → 状态）。 */
     public final Map<String, ProfitShareState> channelShareStates = new ConcurrentHashMap<String, ProfitShareState>();
     /** 渠道侧账单条目（测试用例预置）。 */
     public final List<BillEntry> billEntries = new ArrayList<BillEntry>();
@@ -100,16 +100,16 @@ public class TestChannelProvider implements ChannelProvider {
                 if (failNextCreate.compareAndSet(true, false)) {
                     throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED, "模拟渠道下单故障");
                 }
-                channelPaymentStates.put(payment.getPaymentId(), PaymentState.PAYING);
+                channelPaymentStates.put(payment.getBizOrderNo(), PaymentState.PAYING);
                 return new PaymentInvocation()
                         .setChannelOrderNo("CH-" + payment.getBizOrderNo())
-                        .setPayload(PayPayload.qrCode("test-qr://" + payment.getPaymentId()))
+                        .setPayload(PayPayload.qrCode("test-qr://" + payment.getBizOrderNo()))
                         .setState(PaymentState.PAYING);
             }
 
             @Override
             public PaymentSnapshot queryPayment(Payment payment, ChannelConfig config) {
-                PaymentState state = channelPaymentStates.getOrDefault(payment.getPaymentId(), PaymentState.PAYING);
+                PaymentState state = channelPaymentStates.getOrDefault(payment.getBizOrderNo(), PaymentState.PAYING);
                 return new PaymentSnapshot()
                         .setChannelOrderNo("CH-" + payment.getBizOrderNo())
                         .setState(state)
@@ -120,7 +120,12 @@ public class TestChannelProvider implements ChannelProvider {
 
             @Override
             public void closePayment(Payment payment, ChannelConfig config) {
-                channelPaymentStates.put(payment.getPaymentId(), PaymentState.CLOSED);
+                PaymentState current = channelPaymentStates.get(payment.getBizOrderNo());
+                if (current == PaymentState.SUCCEEDED) {
+                    throw new GatewayException(io.github.lianghang1.conflux.pay.exception.GatewayErrorCode.STATE_ILLEGAL,
+                            "渠道侧订单已支付，不允许关单");
+                }
+                channelPaymentStates.put(payment.getBizOrderNo(), PaymentState.CLOSED);
             }
         };
     }
@@ -130,7 +135,7 @@ public class TestChannelProvider implements ChannelProvider {
         return new RefundHandler() {
             @Override
             public RefundInvocation createRefund(Refund refund, Payment payment, ChannelConfig config) {
-                channelRefundStates.put(refund.getRefundId(), RefundState.SUCCEEDED);
+                channelRefundStates.put(refund.getBizRefundNo(), RefundState.SUCCEEDED);
                 return new RefundInvocation()
                         .setChannelRefundNo("CHR-" + refund.getBizRefundNo())
                         .setState(RefundState.SUCCEEDED);
@@ -138,7 +143,7 @@ public class TestChannelProvider implements ChannelProvider {
 
             @Override
             public RefundSnapshot queryRefund(Refund refund, ChannelConfig config) {
-                RefundState state = channelRefundStates.getOrDefault(refund.getRefundId(), RefundState.PROCESSING);
+                RefundState state = channelRefundStates.getOrDefault(refund.getBizRefundNo(), RefundState.PROCESSING);
                 return new RefundSnapshot()
                         .setChannelRefundNo("CHR-" + refund.getBizRefundNo())
                         .setState(state)
@@ -153,7 +158,7 @@ public class TestChannelProvider implements ChannelProvider {
         return new TransferHandler() {
             @Override
             public TransferInvocation createTransfer(Transfer transfer, ChannelConfig config) {
-                channelTransferStates.put(transfer.getTransferId(), TransferState.PROCESSING);
+                channelTransferStates.put(transfer.getBizTransferNo(), TransferState.PROCESSING);
                 return new TransferInvocation()
                         .setChannelTransferNo("CHT-" + transfer.getBizTransferNo())
                         .setState(TransferState.PROCESSING);
@@ -161,7 +166,7 @@ public class TestChannelProvider implements ChannelProvider {
 
             @Override
             public TransferSnapshot queryTransfer(Transfer transfer, ChannelConfig config) {
-                TransferState state = channelTransferStates.getOrDefault(transfer.getTransferId(), TransferState.PROCESSING);
+                TransferState state = channelTransferStates.getOrDefault(transfer.getBizTransferNo(), TransferState.PROCESSING);
                 return new TransferSnapshot()
                         .setChannelTransferNo("CHT-" + transfer.getBizTransferNo())
                         .setState(state)
@@ -176,7 +181,7 @@ public class TestChannelProvider implements ChannelProvider {
         return new ProfitShareHandler() {
             @Override
             public ProfitShareInvocation createProfitShare(ProfitShare share, ChannelConfig config) {
-                channelShareStates.put(share.getShareId(), ProfitShareState.FINISHED);
+                channelShareStates.put(share.getBizShareNo(), ProfitShareState.FINISHED);
                 return new ProfitShareInvocation()
                         .setChannelShareNo("CHP-" + share.getBizShareNo())
                         .setState(ProfitShareState.FINISHED);
@@ -184,7 +189,7 @@ public class TestChannelProvider implements ChannelProvider {
 
             @Override
             public ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config) {
-                ProfitShareState state = channelShareStates.getOrDefault(share.getShareId(), ProfitShareState.PROCESSING);
+                ProfitShareState state = channelShareStates.getOrDefault(share.getBizShareNo(), ProfitShareState.PROCESSING);
                 return new ProfitShareSnapshot()
                         .setChannelShareNo("CHP-" + share.getBizShareNo())
                         .setState(state)

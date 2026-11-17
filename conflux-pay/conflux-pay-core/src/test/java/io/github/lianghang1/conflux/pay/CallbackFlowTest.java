@@ -1,13 +1,10 @@
 package io.github.lianghang1.conflux.pay;
 
-import io.github.lianghang1.conflux.pay.api.ChannelCallbackReply;
+import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.api.PaymentRequest;
-import io.github.lianghang1.conflux.pay.api.PaymentResult;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.pay.model.NotifyLog;
-import io.github.lianghang1.conflux.pay.model.PaymentState;
+import io.github.lianghang1.conflux.pay.model.BizOrderType;
 import io.github.lianghang1.conflux.pay.support.GatewayTestHarness;
 import io.github.lianghang1.conflux.pay.support.TestChannelProvider;
 import io.github.lianghang1.conflux.common.util.JsonUtils;
@@ -20,22 +17,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 渠道回调流程测试：验签、状态迁移、金额一致性、下游通知入队。
+ * 渠道回调解析测试：验签与归一语义（SDK 无状态，不查订单、不推进状态）。
  *
  * @author lianghang
  */
 class CallbackFlowTest {
 
     private final GatewayTestHarness harness = new GatewayTestHarness();
-
-    private PaymentResult createPaying(String bizOrderNo) {
-        return harness.gateway.createPayment(new PaymentRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
-                .setBizOrderNo(bizOrderNo)
-                .setMethod(TestChannelProvider.METHOD_PAY)
-                .setAmount(8800L)
-                .setNotifyUrl("http://127.0.0.1/business/notify"));
-    }
 
     private ChannelCallbackRequest callbackRequest(String bizOrderNo, String channelOrderNo,
                                                    boolean success, Long amount) {
@@ -55,62 +43,35 @@ class CallbackFlowTest {
     }
 
     @Test
-    void successCallbackShouldMarkPaymentSucceededAndEnqueueNotify() {
-        createPaying("CB-1");
-
-        ChannelCallbackReply reply = harness.gateway.handleCallback(
+    void callbackShouldReturnNormalizedEvent() {
+        CallbackEvent event = harness.gateway.parseCallback(
                 callbackRequest("CB-1", "CH-CB-1", true, 8800L));
 
-        assertThat(reply.getStatusCode()).isEqualTo(200);
-        assertThat(reply.getBody()).isEqualTo("SUCCESS");
-        assertThat(harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "CB-1").getState())
-                .isEqualTo(PaymentState.SUCCEEDED);
-
-        assertThat(harness.notifier.submitted).hasSize(1);
-        NotifyLog log = harness.notifier.submitted.get(0);
-        assertThat(log.getOrderId()).isNotBlank();
-        assertThat(log.getRequestContent()).contains("PAYMENT").contains("SUCCEEDED").contains("8800");
-        assertThat(harness.notifyLogStore.all()).hasSize(1);
+        assertThat(event.getType()).isEqualTo(BizOrderType.PAYMENT);
+        assertThat(event.getBizOrderNo()).isEqualTo("CB-1");
+        assertThat(event.getChannelOrderNo()).isEqualTo("CH-CB-1");
+        assertThat(event.isSuccess()).isTrue();
+        assertThat(event.getAmount()).isEqualTo(8800L);
     }
 
     @Test
     void invalidSignatureShouldBeRejected() {
-        createPaying("CB-3");
-
         ChannelCallbackRequest tampered = callbackRequest("CB-3", "CH-CB-3", true, 8800L)
                 .setHeaders(new LinkedHashMap<String, String>());
-        assertThatThrownBy(() -> harness.gateway.handleCallback(tampered))
+        assertThatThrownBy(() -> harness.gateway.parseCallback(tampered))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.SIGN_INVALID));
-        assertThat(harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "CB-3").getState())
-                .isEqualTo(PaymentState.PAYING);
     }
 
     @Test
-    void amountMismatchShouldBeRejected() {
-        createPaying("CB-4");
-
-        assertThatThrownBy(() -> harness.gateway.handleCallback(
-                callbackRequest("CB-4", "CH-CB-4", true, 1L)))
-                .isInstanceOfSatisfying(GatewayException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.AMOUNT_MISMATCH));
+    void missingChannelCodeShouldBeRejected() {
+        assertThatThrownBy(() -> harness.gateway.parseCallback(new ChannelCallbackRequest()))
+                .isInstanceOf(GatewayException.class);
     }
 
     @Test
-    void unknownOrderShouldBeRejected() {
-        assertThatThrownBy(() -> harness.gateway.handleCallback(
-                callbackRequest("NO-SUCH", "CH-NONE", true, 100L)))
-                .isInstanceOfSatisfying(GatewayException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.ORDER_NOT_FOUND));
-    }
-
-    @Test
-    void failedCallbackShouldMarkPaymentFailed() {
-        createPaying("CB-5");
-
-        harness.gateway.handleCallback(callbackRequest("CB-5", "CH-CB-5", false, 8800L));
-
-        assertThat(harness.paymentStore.findByBizOrderNo(GatewayTestHarness.APP_ID, "CB-5").getState())
-                .isEqualTo(PaymentState.FAILED);
+    void repliesShouldComeFromChannelHandler() {
+        assertThat(harness.gateway.callbackSuccessReply(TestChannelProvider.CODE)).isEqualTo("SUCCESS");
+        assertThat(harness.gateway.callbackFailureReply(TestChannelProvider.CODE)).isEqualTo("FAIL");
     }
 }

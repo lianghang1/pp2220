@@ -21,14 +21,10 @@ public class ProfitShareResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关分账单号 */
-    private String shareId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务分账单号 */
     private String bizShareNo;
-    /** 关联网关支付单号 */
-    private String paymentId;
     /** 分账总金额（分） */
     private Long amount;
     /** 分账接收方列表（含渠道回填的单接收方结果） */
@@ -47,10 +43,8 @@ public class ProfitShareResult implements Serializable {
     /** 由分账单记录构建结果。 */
     public static ProfitShareResult of(ProfitShare share) {
         return new ProfitShareResult()
-                .setShareId(share.getShareId())
                 .setAppId(share.getAppId())
                 .setBizShareNo(share.getBizShareNo())
-                .setPaymentId(share.getPaymentId())
                 .setAmount(share.getAmount())
                 .setReceivers(share.getReceivers())
                 .setState(share.getState())

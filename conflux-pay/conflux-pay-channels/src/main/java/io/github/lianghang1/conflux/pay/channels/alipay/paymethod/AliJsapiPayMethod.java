@@ -49,7 +49,7 @@ public class AliJsapiPayMethod implements AlipayPayMethod {
         AlipayTradeCreateRequest request = new AlipayTradeCreateRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradeCreateModel model = new AlipayTradeCreateModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         model.setBuyerId(buyerId);

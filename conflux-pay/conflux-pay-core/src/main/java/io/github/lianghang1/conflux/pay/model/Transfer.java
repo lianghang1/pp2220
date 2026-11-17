@@ -20,8 +20,6 @@ public class Transfer implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关转账单号 */
-    private String transferId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务转账单号（appId 内唯一，幂等键） */
@@ -50,12 +48,6 @@ public class Transfer implements Serializable {
     private String errorMsg;
     /** 转账成功时间 */
     private LocalDateTime succeedTime;
-    /** 下游通知地址（转账终态后通知，可空） */
-    private String notifyUrl;
     /** 扩展参数（JSON） */
     private String extParams;
-    /** 创建时间 */
-    private LocalDateTime createdTime;
-    /** 更新时间 */
-    private LocalDateTime updatedTime;
 }

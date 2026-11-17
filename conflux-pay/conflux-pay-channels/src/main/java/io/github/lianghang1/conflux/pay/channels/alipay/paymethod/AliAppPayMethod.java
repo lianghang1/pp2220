@@ -33,7 +33,7 @@ public class AliAppPayMethod implements AlipayPayMethod {
         AlipayTradeAppPayRequest request = new AlipayTradeAppPayRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradeAppPayModel model = new AlipayTradeAppPayModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         model.setProductCode("QUICK_MSECURITY_PAY");

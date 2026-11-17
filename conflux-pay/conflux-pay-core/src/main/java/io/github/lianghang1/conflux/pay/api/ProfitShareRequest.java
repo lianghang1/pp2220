@@ -15,8 +15,9 @@ import java.util.Map;
 /**
  * 分账请求：将已成功支付订单的资金分给多个接收方。
  *
- * <p>分账对象通过 {@code paymentId} 或 {@code appId + bizOrderNo} 定位；
- * 同一 {@code appId + bizShareNo} 重复提交视为幂等。</p>
+ * <p>SDK 无台账，原支付单的渠道编码与渠道侧单号由使用方随请求提供；
+ * 是否允许分账（如订单已成功支付、分账比例限制）为使用方业务规则。
+ * 渠道以 {@code bizShareNo} 为幂等键，重复提交由渠道侧保证一致。</p>
  *
  * @author lianghang
  */
@@ -30,14 +31,14 @@ public class ProfitShareRequest implements Serializable {
     private String appId;
     /** 使用方业务分账单号（appId 内唯一，必填） */
     private String bizShareNo;
-    /** 网关支付单号（与 bizOrderNo 二选一） */
-    private String paymentId;
-    /** 使用方业务单号（与 paymentId 二选一） */
+    /** 渠道编码（必填，须与原支付单一致） */
+    private String channelCode;
+    /** 使用方业务单号（原支付单的业务单号，选填留痕） */
     private String bizOrderNo;
+    /** 原支付单渠道侧单号（必填，渠道分账以此关联原单） */
+    private String channelOrderNo;
     /** 分账接收方列表（必填，合计金额需大于 0） */
     private List<ProfitShareReceiver> receivers;
-    /** 下游通知地址（选填；分账终态后通知） */
-    private String notifyUrl;
     /** 渠道附加参数（选填） */
     private Map<String, String> channelExtras;
 
@@ -45,8 +46,8 @@ public class ProfitShareRequest implements Serializable {
     public void check() {
         GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
         GatewayAssert.notBlank(bizShareNo, CommonErrorCode.BAD_REQUEST, "bizShareNo 不能为空");
-        GatewayAssert.isTrue(paymentId != null || bizOrderNo != null,
-                CommonErrorCode.BAD_REQUEST, "paymentId 与 bizOrderNo 至少提供一个");
+        GatewayAssert.notBlank(channelCode, CommonErrorCode.BAD_REQUEST, "channelCode 不能为空");
+        GatewayAssert.notBlank(channelOrderNo, CommonErrorCode.BAD_REQUEST, "channelOrderNo 不能为空");
         GatewayAssert.isTrue(CollUtils.isNotEmpty(receivers), CommonErrorCode.BAD_REQUEST, "receivers 不能为空");
         long total = 0L;
         for (ProfitShareReceiver receiver : receivers) {

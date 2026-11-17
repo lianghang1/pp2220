@@ -7,26 +7,20 @@ import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.channel.ProfitShareHandler;
 import io.github.lianghang1.conflux.pay.channel.ProfitShareInvocation;
 import io.github.lianghang1.conflux.pay.channel.ProfitShareSnapshot;
-import io.github.lianghang1.conflux.pay.event.PaymentEvent;
-import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
-import io.github.lianghang1.conflux.common.exception.GatewayException;
-import io.github.lianghang1.conflux.pay.model.Payment;
-import io.github.lianghang1.conflux.pay.model.PaymentState;
 import io.github.lianghang1.conflux.pay.model.ProfitShare;
 import io.github.lianghang1.conflux.pay.model.ProfitShareReceiver;
 import io.github.lianghang1.conflux.pay.model.ProfitShareState;
-import io.github.lianghang1.conflux.common.util.IdGenerator;
+import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.util.JsonUtils;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-
 /**
- * 分账编排器：发起分账（幂等）、分账查单（兼做补单）。
+ * 分账编排器：发起分账、分账查单的渠道编排。
  *
- * <p>分账对象必须为已成功（或部分退款）的支付单；分账总金额由接收方明细合计得出。
- * 渠道调用失败时分账单保留创建态并记录错误信息，使用方可携带相同参数重试。</p>
+ * <p>SDK 无状态：不落库、不推进状态；原支付单的渠道单号
+ * （{@code channelOrderNo}）由使用方随请求提供。</p>
  *
  * @author lianghang
  */
@@ -39,24 +33,10 @@ class ProfitShareOrchestrator {
         this.rt = rt;
     }
 
-    /** 发起分账。 */
+    /** 发起分账：调用渠道并归一返回受理结果。 */
     ProfitShareResult create(ProfitShareRequest request) {
-        if (rt.profitShareStore == null) {
-            throw GatewayException.of(GatewayErrorCode.STORE_MISSING, "未注册分账单存储，分账功能不可用");
-        }
         request.check();
-        Payment payment = StringUtils.isNotBlank(request.getPaymentId())
-                ? rt.paymentStore.findById(request.getPaymentId())
-                : rt.paymentStore.findByBizOrderNo(request.getAppId(), request.getBizOrderNo());
-        if (payment == null) {
-            throw GatewayException.of(GatewayErrorCode.ORDER_NOT_FOUND,
-                    "支付单不存在: paymentId={}, bizOrderNo={}", request.getPaymentId(), request.getBizOrderNo());
-        }
-        if (payment.getState() != PaymentState.SUCCEEDED
-                && payment.getState() != PaymentState.PART_REFUNDED) {
-            throw GatewayException.of(GatewayErrorCode.STATE_ILLEGAL,
-                    "订单当前状态不允许分账: paymentId={}, state={}", payment.getPaymentId(), payment.getState());
-        }
+        String channel = request.getChannelCode();
 
         long total = 0L;
         for (ProfitShareReceiver receiver : request.getReceivers()) {
@@ -64,91 +44,64 @@ class ProfitShareOrchestrator {
         }
 
         ProfitShare share = new ProfitShare()
-                .setShareId(IdGenerator.nextProfitShareId())
                 .setAppId(request.getAppId())
                 .setBizShareNo(request.getBizShareNo())
-                .setPaymentId(payment.getPaymentId())
-                .setBizOrderNo(payment.getBizOrderNo())
-                .setChannelCode(payment.getChannelCode())
-                .setChannelPayOrderNo(payment.getChannelOrderNo())
+                .setBizOrderNo(request.getBizOrderNo())
+                .setChannelCode(channel)
+                .setChannelPayOrderNo(request.getChannelOrderNo())
                 .setAmount(total)
                 .setReceivers(request.getReceivers())
                 .setState(ProfitShareState.CREATED)
-                .setNotifyUrl(request.getNotifyUrl())
-                .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()))
-                .setCreatedTime(rt.now())
-                .setUpdatedTime(rt.now());
-        rt.profitShareStore.save(share);
-        rt.publisher.publishProfitShare(PaymentEvent.EventType.PROFIT_SHARE_CREATED, share);
-
+                .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()));
         try {
-            ProfitShareHandler handler = rt.registry.profitShareHandler(payment.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(payment.getAppId(), payment.getChannelCode());
+            ProfitShareHandler handler = rt.registry.profitShareHandler(channel);
+            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), channel);
             ProfitShareInvocation invocation = handler.createProfitShare(share, config);
             if (StringUtils.isNotBlank(invocation.getChannelShareNo())) {
                 share.setChannelShareNo(invocation.getChannelShareNo());
             }
             share.setErrorCode(null);
             share.setErrorMsg(null);
-            share.setUpdatedTime(rt.now());
             ProfitShareState target = invocation.getState() == null ? ProfitShareState.PROCESSING : invocation.getState();
-            if (target.isTerminal()) {
-                rt.transitions.onProfitShareFinished(share, target, rt.now());
-            } else {
-                share.setState(target);
-                rt.profitShareStore.update(share);
+            share.setState(target);
+            if (target == ProfitShareState.FINISHED) {
+                share.setFinishTime(rt.now());
             }
         } catch (GatewayException e) {
-            recordError(share, e.getErrorCode().getCode(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            GatewayException wrapped = new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
+            throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
                     "渠道分账调用失败: " + e.getMessage(), e);
-            recordError(share, wrapped.getErrorCode().getCode(), wrapped.getMessage());
-            throw wrapped;
         }
         return ProfitShareResult.of(share);
     }
 
-    /** 分账查单：处理中分账单先向渠道复核（兼做补单）。 */
+    /** 分账查单：向渠道查询并归一返回快照。 */
     ProfitShareResult query(ProfitShareQueryRequest request) {
-        ProfitShare share = StringUtils.isNotBlank(request.getShareId())
-                ? rt.profitShareStore.findById(request.getShareId())
-                : rt.profitShareStore.findByBizShareNo(request.getAppId(), request.getBizShareNo());
-        if (share == null) {
-            throw GatewayException.of(GatewayErrorCode.ORDER_NOT_FOUND,
-                    "分账单不存在: shareId={}, bizShareNo={}", request.getShareId(), request.getBizShareNo());
-        }
-        if (share.getState() == ProfitShareState.CREATED || share.getState() == ProfitShareState.PROCESSING) {
-            refreshFromChannel(share);
-        }
-        return ProfitShareResult.of(share);
-    }
-
-    private void refreshFromChannel(ProfitShare share) {
+        request.check();
+        ProfitShare share = new ProfitShare()
+                .setAppId(request.getAppId())
+                .setBizShareNo(request.getBizShareNo())
+                .setChannelCode(request.getChannelCode())
+                .setChannelShareNo(request.getChannelShareNo());
         try {
-            ProfitShareHandler handler = rt.registry.profitShareHandler(share.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(share.getAppId(), share.getChannelCode());
+            ProfitShareHandler handler = rt.registry.profitShareHandler(request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
             ProfitShareSnapshot snapshot = handler.queryProfitShare(share, config);
             if (StringUtils.isNotBlank(snapshot.getChannelShareNo())
                     && StringUtils.isBlank(share.getChannelShareNo())) {
                 share.setChannelShareNo(snapshot.getChannelShareNo());
             }
-            if (snapshot.getState().isTerminal()) {
-                rt.transitions.onProfitShareFinished(share, snapshot.getState(), snapshot.getFinishTime());
-            } else {
-                share.setUpdatedTime(rt.now());
-                rt.profitShareStore.update(share);
+            if (snapshot.getState() != null) {
+                share.setState(snapshot.getState());
+            }
+            if (snapshot.getFinishTime() != null) {
+                share.setFinishTime(snapshot.getFinishTime());
             }
         } catch (GatewayException e) {
-            log.warn("渠道分账查单失败，保留本地状态: shareId={}, error={}", share.getShareId(), e.getMessage());
+            log.warn("渠道分账查单失败: bizShareNo={}, error={}", request.getBizShareNo(), e.getMessage());
+            throw e;
         }
-    }
-
-    private void recordError(ProfitShare share, int errorCode, String errorMsg) {
-        share.setErrorCode(String.valueOf(errorCode));
-        share.setErrorMsg(StringUtils.abbreviate(errorMsg, 512));
-        share.setUpdatedTime(rt.now());
-        rt.profitShareStore.update(share);
+        return ProfitShareResult.of(share);
     }
 }

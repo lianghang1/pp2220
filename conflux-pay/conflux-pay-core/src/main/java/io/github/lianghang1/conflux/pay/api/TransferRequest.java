@@ -39,8 +39,6 @@ public class TransferRequest implements Serializable {
     private String currency;
     /** 转账备注/附言 */
     private String remark;
-    /** 下游通知地址（选填；转账终态后通知） */
-    private String notifyUrl;
     /** 渠道附加参数（选填） */
     private Map<String, String> channelExtras;
 

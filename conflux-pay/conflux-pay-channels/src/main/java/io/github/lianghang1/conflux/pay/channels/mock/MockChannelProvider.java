@@ -93,20 +93,20 @@ public class MockChannelProvider implements ChannelProvider {
                 }
                 if (MockParams.OUTCOME_SUCCESS.equals(params.getPayOutcome())) {
                     return new PaymentInvocation()
-                            .setChannelOrderNo("MOCK-" + payment.getPaymentId())
+                            .setChannelOrderNo("MOCK-" + payment.getBizOrderNo())
                             .setPayload(PayPayload.none())
                             .setState(PaymentState.SUCCEEDED);
                 }
                 return new PaymentInvocation()
-                        .setChannelOrderNo("MOCK-" + payment.getPaymentId())
-                        .setPayload(PayPayload.qrCode("mock-qr://" + payment.getPaymentId()))
+                        .setChannelOrderNo("MOCK-" + payment.getBizOrderNo())
+                        .setPayload(PayPayload.qrCode("mock-qr://" + payment.getBizOrderNo()))
                         .setState(PaymentState.PAYING);
             }
 
             @Override
             public PaymentSnapshot queryPayment(Payment payment, ChannelConfig config) {
                 return new PaymentSnapshot()
-                        .setChannelOrderNo("MOCK-" + payment.getPaymentId())
+                        .setChannelOrderNo("MOCK-" + payment.getBizOrderNo())
                         .setState(payment.getState())
                         .setPaidAmount(payment.getState().isPaid() ? payment.getAmount() : null)
                         .setSucceedTime(payment.getSucceedTime())
@@ -126,14 +126,14 @@ public class MockChannelProvider implements ChannelProvider {
             @Override
             public RefundInvocation createRefund(Refund refund, Payment payment, ChannelConfig config) {
                 return new RefundInvocation()
-                        .setChannelRefundNo("MOCKR-" + refund.getRefundId())
+                        .setChannelRefundNo("MOCKR-" + refund.getBizRefundNo())
                         .setState(RefundState.SUCCEEDED);
             }
 
             @Override
             public RefundSnapshot queryRefund(Refund refund, ChannelConfig config) {
                 return new RefundSnapshot()
-                        .setChannelRefundNo("MOCKR-" + refund.getRefundId())
+                        .setChannelRefundNo("MOCKR-" + refund.getBizRefundNo())
                         .setState(refund.getState())
                         .setSucceedTime(refund.getSucceedTime())
                         .setRawMsg("mock");
@@ -147,14 +147,14 @@ public class MockChannelProvider implements ChannelProvider {
             @Override
             public TransferInvocation createTransfer(Transfer transfer, ChannelConfig config) {
                 return new TransferInvocation()
-                        .setChannelTransferNo("MOCKT-" + transfer.getTransferId())
+                        .setChannelTransferNo("MOCKT-" + transfer.getBizTransferNo())
                         .setState(TransferState.PROCESSING);
             }
 
             @Override
             public TransferSnapshot queryTransfer(Transfer transfer, ChannelConfig config) {
                 return new TransferSnapshot()
-                        .setChannelTransferNo("MOCKT-" + transfer.getTransferId())
+                        .setChannelTransferNo("MOCKT-" + transfer.getBizTransferNo())
                         .setState(transfer.getState())
                         .setSucceedTime(transfer.getSucceedTime())
                         .setRawMsg("mock");
@@ -168,14 +168,14 @@ public class MockChannelProvider implements ChannelProvider {
             @Override
             public ProfitShareInvocation createProfitShare(ProfitShare share, ChannelConfig config) {
                 return new ProfitShareInvocation()
-                        .setChannelShareNo("MOCKP-" + share.getShareId())
+                        .setChannelShareNo("MOCKP-" + share.getBizShareNo())
                         .setState(ProfitShareState.FINISHED);
             }
 
             @Override
             public ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config) {
                 return new ProfitShareSnapshot()
-                        .setChannelShareNo("MOCKP-" + share.getShareId())
+                        .setChannelShareNo("MOCKP-" + share.getBizShareNo())
                         .setState(share.getState())
                         .setFinishTime(share.getFinishTime())
                         .setRawMsg("mock");

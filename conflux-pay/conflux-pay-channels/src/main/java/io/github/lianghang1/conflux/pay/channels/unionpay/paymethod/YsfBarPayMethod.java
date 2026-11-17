@@ -56,7 +56,7 @@ public class YsfBarPayMethod implements UnionPayMethod {
                     "云闪付付款码支付需在 channelExtras 中提供 authCode");
         }
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderNo", payment.getBizOrderNo());
         requestParams.put("orderTime", java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
         requestParams.put("txnAmt", payment.getAmount());

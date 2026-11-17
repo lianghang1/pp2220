@@ -1,12 +1,14 @@
 package io.github.lianghang1.conflux.pay.api;
 
+import io.github.lianghang1.conflux.common.exception.CommonErrorCode;
+import io.github.lianghang1.conflux.common.exception.GatewayAssert;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
 
 /**
- * 分账单查询定位参数：{@code shareId} 或 {@code appId + bizShareNo} 二选一。
+ * 渠道分账查单定位参数：{@code appId + bizShareNo + channelCode}。
  *
  * @author lianghang
  */
@@ -16,10 +18,19 @@ public class ProfitShareQueryRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关分账单号 */
-    private String shareId;
-    /** 使用方应用标识 */
+    /** 使用方应用标识（必填） */
     private String appId;
-    /** 使用方业务分账单号 */
+    /** 使用方业务分账单号（必填，即渠道商户分账单号） */
     private String bizShareNo;
+    /** 渠道编码（必填） */
+    private String channelCode;
+    /** 渠道侧分账单号（选填，已知时优先使用） */
+    private String channelShareNo;
+
+    /** 参数校验：不满足抛 {@link CommonErrorCode#BAD_REQUEST}。 */
+    public void check() {
+        GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
+        GatewayAssert.notBlank(bizShareNo, CommonErrorCode.BAD_REQUEST, "bizShareNo 不能为空");
+        GatewayAssert.notBlank(channelCode, CommonErrorCode.BAD_REQUEST, "channelCode 不能为空");
+    }
 }

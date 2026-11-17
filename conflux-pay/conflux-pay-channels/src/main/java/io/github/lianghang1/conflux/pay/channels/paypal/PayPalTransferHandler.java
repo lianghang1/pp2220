@@ -33,7 +33,7 @@ public class PayPalTransferHandler implements TransferHandler {
     public TransferInvocation createTransfer(Transfer transfer, ChannelConfig config) {
         Map<String, Object> body = new HashMap<String, Object>();
         Map<String, Object> header = new HashMap<String, Object>();
-        header.put("sender_batch_id", transfer.getTransferId());
+        header.put("sender_batch_id", transfer.getBizTransferNo());
         header.put("email_subject", StringUtils.defaultIfBlank(transfer.getRemark(), "You have a payout"));
         body.put("sender_batch_header", header);
         Map<String, Object> item = new HashMap<String, Object>();

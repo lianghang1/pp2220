@@ -49,7 +49,7 @@ public class AliBarPayMethod implements AlipayPayMethod {
         AlipayTradePayRequest request = new AlipayTradePayRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePayModel model = new AlipayTradePayModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         model.setAuthCode(authCode);

@@ -32,8 +32,8 @@ public class UnionPayRefundHandler implements RefundHandler {
         String merchantId = StringUtils.isNotBlank(config.getSubMchNo())
                 ? config.getSubMchNo() : params.getMerchantId();
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", refund.getRefundId());
-        requestParams.put("origOrderNo", payment.getPaymentId());
+        requestParams.put("orderNo", refund.getBizRefundNo());
+        requestParams.put("origOrderNo", payment.getBizOrderNo());
         requestParams.put("origTxnAmt", payment.getAmount());
         requestParams.put("txnAmt", refund.getAmount());
         requestParams.put("currencyCode", "156");
@@ -56,8 +56,8 @@ public class UnionPayRefundHandler implements RefundHandler {
         String merchantId = StringUtils.isNotBlank(config.getSubMchNo())
                 ? config.getSubMchNo() : params.getMerchantId();
         Map<String, Object> requestParams = new HashMap<String, Object>();
-        requestParams.put("orderNo", refund.getRefundId());
-        requestParams.put("origOrderNo", refund.getPaymentId());
+        requestParams.put("orderNo", refund.getBizRefundNo());
+        requestParams.put("origOrderNo", refund.getBizOrderNo());
         if (merchantId != null) {
             requestParams.put("merId", merchantId);
         }

@@ -32,7 +32,7 @@ public class AliPagePayMethod implements AlipayPayMethod {
         AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePagePayModel model = new AlipayTradePagePayModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         model.setProductCode("FAST_INSTANT_TRADE_PAY");

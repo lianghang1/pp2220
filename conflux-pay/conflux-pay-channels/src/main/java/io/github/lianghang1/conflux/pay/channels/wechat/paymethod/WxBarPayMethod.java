@@ -49,7 +49,7 @@ public class WxBarPayMethod implements WechatPayMethod {
         }
         WxPayMicropayRequest request = new WxPayMicropayRequest();
         request.setBody(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
-        request.setOutTradeNo(payment.getPaymentId());
+        request.setOutTradeNo(payment.getBizOrderNo());
         request.setTotalFee(payment.getAmount().intValue());
         request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
         request.setAuthCode(authCode);
@@ -82,7 +82,7 @@ public class WxBarPayMethod implements WechatPayMethod {
         fields.put("sub_appid", StringUtils.defaultIfBlank(params.getSubAppId(), params.getAppId()));
         fields.put("sub_mch_id", config.getSubMchNo());
         fields.put("body", StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
-        fields.put("out_trade_no", payment.getPaymentId());
+        fields.put("out_trade_no", payment.getBizOrderNo());
         fields.put("total_fee", String.valueOf(payment.getAmount()));
         fields.put("spbill_create_ip", StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
         fields.put("auth_code", authCode);

@@ -34,7 +34,7 @@ public class AliQrPayMethod implements AlipayPayMethod {
         AlipayTradePrecreateRequest request = new AlipayTradePrecreateRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradePrecreateModel model = new AlipayTradePrecreateModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         request.setBizModel(model);

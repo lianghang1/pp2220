@@ -1,9 +1,9 @@
 package io.github.lianghang1.conflux.pay.example.web;
 
+import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.api.ChannelCallbackReply;
-import io.github.lianghang1.conflux.pay.engine.PaymentGateway;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.pay.engine.PaymentGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +20,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 渠道回调演示入口：使用方自行暴露回调地址，把原始请求交给网关处理后
- * 以渠道认可的应答写回。异常时以失败应答触发渠道重推。
+ * 渠道回调演示入口：SDK 验签解析出归一事件后，使用方按事件中的业务单号
+ * 定位自己的订单，判重、金额校验与状态推进自行完成，再以渠道认可的应答写回。
+ * 异常时以失败应答触发渠道重推——重复回调的幂等由使用方保证。
  *
  * @author lianghang
  */
@@ -47,12 +48,24 @@ public class CallbackController {
                 .setFormParams(collectFormParams(request))
                 .setBody(body);
         try {
-            ChannelCallbackReply reply = paymentGateway.handleCallback(callbackRequest);
-            return ResponseEntity.status(reply.getStatusCode()).body(reply.getBody());
+            CallbackEvent event = paymentGateway.parseCallback(callbackRequest);
+            handleEvent(event);
+            return ResponseEntity.status(200).body(paymentGateway.callbackSuccessReply(channelCode));
         } catch (GatewayException e) {
             log.warn("回调处理失败: channel={}, error={}", channelCode, e.getMessage());
             return ResponseEntity.status(200).body(paymentGateway.callbackFailureReply(channelCode));
         }
+    }
+
+    /**
+     * 业务联动演示位：按 {@code event.getBizOrderNo()} 定位自己的订单，
+     * 判重（同一事件可能重复到达）、校验金额后推进自己的订单状态，
+     * 并联动订单系统、库存系统等下游业务。
+     */
+    private void handleEvent(CallbackEvent event) {
+        log.info("收到渠道回调: type={}, bizOrderNo={}, channelOrderNo={}, success={}, amount={}",
+                event.getType(), event.getBizOrderNo(), event.getChannelOrderNo(),
+                event.isSuccess(), event.getAmount());
     }
 
     /** 提取表单参数（application/x-www-form-urlencoded 场景）。 */

@@ -33,7 +33,7 @@ public class AliWapPayMethod implements AlipayPayMethod {
         AlipayTradeWapPayRequest request = new AlipayTradeWapPayRequest();
         request.setNotifyUrl(config.getNotifyUrl());
         AlipayTradeWapPayModel model = new AlipayTradeWapPayModel();
-        model.setOutTradeNo(payment.getPaymentId());
+        model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));
         model.setSubject(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         model.setProductCode("QUICK_WAP_WAY");

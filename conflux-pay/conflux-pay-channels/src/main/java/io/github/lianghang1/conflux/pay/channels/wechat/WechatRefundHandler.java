@@ -43,8 +43,8 @@ public class WechatRefundHandler implements RefundHandler {
         WxPayService service = holder.service(config);
         if (params.isV2()) {
             WxPayRefundRequest request = new WxPayRefundRequest();
-            request.setOutTradeNo(payment.getPaymentId());
-            request.setOutRefundNo(refund.getRefundId());
+            request.setOutTradeNo(payment.getBizOrderNo());
+            request.setOutRefundNo(refund.getBizRefundNo());
             request.setTotalFee(payment.getAmount().intValue());
             request.setRefundFee(refund.getAmount().intValue());
             request.setNotifyUrl(config.getNotifyUrl());
@@ -54,8 +54,8 @@ public class WechatRefundHandler implements RefundHandler {
                     .setState(RefundState.PROCESSING);
         }
         WxPayRefundV3Request request = new WxPayRefundV3Request();
-        request.setOutTradeNo(payment.getPaymentId());
-        request.setOutRefundNo(refund.getRefundId());
+        request.setOutTradeNo(payment.getBizOrderNo());
+        request.setOutRefundNo(refund.getBizRefundNo());
         request.setReason(StringUtils.defaultIfBlank(refund.getReason(), "退款"));
         request.setNotifyUrl(config.getNotifyUrl());
         if (StringUtils.isNotBlank(config.getSubMchNo())) {
@@ -79,7 +79,7 @@ public class WechatRefundHandler implements RefundHandler {
         if (params.isV2()) {
             com.github.binarywang.wxpay.bean.request.WxPayRefundQueryRequest request =
                     new com.github.binarywang.wxpay.bean.request.WxPayRefundQueryRequest();
-            request.setOutRefundNo(refund.getRefundId());
+            request.setOutRefundNo(refund.getBizRefundNo());
             com.github.binarywang.wxpay.bean.result.WxPayRefundQueryResult result =
                     wrap("V2 退款查单", () -> service.refundQuery(request));
             RefundState state = RefundState.PROCESSING;
@@ -91,14 +91,14 @@ public class WechatRefundHandler implements RefundHandler {
 
             }
             return new RefundSnapshot()
-                    .setChannelRefundNo(refund.getRefundId())
+                    .setChannelRefundNo(refund.getBizRefundNo())
                     .setState(state)
                     .setSucceedTime(WechatStateTranslator.toLocalDateTime(succeedTime))
                     .setRawMsg(result.getRefundRecords() == null ? null
                             : result.getRefundRecords().size() + " records");
         }
         WxPayRefundQueryV3Request request = new WxPayRefundQueryV3Request();
-        request.setOutRefundNo(refund.getRefundId());
+        request.setOutRefundNo(refund.getBizRefundNo());
         WxPayRefundQueryV3Result result = wrap("V3 退款查单", () -> service.refundQueryV3(request));
         return new RefundSnapshot()
                 .setChannelRefundNo(result.getRefundId())

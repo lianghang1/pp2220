@@ -49,7 +49,7 @@ final class WechatPartnerSupport {
         request.setSpAppid(params.getAppId());
         request.setSpMchId(params.getMerchantId());
         request.setSubAppid(params.getSubAppId());
-        request.setOutTradeNo(payment.getPaymentId());
+        request.setOutTradeNo(payment.getBizOrderNo());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         request.setNotifyUrl(config.getNotifyUrl());
         WxPayPartnerUnifiedOrderV3Request.Amount amount = new WxPayPartnerUnifiedOrderV3Request.Amount();

@@ -62,7 +62,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
         if (params.isV2()) {
             WxPayUnifiedOrderRequest request = new WxPayUnifiedOrderRequest();
             request.setBody(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
-            request.setOutTradeNo(payment.getPaymentId());
+            request.setOutTradeNo(payment.getBizOrderNo());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
             request.setNotifyUrl(config.getNotifyUrl());
@@ -74,7 +74,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
                     .setState(PaymentState.PAYING);
         }
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
-        request.setOutTradeNo(payment.getPaymentId());
+        request.setOutTradeNo(payment.getBizOrderNo());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
         request.setNotifyUrl(config.getNotifyUrl());
         request.setAmount(v3Amount(payment));
@@ -91,7 +91,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
     public PaymentSnapshot queryPayment(Payment payment, WechatParams params, WxPayService service) {
         if (params.isV2()) {
             WxPayOrderQueryResult result = wrap("V2 查单", () ->
-                    service.queryOrder(payment.getPaymentId(), null));
+                    service.queryOrder(payment.getBizOrderNo(), null));
             return new PaymentSnapshot()
                     .setChannelOrderNo(result.getTransactionId())
                     .setState(WechatStateBridge.toPaymentState(result.getTradeState()))
@@ -101,7 +101,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
         }
         WxPayOrderQueryV3Result result = wrap("V3 查单", () -> {
             WxPayOrderQueryV3Request request = new WxPayOrderQueryV3Request();
-            request.setOutTradeNo(payment.getPaymentId());
+            request.setOutTradeNo(payment.getBizOrderNo());
             return service.queryOrderV3(request);
         });
         return new PaymentSnapshot()
@@ -115,13 +115,13 @@ public class WxJsapiPayMethod implements WechatPayMethod {
     public void closePayment(Payment payment, WechatParams params, WxPayService service) {
         if (params.isV2()) {
             wrap("V2 关单", () -> {
-                service.closeOrder(payment.getPaymentId());
+                service.closeOrder(payment.getBizOrderNo());
                 return null;
             });
             return;
         }
         wrap("V3 关单", () -> {
-            service.closeOrderV3(payment.getPaymentId());
+            service.closeOrderV3(payment.getBizOrderNo());
             return null;
         });
     }

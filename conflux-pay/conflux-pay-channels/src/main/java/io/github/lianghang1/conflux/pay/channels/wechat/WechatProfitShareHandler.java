@@ -61,12 +61,12 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
         String transactionId = share.getChannelPayOrderNo();
         if (StringUtils.isBlank(transactionId)) {
             throw new GatewayException(GatewayErrorCode.STATE_ILLEGAL,
-                    "分账缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getShareId());
+                    "分账缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getBizShareNo());
         }
         if (params.isV2()) {
             ProfitSharingRequest request = new ProfitSharingRequest();
             request.setTransactionId(transactionId);
-            request.setOutOrderNo(share.getShareId());
+            request.setOutOrderNo(share.getBizShareNo());
             request.setReceivers(buildV2ReceiversJson(share.getReceivers()));
             ProfitSharingResult result = wrap("V2 分账", () ->
                     service.getProfitSharingService().profitSharing(request));
@@ -80,7 +80,7 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
             request.setSubMchId(config.getSubMchNo());
         }
         request.setTransactionId(transactionId);
-        request.setOutOrderNo(share.getShareId());
+        request.setOutOrderNo(share.getBizShareNo());
         request.setUnfreezeUnsplit(true);
         List<ProfitSharingV3Request.Receiver> receivers = new ArrayList<ProfitSharingV3Request.Receiver>();
         for (ProfitShareReceiver receiver : share.getReceivers()) {
@@ -107,9 +107,9 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
         String transactionId = share.getChannelPayOrderNo();
         if (StringUtils.isBlank(transactionId)) {
             throw new GatewayException(GatewayErrorCode.STATE_ILLEGAL,
-                    "分账查询缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getShareId());
+                    "分账查询缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getBizShareNo());
         }
-        String urlPath = "/v3/profitsharing/orders/" + share.getShareId()
+        String urlPath = "/v3/profitsharing/orders/" + share.getBizShareNo()
                 + "?transaction_id=" + transactionId;
         Map<String, Object> result = directQuery(config, params, urlPath);
         String state = result.get("state") == null ? null : String.valueOf(result.get("state"));

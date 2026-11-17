@@ -51,7 +51,7 @@ public class YsfQrPayMethod implements UnionPayMethod {
     static Map<String, Object> buildUnifiedParams(Payment payment, UnionPayParams params,
                                                   ChannelConfig config, String userId) {
         Map<String, Object> requestParams = new java.util.HashMap<String, Object>();
-        requestParams.put("orderNo", payment.getPaymentId());
+        requestParams.put("orderNo", payment.getBizOrderNo());
         requestParams.put("orderTime", java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
         requestParams.put("txnAmt", payment.getAmount());

@@ -38,8 +38,8 @@ public class PpPcPayMethod implements PayPalPayMethod {
         Map<String, Object> order = new HashMap<String, Object>();
         order.put("intent", "CAPTURE");
         Map<String, Object> unit = new HashMap<String, Object>();
-        unit.put("reference_id", payment.getPaymentId());
-        unit.put("custom_id", payment.getPaymentId());
+        unit.put("reference_id", payment.getBizOrderNo());
+        unit.put("custom_id", payment.getBizOrderNo());
         Map<String, Object> amount = new HashMap<String, Object>();
         amount.put("currency_code", payment.getCurrency());
         amount.put("value", PayPalTranslator.toYuan(payment.getAmount()));

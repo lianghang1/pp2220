@@ -47,7 +47,7 @@ public class WechatTransferHandler implements TransferHandler {
             EntPayRequest request = new EntPayRequest();
             request.setMchAppid(params.getAppId());
             request.setMchId(params.getMerchantId());
-            request.setPartnerTradeNo(transfer.getTransferId());
+            request.setPartnerTradeNo(transfer.getBizTransferNo());
             request.setOpenid(transfer.getPayeeAccount());
             boolean withName = StringUtils.isNotBlank(transfer.getPayeeName());
             request.setCheckName(withName ? "FORCE_CHECK" : "NO_CHECK");
@@ -62,13 +62,13 @@ public class WechatTransferHandler implements TransferHandler {
         }
         TransferCreateRequest request = new TransferCreateRequest();
         request.setAppid(params.getAppId());
-        request.setOutBatchNo(transfer.getTransferId());
+        request.setOutBatchNo(transfer.getBizTransferNo());
         request.setBatchName(StringUtils.defaultIfBlank(transfer.getRemark(), "转账"));
         request.setBatchRemark(StringUtils.defaultIfBlank(transfer.getRemark(), "转账"));
         request.setTotalAmount(transfer.getAmount().intValue());
         request.setTotalNum(1);
         TransferCreateRequest.TransferDetailList detail = new TransferCreateRequest.TransferDetailList();
-        detail.setOutDetailNo(transfer.getTransferId());
+        detail.setOutDetailNo(transfer.getBizTransferNo());
         detail.setTransferAmount(transfer.getAmount().intValue());
         detail.setOpenid(transfer.getPayeeAccount());
         detail.setUserName(transfer.getPayeeName());
@@ -77,7 +77,7 @@ public class WechatTransferHandler implements TransferHandler {
         TransferCreateResult result = wrap("V3 商家转账", () ->
                 service.getMerchantTransferService().createTransfer(request));
         log.info("微信商家转账已受理: transferId={}, payee={}, batchId={}",
-                transfer.getTransferId(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2),
+                transfer.getBizTransferNo(), MaskUtils.custom(transfer.getPayeeAccount(), 3, 2),
                 result.getBatchId());
         return new TransferInvocation()
                 .setChannelTransferNo(result.getBatchId())

@@ -93,10 +93,10 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
     public ProfitShareInvocation createProfitShare(ProfitShare share, ChannelConfig config) {
         AlipayTradeOrderSettleRequest request = new AlipayTradeOrderSettleRequest();
         AlipayTradeOrderSettleModel model = new AlipayTradeOrderSettleModel();
-        model.setOutRequestNo(share.getShareId());
+        model.setOutRequestNo(share.getBizShareNo());
         if (StringUtils.isBlank(share.getChannelPayOrderNo())) {
             throw new GatewayException(GatewayErrorCode.STATE_ILLEGAL,
-                    "分账缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getShareId());
+                    "分账缺少渠道支付单号（channelPayOrderNo）: shareId={}", share.getBizShareNo());
         }
         model.setTradeNo(share.getChannelPayOrderNo());
         List<OpenApiRoyaltyDetailInfoPojo> royalties = new ArrayList<OpenApiRoyaltyDetailInfoPojo>();
@@ -125,7 +125,7 @@ public class AlipayProfitShareHandler implements ProfitShareHandler {
     public ProfitShareSnapshot queryProfitShare(ProfitShare share, ChannelConfig config) {
         AlipayTradeOrderSettleQueryRequest request = new AlipayTradeOrderSettleQueryRequest();
         AlipayTradeOrderSettleQueryModel model = new AlipayTradeOrderSettleQueryModel();
-        model.setOutRequestNo(share.getShareId());
+        model.setOutRequestNo(share.getBizShareNo());
         request.setBizModel(model);
         AlipayTradeOrderSettleQueryResponse response =
                 holder.execute("分账查单", config, (client, authToken) -> {

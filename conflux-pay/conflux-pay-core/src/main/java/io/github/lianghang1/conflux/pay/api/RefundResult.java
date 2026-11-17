@@ -19,14 +19,10 @@ public class RefundResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 网关退款单号 */
-    private String refundId;
     /** 使用方应用标识 */
     private String appId;
     /** 使用方业务退款单号 */
     private String bizRefundNo;
-    /** 关联网关支付单号 */
-    private String paymentId;
     /** 退款金额（分） */
     private Long amount;
     /** 币种 */
@@ -45,10 +41,8 @@ public class RefundResult implements Serializable {
     /** 由退款单记录构建结果。 */
     public static RefundResult of(Refund refund) {
         return new RefundResult()
-                .setRefundId(refund.getRefundId())
                 .setAppId(refund.getAppId())
                 .setBizRefundNo(refund.getBizRefundNo())
-                .setPaymentId(refund.getPaymentId())
                 .setAmount(refund.getAmount())
                 .setCurrency(refund.getCurrency())
                 .setState(refund.getState())
