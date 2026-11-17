@@ -124,13 +124,17 @@ class RefundOrchestrator {
 
     private void assertRefundable(Payment payment, Long amount) {
         List<Refund> refunds = rt.refundStore.findByPaymentId(payment.getPaymentId());
-        long refunded = 0L;
+        long occupied = 0L;
         for (Refund refund : refunds) {
-            if (refund.getState() == RefundState.SUCCEEDED && refund.getAmount() != null) {
-                refunded += refund.getAmount();
+            // 成功、在途（创建/处理中）均占用可退额度，避免并发/在途场景下重复动用同一笔余额；
+            // 失败与关闭不占用（可重新发起）。
+            if (refund.getState() != RefundState.FAILED
+                    && refund.getState() != RefundState.CLOSED
+                    && refund.getAmount() != null) {
+                occupied += refund.getAmount();
             }
         }
-        long refundable = payment.getAmount() - refunded;
+        long refundable = payment.getAmount() - occupied;
         if (amount > refundable) {
             throw GatewayException.of(GatewayErrorCode.REFUND_EXCEED_REFUNDABLE,
                     "退款金额超出可退余额: 可退={}, 本次={}", refundable, amount);

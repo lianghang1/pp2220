@@ -368,7 +368,7 @@ public class InvoiceOrchestrator {
             markOriginalRedApplying(original, apply.getRedApplyId());
             Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
             InvoiceContext redCtx = InvoiceContext.of(config, null, red).setRedApply(apply);
-            InvoiceResult redInvoice = settleRedIssue(apply, original, red, outcome.getRedInvoice(), redCtx);
+            InvoiceResult redInvoice = settleRedIssue(red, outcome.getRedInvoice(), redCtx);
             return QuickRedResult.accepted(apply, redInvoice);
         }
 
@@ -382,6 +382,15 @@ public class InvoiceOrchestrator {
         if (apply.getState().canIssueRed() || apply.getState() == RedApplyState.ISSUED) {
             Invoice red = StringUtils.isBlank(apply.getRedInvoiceId()) ? null
                     : rt.invoiceStore.findById(apply.getRedInvoiceId());
+            if (red == null) {
+                // 红票在途时确认单尚未回写 redInvoiceId（仅开票成功才写入），
+                // 按红票业务单号反查已建单据；校验 redApplyId 避免误命中同名业务单
+                Invoice candidate = rt.invoiceStore.findByBizOrderNo(
+                        apply.getAppId(), apply.getBizRedNo() + "-RED");
+                if (candidate != null && apply.getRedApplyId().equals(candidate.getRedApplyId())) {
+                    red = candidate;
+                }
+            }
             return QuickRedResult.accepted(apply, red == null ? null : buildResult(red));
         }
         return QuickRedResult.waitingConfirm(apply);
@@ -482,7 +491,7 @@ public class InvoiceOrchestrator {
         Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
         InvoiceContext ctx = InvoiceContext.of(config, null, red).setRedApply(apply);
         InvoiceResult outcome = rt.registry.redHandler(apply.getChannelCode()).issueRed(ctx);
-        return settleRedIssue(apply, original, red, outcome, ctx);
+        return settleRedIssue(red, outcome, ctx);
     }
 
     /** 红字开票前置门禁：确认单须处于可开具状态且未过期。 */
@@ -537,11 +546,33 @@ public class InvoiceOrchestrator {
         return red;
     }
 
-    /** 归一渠道红票结果并推进确认单与原票状态。 */
-    private InvoiceResult settleRedIssue(RedApply apply, Invoice original, Invoice red,
-                                         InvoiceResult outcome, InvoiceContext ctx) {
+    /** 归一渠道红票结果；确认单与原票的联动由 {@link #applyOutcome} 在成功时统一处理。 */
+    private InvoiceResult settleRedIssue(Invoice red, InvoiceResult outcome, InvoiceContext ctx) {
         applyOutcome(red, outcome, ctx);
-        if (red.getState() == InvoiceState.SUCCEEDED) {
+        return buildResult(red);
+    }
+
+    /**
+     * 红票开具成功后联动确认单与原票状态（同步/异步回调统一走此处，幂等）。
+     *
+     * <p>蓝票单据不处理；确认单已置 ISSUED 时视为联动已完成直接返回。原票兼容
+     * 快捷红冲留下的 RED_APPLYING 与两段式留下的 RED_APPLY_CONFIRMED 两种中间态，
+     * 均按状态机逐级推进到 RED_SUCCEEDED。</p>
+     */
+    private void settleRedEffects(Invoice red) {
+        Map<String, String> attrs = red.getAttrs();
+        String redApplyId = red.getRedApplyId();
+        if (attrs == null || !"true".equals(attrs.get("RED_INVOICE"))
+                || StringUtils.isBlank(redApplyId)) {
+            return;
+        }
+        RedApply apply = rt.redApplyStore.findById(redApplyId);
+        if (apply == null) {
+            return;
+        }
+        // 确认单联动：已 ISSUED 视为完成，跳过 CAS；原票联动在下方独立按状态机幂等推进，
+        // 以便补上「确认单已置 ISSUED 但原票未联动」的历史中间态。
+        if (apply.getState() != RedApplyState.ISSUED) {
             long expected = apply.getVersion();
             apply.setRedInvoiceId(red.getInvoiceId())
                     .setState(RedApplyState.ISSUED)
@@ -549,13 +580,20 @@ public class InvoiceOrchestrator {
                     .setVersion(expected + 1);
             if (!rt.redApplyStore.tryUpdate(apply, expected)) {
                 throw new GatewayException(InvoiceErrorCode.STORE_CONCURRENT_MODIFICATION,
-                        "红字确认单并发冲突: {}", apply.getRedApplyId());
-            }
-            if (original != null && original.getState() == InvoiceState.RED_APPLY_CONFIRMED) {
-                transition(original, InvoiceState.RED_SUCCEEDED, null);
+                        "红字确认单并发冲突: {}", redApplyId);
             }
         }
-        return buildResult(red);
+        Invoice original = rt.invoiceStore.findById(apply.getOriginalInvoiceId());
+        if (original == null) {
+            return;
+        }
+        InvoiceState state = original.getState();
+        if (state == InvoiceState.RED_APPLYING) {
+            transition(original, InvoiceState.RED_APPLY_CONFIRMED, null);
+            transition(original, InvoiceState.RED_SUCCEEDED, null);
+        } else if (state == InvoiceState.RED_APPLY_CONFIRMED) {
+            transition(original, InvoiceState.RED_SUCCEEDED, null);
+        }
     }
 
     private RedApply locateRedApply(RedIssueRequest req) {
@@ -919,6 +957,8 @@ public class InvoiceOrchestrator {
                         inv.setInvoiceTime(rt.now());
                     }
                 });
+                // 红票成功时联动确认单 ISSUED 与原票 RED_SUCCEEDED（同步/异步共用）
+                settleRedEffects(invoice);
                 break;
             }
             case FAILED:
