@@ -1,6 +1,7 @@
 package io.github.lianghang1.conflux.invoice.channels.baiwang;
 
 import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
@@ -45,9 +46,9 @@ class BaiwangProviderTest {
     }
 
     @Test
-    void providesNativeQuickRed() throws Exception {
-        assertThat(BaiwangChannelProvider.class.getDeclaredMethod("quickRed", InvoiceContext.class))
-                .isNotNull();
+    void providesQuickRed() throws Exception {
+        assertThat(BaiwangChannelProvider.class.getDeclaredMethod("quickRed", InvoiceContext.class)
+                .getReturnType()).isEqualTo(QuickRedOutcome.class);
     }
 
     @Test

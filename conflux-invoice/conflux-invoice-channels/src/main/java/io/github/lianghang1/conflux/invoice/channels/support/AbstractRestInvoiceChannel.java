@@ -15,6 +15,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.channel.AuthSessionHandler;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
@@ -297,6 +298,17 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
         put(body, "jshj", apply == null ? null : apply.getAmount());
         View view = call(ctx, "redIssuePath", spec.getRedIssuePath(), body);
         return toInvoiceResult(view);
+    }
+
+    @Override
+    public QuickRedOutcome quickRed(InvoiceContext ctx) {
+        RedApplyResult outcome = queryRed(ctx);
+        if (outcome != null && outcome.getState() == RedApplyState.CONFIRMED) {
+            return QuickRedOutcome.issued(issueRed(ctx), outcome);
+        }
+        return QuickRedOutcome.waiting(outcome == null
+                ? RedApplyResult.waiting("RED", LocalDateTime.now().plusHours(72L))
+                : outcome);
     }
 
     // ---- 授权会话 ----

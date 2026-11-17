@@ -5,6 +5,7 @@ import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
@@ -153,6 +154,11 @@ class InvoiceAuxiliaryCapabilityTest {
 
             @Override
             public InvoiceResult issueRed(InvoiceContext ctx) {
+                return null;
+            }
+
+            @Override
+            public QuickRedOutcome quickRed(InvoiceContext ctx) {
                 return null;
             }
         };
@@ -325,24 +331,24 @@ class InvoiceAuxiliaryCapabilityTest {
         assertSame(InvoiceState.PROCESSING, redInvoice.getState());
     }
 
-    /** 快捷红冲：渠道提供原生一步能力时直接用其结果，不再走 apply/issueRed。 */
+    /** 快捷红冲：渠道一步返回红票结果时直接用其结果。 */
     @Test
-    void quickRed_usesNativeCapabilityWhenAvailable() {
+    void quickRed_usesChannelOneStepResult() {
         fixture();
         saveInvoice("INV-1", InvoiceState.SUCCEEDED, FPHM, FPDM);
         StubRedHandler red = new StubRedHandler();
-        red.quickRedResult = InvoiceResult.accepted("BW-REDSERIAL", true);
+        red.quickRedResult = QuickRedOutcome.issued(InvoiceResult.accepted("BW-REDSERIAL", true));
         provider.setRedHandler(red);
 
         QuickRedResult result = gateway.quickRed(redRequest("BIZ-RED-QN"));
         assertNotNull(result);
         assertTrue(result.isAccepted());
         assertNotNull(result.getRedApply());
-        assertNotNull(result.getRedInvoice(), "原生一步应返回红票受理结果");
+        assertNotNull(result.getRedInvoice(), "渠道一步应返回红票受理结果");
         assertEquals(1, red.quickRedCalls);
-        assertEquals(0, red.issueRedCalls, "原生一步不应再走 issueRed");
+        assertEquals(0, red.issueRedCalls, "渠道一步结果不应再走 issueRed");
         Invoice redInvoice = invoiceStore.findByBizOrderNo("demo", "BIZ-RED-QN-RED");
-        assertNotNull(redInvoice, "原生一步也应建立红字发票单据");
+        assertNotNull(redInvoice, "渠道一步也应建立红字发票单据");
         assertSame(InvoiceState.PROCESSING, redInvoice.getState());
     }
 
@@ -509,7 +515,7 @@ class InvoiceAuxiliaryCapabilityTest {
         private RedAvailableResult available;
         private RedApplyResult confirmResult;
         private RedApplyResult applyResult;
-        private InvoiceResult quickRedResult;
+        private QuickRedOutcome quickRedResult;
         private int issueRedCalls;
         private int quickRedCalls;
 
@@ -531,9 +537,16 @@ class InvoiceAuxiliaryCapabilityTest {
         }
 
         @Override
-        public InvoiceResult quickRed(InvoiceContext ctx) {
+        public QuickRedOutcome quickRed(InvoiceContext ctx) {
             quickRedCalls++;
-            return quickRedResult;
+            if (quickRedResult != null) {
+                return quickRedResult;
+            }
+            RedApplyResult applied = apply(ctx);
+            if (applied != null && applied.getState() == RedApplyState.CONFIRMED) {
+                return QuickRedOutcome.issued(issueRed(ctx), applied);
+            }
+            return QuickRedOutcome.waiting(applied);
         }
 
         @Override

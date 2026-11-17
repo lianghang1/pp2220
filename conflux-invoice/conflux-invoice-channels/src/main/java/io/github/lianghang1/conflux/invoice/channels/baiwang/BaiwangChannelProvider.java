@@ -15,6 +15,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairRequest;
@@ -322,10 +323,10 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
         }
     }
 
-    /** 原生快捷红冲：fastRed(type=1) 一次调用生成确认单并自动开具红票。 */
+    /** 快捷红冲：fastRed(type=1) 一次调用生成确认单并自动开具红票。 */
     @Override
-    public InvoiceResult quickRed(InvoiceContext ctx) {
-        return issueRed(ctx);
+    public QuickRedOutcome quickRed(InvoiceContext ctx) {
+        return QuickRedOutcome.issued(issueRed(ctx));
     }
 
     /** 主动确认/否认红字确认单：sRedconfirm().operate。 */

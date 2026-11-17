@@ -11,6 +11,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.channel.AuthSessionHandler;
@@ -446,10 +447,13 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
     @Override
     public InvoiceResult issueRed(InvoiceContext ctx) {
         RedApply apply = ctx.getRedApply();
+        return doIssueRed(ctx, apply == null ? null : apply.getRedConfirmNo());
+    }
+
+    private InvoiceResult doIssueRed(InvoiceContext ctx, String redBillNo) {
         Invoice invoice = ctx.requireInvoice();
         PiaoTongParams params = params(ctx);
         requireCredentials(params);
-        String redBillNo = apply == null ? null : apply.getRedConfirmNo();
         if (StringUtils.isBlank(redBillNo)) {
             return InvoiceResult.failed("RED_BILL_NO_REQUIRED",
                     "开具红字发票缺少 redBillNo（红字信息表编号）");
@@ -464,6 +468,23 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
                             response.bizText("resultMsg")));
         }
         return InvoiceResult.accepted(serial, true).setRawPayload(response.getRawBody());
+    }
+
+    /** 快捷红冲：内部申请确认单，免确认的直接开具红票，需确认的返回确认单。 */
+    @Override
+    public QuickRedOutcome quickRed(InvoiceContext ctx) {
+        RedApplyResult applied = apply(ctx);
+        if (applied == null || applied.getState() == null) {
+            return QuickRedOutcome.failed("QUICK_RED_APPLY_FAILED", "红字确认单申请未返回结果");
+        }
+        if (applied.getState() == RedApplyState.CONFIRMED) {
+            return QuickRedOutcome.issued(doIssueRed(ctx, applied.getRedConfirmNo()), applied);
+        }
+        if (applied.getState() == RedApplyState.REJECTED || applied.getState() == RedApplyState.FAILED) {
+            return QuickRedOutcome.failed(nullTo(applied.getErrorCode(), "QUICK_RED_APPLY_FAILED"),
+                    applied.getErrorMsg());
+        }
+        return QuickRedOutcome.waiting(applied);
     }
 
     // ==================== 授权会话（2.4~2.8） ====================

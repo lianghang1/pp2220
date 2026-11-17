@@ -139,8 +139,12 @@ public final class BaiwangCodec {
         request.setInvoiceTerminalCode(params.getInvoiceTerminalCode());
         request.setOrderNo(invoice == null ? null : invoice.getBizOrderNo());
         request.setOriginalOrderNo(invoice == null ? null : invoice.getBizOrderNo());
-        request.setOriginalInvoiceCode(invoice == null ? null : invoice.getInvoiceCode());
-        request.setOriginalInvoiceNo(invoice == null ? null : invoice.getInvoiceNo());
+        String invoiceCode = invoice == null ? null : invoice.getInvoiceCode();
+        String invoiceNo = invoice == null ? null : invoice.getInvoiceNo();
+        request.setOriginalInvoiceCode(redApply == null ? invoiceCode
+                : firstNonBlank(redApply.getOriginalInvoiceCode(), invoiceCode));
+        request.setOriginalInvoiceNo(redApply == null ? invoiceNo
+                : firstNonBlank(redApply.getOriginalInvoiceNo(), invoiceNo));
         request.setFastIssueRedType(fastIssueRedType);
         request.setCallBackUrl(params.getCallbackUrl());
         if (redApply != null) {

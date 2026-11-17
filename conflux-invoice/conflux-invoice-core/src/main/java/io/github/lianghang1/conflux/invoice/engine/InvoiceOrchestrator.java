@@ -14,6 +14,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
@@ -338,9 +339,9 @@ public class InvoiceOrchestrator {
     /**
      * 快捷红冲：一次调用覆盖红冲全流程。
      *
-     * <p>渠道提供原生一步能力时直接开具红票并返回 ACCEPTED；未提供原生能力、
-     * 且申请阶段即判定无需确认（状态 CONFIRMED）时，接续开具红票后返回 ACCEPTED；
-     * 仍需对方确认时返回 WAITING_CONFIRM 的确认单，由使用方后续确认并开具。</p>
+     * <p>渠道一次调用后返回红票受理结果或待确认状态；渠道免确认已开具红票时
+     * 建红票单据并落 CONFIRMED，仍需对方确认时落 WAITING_CONFIRM，由使用方
+     * 后续确认并开具。</p>
      */
     public QuickRedResult quickRed(RedApplyRequest req) {
         validateRedRequest(req);
@@ -354,28 +355,26 @@ public class InvoiceOrchestrator {
         rt.redApplyStore.save(apply);
         InvoiceContext applyCtx = InvoiceContext.of(config, null, original).setRedApply(apply);
 
-        InvoiceResult nativeResult = rt.registry.redHandler(original.getChannelCode())
+        QuickRedOutcome outcome = rt.registry.redHandler(original.getChannelCode())
                 .quickRed(applyCtx);
-        if (nativeResult != null) {
+        if (outcome == null || (outcome.getRedInvoice() == null && outcome.getRedApply() == null)) {
+            throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED, "渠道快捷红冲未返回结果");
+        }
+
+        if (outcome.isIssued()) {
+            RedApplyResult confirm = outcome.getRedApply() == null
+                    ? RedApplyResult.confirmed(null) : outcome.getRedApply();
+            updateRedApply(apply, confirm);
             markOriginalRedApplying(original, apply.getRedApplyId());
             Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
             InvoiceContext redCtx = InvoiceContext.of(config, null, red).setRedApply(apply);
-            InvoiceResult redInvoice = settleRedIssue(apply, original, red, nativeResult, redCtx);
+            InvoiceResult redInvoice = settleRedIssue(apply, original, red, outcome.getRedInvoice(), redCtx);
             return QuickRedResult.accepted(apply, redInvoice);
         }
 
-        RedApplyResult applyResult = rt.registry.redHandler(original.getChannelCode()).apply(applyCtx);
-        updateRedApply(apply, applyResult);
+        updateRedApply(apply, outcome.getRedApply());
         markOriginalRedApplying(original, apply.getRedApplyId());
-        if (!apply.getState().canIssueRed()) {
-            return QuickRedResult.waitingConfirm(apply);
-        }
-        RedIssueRequest issueReq = new RedIssueRequest()
-                .setAppId(apply.getAppId())
-                .setRedApplyId(apply.getRedApplyId())
-                .setNotifyUrl(apply.getNotifyUrl());
-        InvoiceResult redInvoice = issueRed(issueReq);
-        return QuickRedResult.accepted(apply, redInvoice);
+        return QuickRedResult.waitingConfirm(apply);
     }
 
     /** 已存在确认单时按当前状态还原快捷红冲结果。 */

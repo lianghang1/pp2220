@@ -11,6 +11,7 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
@@ -393,15 +394,38 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
     @Override
     public InvoiceResult issueRed(InvoiceContext ctx) {
         RedApply apply = ctx.getRedApply();
+        return doIssueRed(ctx,
+                firstNonBlank(apply == null ? null : apply.getChannelOrderNo(), redDdlsh(apply)),
+                apply == null ? null : apply.getRedConfirmNo());
+    }
+
+    private InvoiceResult doIssueRed(InvoiceContext ctx, String ddlsh, String confirmNo) {
         BaiwangJsParams params = params(ctx);
         requireCredentials(params);
-        String ddlsh = firstNonBlank(apply == null ? null : apply.getChannelOrderNo(),
-                redDdlsh(apply));
-        String confirmNo = apply == null ? null : apply.getRedConfirmNo();
         Map<String, Object> body = BaiwangJsCodec.redIssueBody(params, ddlsh, confirmNo);
         BaiwangJsResponse response = gateway(params).call("redIssuePath",
                 BaiwangJsSpec.RED_ISSUE, null, body);
         return BaiwangJsCodec.acceptedOrFailed(response, ddlsh);
+    }
+
+    /** 快捷红冲：内部申请确认单，免确认的直接开具红票，需确认的返回确认单。 */
+    @Override
+    public QuickRedOutcome quickRed(InvoiceContext ctx) {
+        RedApplyResult applied = apply(ctx);
+        if (applied == null || applied.getState() == null) {
+            return QuickRedOutcome.failed("QUICK_RED_APPLY_FAILED", "红字确认单申请未返回结果");
+        }
+        if (applied.getState() == RedApplyState.CONFIRMED) {
+            String ddlsh = firstNonBlank(applied.getChannelOrderNo(),
+                    redDdlsh(ctx.getRedApply()));
+            return QuickRedOutcome.issued(
+                    doIssueRed(ctx, ddlsh, applied.getRedConfirmNo()), applied);
+        }
+        if (applied.getState() == RedApplyState.REJECTED || applied.getState() == RedApplyState.FAILED) {
+            return QuickRedOutcome.failed(nullTo(applied.getErrorCode(), "QUICK_RED_APPLY_FAILED"),
+                    applied.getErrorMsg());
+        }
+        return QuickRedOutcome.waiting(applied);
     }
 
     /** 3.3.16 红字确认单确认或拒绝（qrlx=Y/N，同步，不支持回调）。 */
