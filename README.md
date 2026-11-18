@@ -196,6 +196,8 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 **注意**：starter 模块依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot 环境；Spring MVC 项目请用纯 jar 方式，不要引入 starter。
 
+> **"SPI"与"自动装配"不是一回事**：本项目的 SPI 指**扩展点接口**（`ChannelProvider` 自定义渠道、`ChannelConfigProvider` 自定义配置源），并非 Java `ServiceLoader` 机制——两个环境完全一致，自定义渠道和配置源在 MVC 与 Boot 中都支持。Boot 的"自动装配"是 starter 经 `AutoConfiguration.imports` 让 Spring 自动发现配置类，只是省去手写 `@Bean`；传统 Spring MVC 项目照样可用 `@Configuration` + `@Bean` 注册这些 Bean，完全非 Spring 的纯 Java 项目才用 `builder()` 手动 new。差别只在"谁来创建对象"，不在扩展能力。
+
 ### Spring Boot：starter + application.yml
 
 ```xml
