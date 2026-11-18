@@ -5,8 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 微信支付侧状态与时间的归一化桥接（V2/V3 报文共用）。
  *
- * <p>交易状态：SUCCESS/ACCEPT 成功；CLOSED/REVOKED 已关闭；PAYERROR 失败；
- * NOTPAY/USERPAYING 处理中；REFUND 属于退款单维度，支付单维度视为成功。</p>
+ * <p>交易状态：SUCCESS 成功；CLOSED/REVOKED 已关闭；PAYERROR 失败；
+ * NOTPAY/USERPAYING/ACCEPT 处理中（ACCEPT=已接收待扣款，非成功）；
+ * REFUND 属于退款单维度，支付单维度视为成功。</p>
  *
  * @author lianghang
  */
@@ -24,7 +25,6 @@ final class WechatStateBridge {
         switch (tradeState) {
             case "SUCCESS":
             case "REFUND":
-            case "ACCEPT":
                 return PaymentState.SUCCEEDED;
             case "CLOSED":
             case "REVOKED":
@@ -33,6 +33,7 @@ final class WechatStateBridge {
                 return PaymentState.FAILED;
             case "NOTPAY":
             case "USERPAYING":
+            case "ACCEPT":
             default:
                 return PaymentState.PAYING;
         }

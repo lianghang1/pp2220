@@ -52,6 +52,19 @@ class AlipayChannelTest {
     }
 
     @Test
+    void refundStatusShouldMapToGatewayRefundStates() {
+        // 退款查询：只有 REFUND_SUCCESS 才是成功，REFUND_CLOSED 关闭，其余处理中
+        assertThat(AlipayStateTranslator.toRefundStatus("REFUND_SUCCESS"))
+                .isEqualTo(io.github.lianghang1.conflux.pay.model.RefundState.SUCCEEDED);
+        assertThat(AlipayStateTranslator.toRefundStatus("REFUND_CLOSED"))
+                .isEqualTo(io.github.lianghang1.conflux.pay.model.RefundState.CLOSED);
+        assertThat(AlipayStateTranslator.toRefundStatus(null))
+                .isEqualTo(io.github.lianghang1.conflux.pay.model.RefundState.PROCESSING);
+        assertThat(AlipayStateTranslator.toRefundStatus("REFUND_PROCESSING"))
+                .isEqualTo(io.github.lianghang1.conflux.pay.model.RefundState.PROCESSING);
+    }
+
+    @Test
     void amountConversionShouldRoundTripViaFen() {
         assertThat(AlipayStateTranslator.toFen("12.34")).isEqualTo(1234L);
         assertThat(AlipayStateTranslator.toYuan(1234L)).isEqualTo("12.34");

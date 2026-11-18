@@ -70,9 +70,10 @@ public class AlipayRefundHandler implements RefundHandler {
                     .setState(RefundState.PROCESSING)
                     .setRawMsg(response.getSubCode());
         }
+        // 接口查询成功 ≠ 退款成功；须按 refund_status 判定（官方明确 10000 仅代表查询成功）
         return new RefundSnapshot()
                 .setChannelRefundNo(response.getTradeNo())
-                .setState(RefundState.SUCCEEDED)
+                .setState(AlipayStateTranslator.toRefundStatus(response.getRefundStatus()))
                 .setRawMsg(response.getRefundStatus());
     }
 }

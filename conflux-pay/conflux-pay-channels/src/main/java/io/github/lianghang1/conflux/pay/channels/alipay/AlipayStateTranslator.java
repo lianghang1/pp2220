@@ -60,6 +60,23 @@ public final class AlipayStateTranslator {
         return "Y".equals(fundChange) ? RefundState.SUCCEEDED : RefundState.PROCESSING;
     }
 
+    /**
+     * 支付宝退款查单 refund_status → 网关退款状态。
+     *
+     * <p>官方约定：查询接口返回成功码仅代表本次查询成功，不代表退款成功；
+     * 只有 refund_status=REFUND_SUCCESS 才是退款成功，REFUND_CLOSED 为退款关闭，
+     * 其余（含空值，如查询无具体退款信息）视为处理中。</p>
+     */
+    public static RefundState toRefundStatus(String refundStatus) {
+        if ("REFUND_SUCCESS".equals(refundStatus)) {
+            return RefundState.SUCCEEDED;
+        }
+        if ("REFUND_CLOSED".equals(refundStatus)) {
+            return RefundState.CLOSED;
+        }
+        return RefundState.PROCESSING;
+    }
+
     /** 元字符串 → 分；null/空白返回 null。 */
     public static Long toFen(String yuan) {
         if (yuan == null || yuan.isEmpty()) {

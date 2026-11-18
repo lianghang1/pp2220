@@ -34,7 +34,6 @@ public final class WechatStateTranslator {
         switch (tradeState) {
             case "SUCCESS":
             case "REFUND":
-            case "ACCEPT":
                 return PaymentState.SUCCEEDED;
             case "CLOSED":
             case "REVOKED":
@@ -43,6 +42,7 @@ public final class WechatStateTranslator {
                 return PaymentState.FAILED;
             case "NOTPAY":
             case "USERPAYING":
+            case "ACCEPT":
             default:
                 return PaymentState.PAYING;
         }

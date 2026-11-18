@@ -83,6 +83,8 @@ class WechatChannelTest {
         assertThat(WechatStateTranslator.toPaymentState("REVOKED")).isEqualTo(PaymentState.CLOSED);
         assertThat(WechatStateTranslator.toPaymentState("PAYERROR")).isEqualTo(PaymentState.FAILED);
         assertThat(WechatStateTranslator.toPaymentState("NOTPAY")).isEqualTo(PaymentState.PAYING);
+        // ACCEPT=已接收待扣款，属支付中，不是支付成功
+        assertThat(WechatStateTranslator.toPaymentState("ACCEPT")).isEqualTo(PaymentState.PAYING);
         assertThat(WechatStateTranslator.toPaymentState(null)).isEqualTo(PaymentState.PAYING);
 
         assertThat(WechatStateTranslator.toRefundState("SUCCESS")).isEqualTo(io.github.lianghang1.conflux.pay.model.RefundState.SUCCEEDED);
