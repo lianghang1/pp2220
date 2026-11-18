@@ -68,14 +68,6 @@ Content-Type: application/json
 
 ## 3. 百旺金穗云：专属适配器（以官方公开文档为准）
 
-> **勘误**：早期抓取到的 `POST /swgx-saas/swgx-api/interface/jxgl/creditSubmit`
-> 是「2.2.5.1 进项发票入账提交接口」，属于同一空间的**进项**分册，并非销项蓝字开具。
-> 据此得出「百旺没有公开开票接口」的结论是错误的。官方公开的「税务共享**销项**」
-> 接口规范（即「百旺金穗云-SaaS 标准化接口」）中，蓝字开具、查单、红冲、登录、
-> 实人认证、版式回调均有完整接口定义。
-> 本节结论以该规范为准；`RestSpecs.baiwangjs()` 的 `documentVerified` 已置为 `true`
-> （仅作元数据登记，实际能力由专属适配器提供，不经过通用 `RestChannelSpec` 驱动）。
-
 百旺协议与通用 REST 适配器差异过大，因此**不复用** `AbstractRestInvoiceChannel`，
 由 `baiwangjs` 包下的 `BaiwangJsChannelProvider` 独立实现全部能力，签名/编解码/回调解析封闭在 `support` 子包。
 
@@ -102,12 +94,9 @@ x-htjs-ua: {UserAgent}
 
 网关前缀 `/swgx-saas/agentinvoiceservice-cloudservice-cloudservice/agentiscloud`，
 默认网关 `https://api.baiwangjs.com`。私有化部署改 `attrs.baseUrl` 即可，`Host` 头与签名 host 会取同一个值。
-> 文档示例的 Date 写的是 `Thu, 08 Jan 2024 ...`，但 2024-01-08 实际是**周一**；
-> 该字面值只用于复现文档签名串与 HMAC 向量，真实请求由 `gmtDate()` 按日历生成正确星期。
-
 ### 3.2 接口路径清单（同一能力 V2 优先、V1 保留实现）
 
-下表为按官方公开文档《3.接口定义》逐条核对后**已落地**的路径；加粗项为本轮 A/B 档补齐。
+下表为按官方公开文档《3.接口定义》核对后**已落地**的路径；加粗项为常用能力。
 所有路径都可用 `attrs` 中的覆盖键改写，便于平台升级或私有化部署，无需改代码。
 
 | 能力（文档编号） | attrs 覆盖键 | 默认路径 | 版本 / 触发 |
@@ -226,43 +215,26 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 完整配置模板（含全部可覆盖键，默认注释、不影响零凭据启动）见
 `conflux-invoice-example/src/main/resources/application.yml`。
 
-### 3.5 骨架层 A/B 档扩展与如实标注的边界
+### 3.5 已落地能力与边界
 
-按「通用渠道平台」视角，只把**填实已有骨架能力**与**跨渠道一等可选能力**纳入实现；
-商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等纯业务 / 渠道专属接口不进骨架。
-**数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` 状态语义不因此改动。
+百旺适配器覆盖的能力（括号内为官方接口编号）：3.1.1 企业唯一标识查询 `queryUniqueSign()`（配置期工具）、
+3.3.12 红冲开具 `issueRed()`、3.3.15 / 3.3.4 红冲查询 `queryRed()`、3.3.16 主动确认/拒绝 `confirm()`、
+3.4.5 异步认证二维码（`attrs.qrMode=ASYNC`）、3.4.8 / 3.4.15 版式文件 `fetch()`、
+3.4.14 认证结果查询、3.4.13 按票号查单（`InvoiceQueryRequest.invoiceNo/invoiceCode`）、
+3.4.7 交付重发 `resend()`、3.4.11/12 发票修复 `repair()` / `queryRepair()`、3.3.17 可冲销校验。
+版式文件查询失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程。
 
-**A 档（填实已有能力，不改 SPI 签名）**：
-
-| 编码 | 落地 |
-|---|---|
-| BW-01 / 3.1.1 | `queryUniqueSign(credentials, name, taxNo)` 配置期工具，需显式传网关凭据 |
-| BW-30 / 3.3.12 | `issueRed()` 真调确认后开具，不再只查结果返回受理 |
-| BW-33 / 3.3.15 | `queryRed()` 优先查确认单状态，无确认单号回退 3.3.4 |
-| BW-34 / 3.3.16 | 主动确认/拒绝走新增 `InvoiceRedHandler.confirm(ctx, req)` 可选方法 |
-| BW-40 / 3.4.5 | 异步二维码走 `attrs.qrMode=ASYNC`，与同步版共用同一能力 |
-| BW-43 / BW-52 / 3.4.8 / 3.4.15 | `fetch()` 真查版式文件；失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程 |
-| BW-51 / 3.4.14 | `submit()` 扫脸分支接认证结果查询，`sfsl=N` 直接通过 |
-| BW-50 / 3.4.13 | 骨架层：`InvoiceQueryRequest` 加 `invoiceNo/invoiceCode`，由请求直接携带票号查询（SDK 无台账，不依赖 Store 反查） |
-
-**B 档（新增可选能力，一律 `default null`）**：
-
-| 编码 | 新增 | 配套 |
-|---|---|---|
-| BW-42 / 3.4.7 | `InvoiceDeliverer` + `Provider.deliverer()` | `Registry`、`Gateway.resend()`、编排 |
-| BW-47/48/49 / 3.4.11/12 | `InvoiceRepairer`（apply + query）+ `Provider.repairer()` | `Gateway.repair()` / `queryRepair()` |
-| BW-50 / 3.4.13 | 3.4.11 文档明确修复结果也可由 3.4.13 查询 | `repairResultMode=BATCH` 走 `queryBatchPath` |
-| BW-35 / 3.3.17 | `InvoiceRedHandler.checkRedAvailable()` | 返回 null / 异步受理 / 可冲时放行，仅明确「不可冲」抛 `RED_NOT_AVAILABLE` |
-
-门面/编排层新增 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
+门面/编排层提供 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
 渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`，
 `mock` / 企享云等渠道不受影响；`hzcx` 回调只归一 attrs、不涉及状态推进（SDK 无状态机）。
 
-**如实标注的边界**：
+商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等平台专属接口不纳入；
+**数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` 状态语义不因此改动。
 
-- 上述路径、字段、状态码、签名规则均取自**公开文档**并做了协议层 / 编排层单测
-  （百旺相关 62 个用例），**尚未与平台做真实联调**；首次接入须用沙箱 / 测试企业核对
-  `qyId`、`fplxdm` 字典、回调地址可达性与异步回调字段。
+**接入前须核对**：
+
+- 上述路径、字段、状态码、签名规则均取自**公开文档**，**尚未与平台做真实联调**；
+  首次接入须用沙箱 / 测试企业核对 `qyId`、`fplxdm` 字典、回调地址可达性与异步回调字段。
 - 版式文件以 3.4.15（按票号）/ 3.4.8（按 ddlsh）同步查询为主，`qdbswj` 回调 URL 为降级兜底；
   编排层在置 `SUCCEEDED` 前仍强校验 XML 法定原件，缺则抛 `XML_ORIGINAL_REQUIRED`。
 - 3.4.11 修复是**异步**且文档明确「不支持结果回调」：申请只返回受理，结果由
@@ -275,9 +247,6 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 百旺票税云、金蝶发票云仍为骨架，待按各自公开文档核对。
 
 ## 4. 票通云：专属适配器（以《票通数电发票接口文档 3.2.0》为准）
-
-> 与生产环境在用代码逐字段交叉验证过（签名串、3DES、流水号规则、状态归一）。
-> 接口核对清单见仓库外 `piaotong-api-codes.md`（PT-01 ~ PT-51，A 档 15 + B 档 9 已实现）。
 
 ### 4.1 传输与签名（文档 1.1/1.2，与百旺体系完全不同）
 
@@ -437,13 +406,14 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 5. 在 `attrs` 中配置路径与票种编码映射，用 mock 单测覆盖「成功 / 异步 / 授权 / 失败 / 无 XML」分支；
 6. 按平台文档核对字段语义后再将 `documentVerified` 置为 `true`。
 
-## 8. 与支付域复用的部分
+## 8. 通用底座约定
+
+发票域与支付域共用同一套底座约定：
 
 - `ChannelProvider` SPI + `ChannelRegistry` 按能力查找、缺失报明确异常；
 - `AccountKey` 复合键与配置装载期 `putIfAbsent` + `CONFIG_CONFLICT` fail-fast；
-- `HttpTransport`（common）统一 OkHttp 传输层，渠道不直接依赖 OkHttp；
+- `HttpTransport`（common）统一传输层，渠道不直接依赖具体 HTTP 客户端；
 - `ErrorCode` 三段分层（1xxx / 2xxx / 3xxx）；
 - 无状态聚合：框架零台账、零状态机，判重/落库/状态推进全部交由使用方。
 
-发票域额外引入的挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲，
-均为支付域没有的语义，详见 [README](../README.md)。
+挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲等发票域能力的说明，详见 [README](../README.md)。
