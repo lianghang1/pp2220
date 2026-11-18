@@ -80,18 +80,13 @@ return paymentGateway.callbackSuccessReply(channelCode);
 
 ## 能力域二：数电发票（conflux-invoice）
 
-发票有支付没有的语义，内核不是支付模型的简单复制：
+- **统一发票 API**：蓝字开票、授权、红冲（两段 + 快捷）、查单、交付、版式文件，一套出入参模型
+- **多通道择优**：按 `sellerTaxNo` + 通道分级（`ChannelTier`）在乐企直连 / 服务商 API / 网页 RPA 间择优路由
+- **票据载体往返**：授权会话 `AuthSession`、红字确认单 `RedApply`、发票 `Invoice` 随结果返回、随后续请求回传，SDK 不暂存
+- **异步与法定原件**：归一 `WAITING_AUTH` / `PROCESSING` 等挂起态；XML 是法定原件，无原件不置 `SUCCEEDED`
+- **双形态引入**：纯 jar（`InvoiceGateway.builder()`）/ Spring Boot starter 自动装配
 
-| 差异 | 支付 | 数电发票 | Conflux 的建模 |
-|---|---|---|---|
-| 企业准入 | 商户号即可 | 税号需准入、税局备案 | `sellerTaxNo` 作为配置维度与路由键 |
-| 通道分级 | 无 | 乐企直连 / 服务商 API / 电局网页 RPA 并存 | `ChannelTier` + 择优路由 |
-| 人工授权 | 无 | 扫脸 / 短信 / 扫码，登录态会过期 | `WAITING_AUTH` + `AuthSession` 载体往返 |
-| 异步长耗时 | 少见 | 开票 40s+ 常转异步 | `PROCESSING` + 查单/回调推进 |
-| 法定原件 | 无 | XML 是法定原件 | 无 XML 原件**拒绝**置为 `SUCCEEDED` |
-| 红冲 | 退款一次调用 | 红字确认单需对方确认，两段长事务 | `RedApply` 载体 + 两段流程 |
-
-> **状态语义由渠道返回、由使用方推进**：SDK 只归一渠道状态（`WAITING_AUTH` / `PROCESSING` / `SUCCEEDED` / 红冲状态等），不维护状态机、不做迁移约束判非法。挂起态由使用方保管载体并在回调/查单后重新发起相应调用。
+> **状态语义由渠道返回、由使用方推进**：SDK 只归一渠道状态，不维护状态机、不做迁移约束判非法。挂起态由使用方保管载体并在回调/查单后重新发起相应调用。渠道支持情况见下方「发票平台支持现状」。
 
 ### 快速开始（发票）
 
