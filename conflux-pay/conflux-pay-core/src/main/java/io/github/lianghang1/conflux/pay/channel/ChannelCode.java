@@ -18,6 +18,8 @@ public final class ChannelCode {
     public static final String UNIONPAY = "unionpay";
     /** PayPal */
     public static final String PAYPAL = "paypal";
+    /** 银联商务天满开放平台（聚合支付） */
+    public static final String CHINAUMS = "chinaums";
     /** 模拟渠道（测试/演示） */
     public static final String MOCK = "mock";
 

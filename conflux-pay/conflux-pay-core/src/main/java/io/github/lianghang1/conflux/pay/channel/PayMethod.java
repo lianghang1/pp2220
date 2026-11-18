@@ -53,6 +53,21 @@ public final class PayMethod {
     public static final PayMethod PAYPAL_SALE = register("PAYPAL_SALE", ChannelCode.PAYPAL);
     public static final PayMethod PAYPAL_PAYOUT = register("PAYPAL_PAYOUT", ChannelCode.PAYPAL);
 
+    // ---- 银联商务天满（按 微信/支付宝/云闪付 × 场景 组合）----
+    public static final PayMethod CHINAUMS_WX_APP = register("CHINAUMS_WX_APP", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_WX_H5 = register("CHINAUMS_WX_H5", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_WX_MINI = register("CHINAUMS_WX_MINI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_WX_JSAPI = register("CHINAUMS_WX_JSAPI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_ALI_APP = register("CHINAUMS_ALI_APP", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_ALI_H5 = register("CHINAUMS_ALI_H5", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_ALI_MINI = register("CHINAUMS_ALI_MINI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_ALI_JSAPI = register("CHINAUMS_ALI_JSAPI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_UAC_APP = register("CHINAUMS_UAC_APP", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_UAC_H5 = register("CHINAUMS_UAC_H5", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_UAC_MINI = register("CHINAUMS_UAC_MINI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_UAC_JSAPI = register("CHINAUMS_UAC_JSAPI", ChannelCode.CHINAUMS);
+    public static final PayMethod CHINAUMS_QR = register("CHINAUMS_QR", ChannelCode.CHINAUMS);
+
     // ---- 模拟渠道 ----
     public static final PayMethod MOCK_PAY = register("MOCK_PAY", ChannelCode.MOCK);
     public static final PayMethod MOCK_TRANS = register("MOCK_TRANS", ChannelCode.MOCK);

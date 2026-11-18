@@ -32,6 +32,7 @@
 | alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓ | ✓ | ✓ | ✓ | RSA2 公钥 |
 | unionpay | 银联二维码·付款码 / 转接微信·支付宝 | ✓ | — | — | — | 平台公钥 |
 | paypal | Orders v2（批准→捕获） | ✓ | Payouts | — | — | Webhook 官方验签 |
+| chinaums | 微信/支付宝/云闪付 × APP/H5/小程序/公众号 + C扫B主扫 | ✓ | — | — | — | 回调触发主动查单 |
 | mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
 
 **多账户回调路由**：同一渠道可配置多个账户，服务商模式用 `accountKey`（`channelAppId#subMchNo`）在回调 URL 上定位账户；装载期账户键冲突立即启动失败，不静默覆盖。
@@ -179,6 +180,25 @@ conflux.pay:
           merchantSerialNumber: "5157F09EFDC096DE15EBE81A47057A72..."
           merchantPrivateKey: "/data/cert/apiclient_key.pem"
 ```
+
+天满渠道（银联商务，多渠道聚合）配置例：
+
+```yaml
+conflux.pay:
+  apps:
+    demo:
+      chinaums:
+        notifyUrl: https://your.host/pay/callback/chinaums   # 通知需能定位 mid（或用 ?accountKey=）
+        sandbox: false                    # true 切 test-api-open.chinaums.com
+        attrs:
+          appId: "天满产品ID"
+          appKey: "天满产品密钥"
+          mid: "898340149000005"           # 商户号，同时作为回调配置反查键
+          tid: "88880001"                  # 终端号
+          subAppId: "wx8888888888888888"   # 微信渠道下单所需，非微信渠道可省
+```
+
+下单用 `method` 选方式：`CHINAUMS_WX_APP` / `CHINAUMS_WX_H5` / `CHINAUMS_WX_MINI` / `CHINAUMS_WX_JSAPI`，以及对应的 `ALI_*` / `UAC_*` 组合和 `CHINAUMS_QR`（C扫B）。回调采用主动查单确认，详见 [docs/pay-integration.md](docs/pay-integration.md)。
 
 Spring MVC 纯 jar 装配例：
 

@@ -57,6 +57,20 @@
 | clientId / clientSecret | ✓ | 沙箱/生产应用凭据 |
 | webhookId | 否 | Webhook 订阅 ID（回调验签） |
 
+### chinaums（银联商务天满）
+
+> 认证采用 OPEN-BODY-SIG（无状态逐请求签名），回调采用「触发主动查单确认」，
+> 详见 [pay-integration.md](pay-integration.md)。
+
+| 键 | 必填 | 说明 |
+|---|---|---|
+| appId | ✓ | 天满产品 ID |
+| appKey | ✓ | 天满产品密钥 |
+| mid | ✓ | 商户号（同时作为回调配置反查的账户键） |
+| tid | ✓ | 终端号 |
+| subAppId | 否 | 微信开放平台 appId（微信渠道下单必需） |
+| gateway | 否 | 自定义网关前缀；缺省按 sandbox 切正式/测试地址 |
+
 ### mock
 
 | 键 | 必填 | 说明 |

@@ -98,6 +98,12 @@ public String callback(@PathVariable String channelCode,
 
 **多账户回调路由**：同一渠道多账户时，回调 URL 必须带 `?accountKey=<key>`（服务商模式 `appKey#subMchNo`，`#` 转义为 `%23`），SDK 按账户键反查配置验签；键冲突在装载期抛 `CONFIG_CONFLICT` 使启动失败。
 
+### 天满渠道（chinaums）的回调说明
+
+天满通知报文中带 `sign` 字段，但其验签算法未在公开文档与 SDK 中提供（官方「支付结果通知」详情页已失效、示例 `Notify` 为空实现）。为避免臆造验签逻辑，天满渠道采用**回调触发主动查单确认**：回调处理器从报文取 `merOrderId` / `mid` 定位配置后，以 OPEN-BODY-SIG 双向认证调用 `/v1/netpay/query` 获取权威状态构造事件，不信任通知内容里的状态与金额。这与官方文档「以查询接口响应的订单状态更新订单状态」的推荐一致。
+
+因此天满回调需：① 通知地址能携带 `mid`（或在 URL 上带 `accountKey`）以定位配置；② 使用方可放心以返回的 `CallbackEvent` 推进状态，无需自行验签。应答成功报文为 `SUCCESS`。
+
 ## 四、接入自定义渠道（SPI）
 
 新增渠道不用改内核，实现 `ChannelProvider` 及所需能力 Handler，再注册即可。

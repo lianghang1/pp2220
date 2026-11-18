@@ -59,6 +59,12 @@ public class PayGatewayAutoConfiguration {
         return new io.github.lianghang1.conflux.pay.channels.paypal.PayPalChannelProvider();
     }
 
+    @Bean
+    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider.class)
+    public io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider chinaumsChannelProvider() {
+        return new io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider();
+    }
+
     // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean
