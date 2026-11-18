@@ -57,6 +57,8 @@
 | `CallbackEvent` | `type`（`BizOrderType`）`appId` `bizOrderNo` `channelOrderNo` `success` `amount` `occurTime` `raw` |
 | `BillSheet` | `appId` `channelCode` `billDate` `entries`（`List<BillEntry>`） |
 
+> `PaymentResult.payPayload` 的结构与使用方式见 [§1.5 支付唤起参数](#15-支付唤起参数paypayload)。
+
 ### 1.4 支付方式与状态枚举
 
 `method` 取值（`PayMethod`）：
@@ -71,6 +73,46 @@
 | `RefundState` | `CREATED` `PROCESSING` `SUCCEEDED` `FAILED` `CLOSED` |
 | `TransferState` | `CREATED` `PROCESSING` `SUCCEEDED` `FAILED` |
 | `ProfitShareState` | `CREATED` `PROCESSING` `FINISHED` `FAILED` |
+
+### 1.5 支付唤起参数（PayPayload）
+
+不同渠道、不同支付方式在下单成功后返回给使用方的"唤起要素"形态不同：有的给二维码码值，
+有的给跳转链接，有的给 JSAPI/APP 参数，付款码类甚至没有唤起参数（下单即扣款）。
+SDK 用统一的 `PayPayload`（`io.github.lianghang1.conflux.pay.api.PayPayload`，仅 `type` + `content` 两字段）
+承载这些差异——使用方只需按 `type` 分支处理，无需为每种渠道写不同的返回解析：
+
+| `PayPayloadType`（`*.model`） | `content` 语义 | 使用方动作 | 典型支付方式 |
+|---|---|---|---|
+| `QRCODE` | 二维码**内容/码值** | 用 content 生成二维码图片展示，让用户扫码 | `WECHAT_NATIVE` `ALI_QR` `CHINAUMS_QR` `UNION_QR` `MOCK_PAY` |
+| `REDIRECT` | 支付页 **URL** | 引导用户在浏览器/内置 WebView 跳转该 URL | `WECHAT_H5` `ALI_WAP` `ALI_PAGE` `PAYPAL_SALE` `CHINAUMS_*_H5` |
+| `JSAPI` | JSON 对象串（公众号/小程序唤起参数） | 解析 JSON，传给对应 JS SDK 拉起支付 | `WECHAT_JSAPI` `WECHAT_LITE` `ALI_JSAPI` `CHINAUMS_*_MINI` `CHINAUMS_*_JSAPI` |
+| `APP` | JSON 对象串（APP 支付参数） | 解析 JSON，传给 App 端 SDK 拉起支付 | `WECHAT_APP` `ALI_APP` `CHINAUMS_*_APP` |
+| `NONE` | 空 | 无需唤起——下单即完成支付 | `WECHAT_BAR` `ALI_BAR` `UNION_*_BAR` 等付款码方式 |
+
+**易混点：二维码内容 vs 跳转链接。** `QRCODE` 的 content 即使长得像 URL（如支付宝
+`https://qr.alipay.com/...`、微信 `weixin://wxpay/...`），它仍是**要渲染成二维码的内容**，
+不是让浏览器直接跳转的地址；真正要跳转的用 `REDIRECT`。使用方务必以 `type` 判断，
+不要按 content 是否以 `http` 开头去猜。
+
+**与 `state` 配合：** `state=PAYING` 时按上表消费 `payPayload` 唤起用户支付；
+`state=SUCCEEDED` 表示即时扣款已完成（`payPayload` 通常为 `NONE`）；
+`state=CREATED` 表示渠道调用尚未成功（可携带原参数重试下单），此时不消费 payload。
+
+```java
+PaymentResult result = gateway.createPayment(request);
+if (result.getState() == PaymentState.SUCCEEDED) {
+    // 付款码等即时扣款：已完成，无需唤起
+} else if (result.getState() == PaymentState.PAYING) {
+    PayPayload p = result.getPayPayload();
+    switch (p.getType()) {
+        case QRCODE:   renderQrCode(p.getContent()); break;         // 生成二维码给用户扫
+        case REDIRECT: redirectTo(p.getContent()); break;           // 浏览器跳转
+        case JSAPI:    callJsSdk(parseJson(p.getContent())); break; // 公众号/小程序
+        case APP:      callAppSdk(parseJson(p.getContent())); break;// App SDK
+    }
+}
+```
+（以上为消费示意，方法名按使用方实际实现。）
 
 ## 二、发票 API（InvoiceGateway）
 
