@@ -3,7 +3,7 @@
 配置采用「统一基础键 + 渠道扩展键」两层模型：
 语义相同的键全渠道同名（`notifyUrl` / `sandbox` / `subMchNo`），
 各渠道凭证体系不同的部分使用渠道自有命名，统一放在 `attrs` 下。
-均经 `conflux.pay.apps.<appId>.channels.<渠道>` 声明。
+均经 `conflux.pay.apps.<appId>.<渠道>` 声明。
 
 ## 统一基础键（全渠道同名）
 
@@ -94,25 +94,23 @@
 conflux.pay:
   apps:
     brand-a:
-      channels:
-        wechat:
-          subMchNo: "1900000109"
-          notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000109
-          attrs:
-            merchantId: 服务商商户号
-            appId: wx-isv-appid
-            apiV3Key: <APIv3密钥>
-            merchantSerialNumber: <证书序列号>
-            merchantPrivateKey: <商户私钥PEM>
+      wechat:
+        subMchNo: "1900000109"
+        notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000109
+        attrs:
+          merchantId: 服务商商户号
+          appId: wx-isv-appid
+          apiV3Key: <APIv3密钥>
+          merchantSerialNumber: <证书序列号>
+          merchantPrivateKey: <商户私钥PEM>
     brand-b:
-      channels:
-        wechat:
-          subMchNo: "1900000110"
-          notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000110
-          attrs:
-            merchantId: 服务商商户号
-            appId: wx-isv-appid
-            apiV3Key: <APIv3密钥>
-            merchantSerialNumber: <证书序列号>
-            merchantPrivateKey: <商户私钥PEM>
+      wechat:
+        subMchNo: "1900000110"
+        notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000110
+        attrs:
+          merchantId: 服务商商户号
+          appId: wx-isv-appid
+          apiV3Key: <APIv3密钥>
+          merchantSerialNumber: <证书序列号>
+          merchantPrivateKey: <商户私钥PEM>
 ```

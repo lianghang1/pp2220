@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * 基于配置文件的默认 {@link InvoiceConfigProvider}。
  *
- * <p>启动期把 {@code conflux.invoice.apps.<appId>.channels.<channel>.*} 解析为
+ * <p>启动期把 {@code conflux.invoice.apps.<appId>.<channel>.*} 解析为
  * 渠道参数对象，建立三个方向的索引：
  * 「appId + 渠道 + 销方税号」（正向链路）、「渠道编码 + 账户键」（回调反查）、
  * 「应用 + 销方税号 → 渠道实例列表」（通道分级路由）。</p>
@@ -51,15 +51,15 @@ public class PropertiesInvoiceConfigProvider implements InvoiceConfigProvider {
             providerByCode.put(provider.channelCode(), provider);
         }
 
-        for (Map.Entry<String, InvoiceProperties.AppProperties> appEntry
+        for (Map.Entry<String, Map<String, InvoiceProperties.ChannelProperties>> appEntry
                 : properties.getApps().entrySet()) {
             String appId = appEntry.getKey();
-            InvoiceProperties.AppProperties appProps = appEntry.getValue();
-            if (appProps == null || appProps.getChannels() == null) {
+            Map<String, InvoiceProperties.ChannelProperties> channels = appEntry.getValue();
+            if (channels == null) {
                 continue;
             }
             for (Map.Entry<String, InvoiceProperties.ChannelProperties> channelEntry
-                    : appProps.getChannels().entrySet()) {
+                    : channels.entrySet()) {
                 String channelCode = channelEntry.getKey();
                 InvoiceProperties.ChannelProperties props = channelEntry.getValue() == null
                         ? new InvoiceProperties.ChannelProperties() : channelEntry.getValue();

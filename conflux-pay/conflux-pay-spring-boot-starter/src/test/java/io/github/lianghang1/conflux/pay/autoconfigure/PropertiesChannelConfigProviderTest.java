@@ -37,9 +37,10 @@ class PropertiesChannelConfigProviderTest {
             if (spec[2] != null) {
                 channel.setSubMchNo(spec[2]);
             }
-            PayGatewayProperties.AppProperties app = new PayGatewayProperties.AppProperties();
-            app.getChannels().put("mock", channel);
-            properties.getApps().put(spec[0], app);
+            Map<String, PayGatewayProperties.ChannelProperties> channels =
+                    new HashMap<String, PayGatewayProperties.ChannelProperties>();
+            channels.put("mock", channel);
+            properties.getApps().put(spec[0], channels);
         }
         return new PropertiesChannelConfigProvider(properties,
                 Collections.<ChannelProvider>singletonList(new MockChannelProvider()));

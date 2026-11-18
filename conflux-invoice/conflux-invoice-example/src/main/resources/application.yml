@@ -16,113 +16,112 @@ conflux:
       download-timeout-millis: 30000
     apps:
       demo:
-        channels:
-          mock:
-            # 销方纳税人识别号（企业准入标识，也是多账户路由/回调反查键的一段）
-            seller-tax-no: "91310000MOCK000001"
-            notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
-            sandbox: true
-            tier: SERVICE_API
-            priority: 10
-            enabled: true
-            attrs:
-              appKey: "demo-app-key"
-              appSecret: "demo-secret"
-              issueOutcome: "AUTH"
-              redConfirmOutcome: "CONFIRMED"
+        mock:
+          # 销方纳税人识别号（企业准入标识，也是多账户路由/回调反查键的一段）
+          seller-tax-no: "91310000MOCK000001"
+          notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+          sandbox: true
+          tier: SERVICE_API
+          priority: 10
+          enabled: true
+          attrs:
+            appKey: "demo-app-key"
+            appSecret: "demo-secret"
+            issueOutcome: "AUTH"
+            redConfirmOutcome: "CONFIRMED"
 
-          # ------------------------------------------------------------------
-          # 百旺金穗云（baiwangjs）专属适配器配置模板
-          # 以语雀官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
-          # 整段默认注释：取消注释 + 填真实凭据 + enabled 改 true 即可启用；
-          # 未启用时不影响上面 mock 渠道的零凭据启动。
-          # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
-          # ------------------------------------------------------------------
-          # baiwangjs:
-          #   # 销方税号：路由键与回调反查账户键的第二段
-          #   seller-tax-no: "91310000XXXXXXXXXX"
-          #   # 回调地址须带 accountKey=<gatewayKey>#<sellerTaxNo>，'#' 转义为 %23
-          #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwangjs?accountKey=<GATEWAY_KEY>%2391310000XXXXXXXXXX"
-          #   sandbox: true
-          #   tier: SERVICE_API
-          #   priority: 20
-          #   enabled: false
-          #   attrs:
-          #     gatewayKey: "<网关KEY>"             # HMAC 签名的 username，也是账户键第一段
-          #     gatewaySecret: "<网关SECRET>"       # HmacSHA256 密钥
-          #     qyId: "<企业唯一标识>"              # 3.1.1 查询一次后填入，必填
-          #     sellerTaxNo: "91310000XXXXXXXXXX"  # 写入报文的销方税号
-          #     dlzh: "13800000000"                # 开票员电局登录账号（手机号）
-          #     kpr: "开票员"
-          #     sqr: "申请人"
-          #     sellerName: "某某科技有限公司"
-          #     sellerAddress: "上海市某某区某某路1号"
-          #     sellerPhone: "021-88888888"
-          #     sellerBank: "某某银行某某支行"
-          #     sellerBankAccount: "6222000000000000"
-          #     apiVersion: "V2"                   # 改为 V1：路径与报文整体切到 V1
-          #     # baseUrl: "https://api.baiwangjs.com/swgx-saas/agentinvoiceservice-cloudservice-cloudservice/agentiscloud"
-          #     # timeoutMillis: 30000
-          #     # 可选：宿主另行约定回调签名时启用（配合查询参数 sign）
-          #     # callbackSignKey: "<回调验签密钥>"
-          #     # 可选：逐个覆盖接口路径（平台升级 / 私有化部署时用）
-          #     # issuePath: "/cloud/v2/applyInvoice"
-          #     # queryPath: "/cloud/v2/queryOrder"
-          #     # redApplyPath: "/cloud/applyElecRedInvoice"
-          #     # redQueryPath: "/cloud/queryRedInvRes"
-          #     # authStartPath: "/cloud/dzswjLogin"
-          #     # qrCodePath: "/elecEwm/queryEwmrzSnyc"
-          #     # riskInfoPath: "/elecEwm/queryRiskInfo"
-          #     # fplxdm.DIGITAL_VAT_SPECIAL: "01"
-          #     # fplxdm.DIGITAL_VAT_GENERAL: "02"
-          #     # ---- A/B 档新增模式开关 ----
-          #     # qrMode: "ASYNC"                # 实人认证二维码走 3.4.5 异步（默认 3.4.6 同步）
-          #     # repairResultMode: "BATCH"      # 修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12）
-          #     # ---- A/B 档新增路径覆盖键（默认值见 docs/invoice-platforms.md 3.2 表）----
-          #     # uniqueSignPath: "/cloud/queryUniqueSign"
-          #     # redIssuePath: "/cloud/doElecRedInvoice"
-          #     # redStatusPath: "/cloud/queryHzqrdzt"
-          #     # redConfirmPath: "/cloud/updateHzqrdState"
-          #     # redAvailablePath: "/cloud/hzcxmx"
-          #     # qrCodeAsyncPath: "/elecEwm/queryEwmrz"
-          #     # deliveryPath: "/cloud/fpReSend"
-          #     # downloadPath: "/cloud/invoiceDownload"
-          #     # layoutQueryPath: "/cloud/queryBswj"
-          #     # repairPath: "/cloud/v2/invoiceRepair"
-          #     # repairResultPath: "/cloud/repairResult"
-          #     # queryBatchPath: "/cloud/queryInvBatch"
+        # ------------------------------------------------------------------
+        # 百旺金穗云（baiwangjs）专属适配器配置模板
+        # 以语雀官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
+        # 整段默认注释：取消注释 + 填真实凭据 + enabled 改 true 即可启用；
+        # 未启用时不影响上面 mock 渠道的零凭据启动。
+        # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
+        # ------------------------------------------------------------------
+        # baiwangjs:
+        #   # 销方税号：路由键与回调反查账户键的第二段
+        #   seller-tax-no: "91310000XXXXXXXXXX"
+        #   # 回调地址须带 accountKey=<gatewayKey>#<sellerTaxNo>，'#' 转义为 %23
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwangjs?accountKey=<GATEWAY_KEY>%2391310000XXXXXXXXXX"
+        #   sandbox: true
+        #   tier: SERVICE_API
+        #   priority: 20
+        #   enabled: false
+        #   attrs:
+        #     gatewayKey: "<网关KEY>"             # HMAC 签名的 username，也是账户键第一段
+        #     gatewaySecret: "<网关SECRET>"       # HmacSHA256 密钥
+        #     qyId: "<企业唯一标识>"              # 3.1.1 查询一次后填入，必填
+        #     sellerTaxNo: "91310000XXXXXXXXXX"  # 写入报文的销方税号
+        #     dlzh: "13800000000"                # 开票员电局登录账号（手机号）
+        #     kpr: "开票员"
+        #     sqr: "申请人"
+        #     sellerName: "某某科技有限公司"
+        #     sellerAddress: "上海市某某区某某路1号"
+        #     sellerPhone: "021-88888888"
+        #     sellerBank: "某某银行某某支行"
+        #     sellerBankAccount: "6222000000000000"
+        #     apiVersion: "V2"                   # 改为 V1：路径与报文整体切到 V1
+        #     # baseUrl: "https://api.baiwangjs.com/swgx-saas/agentinvoiceservice-cloudservice-cloudservice/agentiscloud"
+        #     # timeoutMillis: 30000
+        #     # 可选：宿主另行约定回调签名时启用（配合查询参数 sign）
+        #     # callbackSignKey: "<回调验签密钥>"
+        #     # 可选：逐个覆盖接口路径（平台升级 / 私有化部署时用）
+        #     # issuePath: "/cloud/v2/applyInvoice"
+        #     # queryPath: "/cloud/v2/queryOrder"
+        #     # redApplyPath: "/cloud/applyElecRedInvoice"
+        #     # redQueryPath: "/cloud/queryRedInvRes"
+        #     # authStartPath: "/cloud/dzswjLogin"
+        #     # qrCodePath: "/elecEwm/queryEwmrzSnyc"
+        #     # riskInfoPath: "/elecEwm/queryRiskInfo"
+        #     # fplxdm.DIGITAL_VAT_SPECIAL: "01"
+        #     # fplxdm.DIGITAL_VAT_GENERAL: "02"
+        #     # ---- A/B 档新增模式开关 ----
+        #     # qrMode: "ASYNC"                # 实人认证二维码走 3.4.5 异步（默认 3.4.6 同步）
+        #     # repairResultMode: "BATCH"      # 修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12）
+        #     # ---- A/B 档新增路径覆盖键（默认值见 docs/invoice-platforms.md 3.2 表）----
+        #     # uniqueSignPath: "/cloud/queryUniqueSign"
+        #     # redIssuePath: "/cloud/doElecRedInvoice"
+        #     # redStatusPath: "/cloud/queryHzqrdzt"
+        #     # redConfirmPath: "/cloud/updateHzqrdState"
+        #     # redAvailablePath: "/cloud/hzcxmx"
+        #     # qrCodeAsyncPath: "/elecEwm/queryEwmrz"
+        #     # deliveryPath: "/cloud/fpReSend"
+        #     # downloadPath: "/cloud/invoiceDownload"
+        #     # layoutQueryPath: "/cloud/queryBswj"
+        #     # repairPath: "/cloud/v2/invoiceRepair"
+        #     # repairResultPath: "/cloud/repairResult"
+        #     # queryBatchPath: "/cloud/queryInvBatch"
 
-          # ------------------------------------------------------------------
-          # 票通云（piaotong）专属适配器配置模板
-          # 以《票通数电发票接口文档 3.2.0》为准；凭据均由票通分配。
-          # 字段与路径的完整说明见 docs/invoice-platforms.md 第 4 节。
-          # ------------------------------------------------------------------
-          # piaotong:
-          #   seller-tax-no: "91310000XXXXXXXXXX"
-          #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/piaotong?accountKey=<PLATFORM_CODE>%2391310000XXXXXXXXXX"
-          #   sandbox: true
-          #   tier: SERVICE_API
-          #   priority: 20
-          #   enabled: false
-          #   attrs:
-          #     platformCode: "<平台编码>"            # 票通分配的第三方平台编码（8 位）
-          #     aliasName: "ABCD"                    # 平台简称（4 位，拼 20/26 位流水号）
-          #     password: "<3DES 密钥>"              # 业务报文加解密密钥（ECB/UTF-8）
-          #     privateKey: "<我方 RSA 私钥>"         # PKCS8 Base64，请求签名（SHA1withRSA）
-          #     publicKey: "<票通平台公钥>"           # X509 Base64，响应/推送验签
-          #     sellerTaxNo: "91310000XXXXXXXXXX"    # 报文 taxpayerNum
-          #     account: "13800000000"               # 电子税局登录账号（认证链路 2.4~2.8）
-          #     sellerName: "某某科技有限公司"
-          #     # baseUrl: "https://fpkj.vpiaotong.com/tp/openapi"
-          #     # timeoutMillis: 30000               # 2.15 文件下载较耗时，可调大
-          #     # redApplyMode: "OLD"                # 红字申请改走 2.28 旧版（默认 2.38 新版）
-          #     # qrcodeType: "1"                    # 2.6 二维码类型（1 税务 APP / 2 个税 APP）
-          #     # ---- 红字申请覆盖项（购方申请时按需）----
-          #     # applySource: "0"                   # 0 销方申请 / 1 购方申请
-          #     # redReason: "01"                    # 01 开票有误 / 02 销货退回 / 03 服务中止 / 04 销售折让
-          #     # blueInvoiceDate: "20240108"        # 冲红非票通平台开具的发票时必传（yyyyMMdd）
-          #     # ---- 特定业务透传（货运/旅客/不动产销售，JSON 数组原样上报）----
-          #     # goodsTransportList: '[{"transportToolType":"公路运输","transportToolBrand":"沪A12345","departurePlace":"上海市黄浦区","destinationPlace":"四川省绵阳市涪城区"}]'
-          #     # passengerTransportList: '[{"traveler":"张三","travelDate":"2024-01-08","travelerIdType":"...","travelerIdNo":"..."}]'
-          #     # realEstateSaleList: '[{"region":"上海市黄浦区","detailedAddress":"东江北路68号"}]'
-          #     # herBuyerList: '[]'
+        # ------------------------------------------------------------------
+        # 票通云（piaotong）专属适配器配置模板
+        # 以《票通数电发票接口文档 3.2.0》为准；凭据均由票通分配。
+        # 字段与路径的完整说明见 docs/invoice-platforms.md 第 4 节。
+        # ------------------------------------------------------------------
+        # piaotong:
+        #   seller-tax-no: "91310000XXXXXXXXXX"
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/piaotong?accountKey=<PLATFORM_CODE>%2391310000XXXXXXXXXX"
+        #   sandbox: true
+        #   tier: SERVICE_API
+        #   priority: 20
+        #   enabled: false
+        #   attrs:
+        #     platformCode: "<平台编码>"            # 票通分配的第三方平台编码（8 位）
+        #     aliasName: "ABCD"                    # 平台简称（4 位，拼 20/26 位流水号）
+        #     password: "<3DES 密钥>"              # 业务报文加解密密钥（ECB/UTF-8）
+        #     privateKey: "<我方 RSA 私钥>"         # PKCS8 Base64，请求签名（SHA1withRSA）
+        #     publicKey: "<票通平台公钥>"           # X509 Base64，响应/推送验签
+        #     sellerTaxNo: "91310000XXXXXXXXXX"    # 报文 taxpayerNum
+        #     account: "13800000000"               # 电子税局登录账号（认证链路 2.4~2.8）
+        #     sellerName: "某某科技有限公司"
+        #     # baseUrl: "https://fpkj.vpiaotong.com/tp/openapi"
+        #     # timeoutMillis: 30000               # 2.15 文件下载较耗时，可调大
+        #     # redApplyMode: "OLD"                # 红字申请改走 2.28 旧版（默认 2.38 新版）
+        #     # qrcodeType: "1"                    # 2.6 二维码类型（1 税务 APP / 2 个税 APP）
+        #     # ---- 红字申请覆盖项（购方申请时按需）----
+        #     # applySource: "0"                   # 0 销方申请 / 1 购方申请
+        #     # redReason: "01"                    # 01 开票有误 / 02 销货退回 / 03 服务中止 / 04 销售折让
+        #     # blueInvoiceDate: "20240108"        # 冲红非票通平台开具的发票时必传（yyyyMMdd）
+        #     # ---- 特定业务透传（货运/旅客/不动产销售，JSON 数组原样上报）----
+        #     # goodsTransportList: '[{"transportToolType":"公路运输","transportToolBrand":"沪A12345","departurePlace":"上海市黄浦区","destinationPlace":"四川省绵阳市涪城区"}]'
+        #     # passengerTransportList: '[{"traveler":"张三","travelDate":"2024-01-08","travelerIdType":"...","travelerIdNo":"..."}]'
+        #     # realEstateSaleList: '[{"region":"上海市黄浦区","detailedAddress":"东江北路68号"}]'
+        #     # herBuyerList: '[]'

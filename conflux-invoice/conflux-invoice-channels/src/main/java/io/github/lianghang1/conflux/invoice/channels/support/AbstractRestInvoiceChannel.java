@@ -420,7 +420,7 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
         String path = params.path(pathKey, specPath);
         if (path == null || path.length() == 0) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,
-                    "渠道[{}]未配置 {} 接口路径，能力不可用；请在 conflux.invoice.apps.*.channels.*.attrs 中补齐",
+                    "渠道[{}]未配置 {} 接口路径，能力不可用；请在 conflux.invoice.apps.*.*.attrs 中补齐",
                     spec.getChannelCode(), pathKey);
         }
         String json = JsonUtils.toJson(body);

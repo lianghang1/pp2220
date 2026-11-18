@@ -6,7 +6,7 @@ import io.github.lianghang1.conflux.pay.channel.ChannelParams;
 /**
  * 渠道配置提供者 SPI：按应用与渠道换取渠道配置。
  *
- * <p>starter 提供基于配置文件（{@code conflux.pay.apps.<appId>.channels.<channel>.*}）
+ * <p>starter 提供基于配置文件（{@code conflux.pay.apps.<appId>.<channel>.*}）
  * 的默认实现；使用方也可自行实现（如从自己的数据库/配置中心读取），
  * 支持普通商户与服务商（ISV）两种模式的参数组织。</p>
  *

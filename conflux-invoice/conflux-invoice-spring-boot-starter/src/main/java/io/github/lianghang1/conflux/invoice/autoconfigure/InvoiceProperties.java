@@ -13,14 +13,18 @@ import java.util.Map;
  * {@code sellerTaxNo}（企业准入标识）与 {@code tier/priority}（通道分级路由），
  * 因为同一应用下可能有多个销方税号、同一税号又可能有多级通道。</p>
  *
+ * <p>渠道声明路径为 {@code conflux.invoice.apps.<appId>.<channel>.*}：
+ * 第一层 key 为应用标识，第二层 key 为渠道编码。</p>
+ *
  * @author lianghang
  */
 @Data
 @ConfigurationProperties(prefix = "conflux.invoice")
 public class InvoiceProperties {
 
-    /** 应用 → 渠道配置。 */
-    private Map<String, AppProperties> apps = new LinkedHashMap<String, AppProperties>();
+    /** 应用 → 渠道配置：第一层 key 为应用标识，第二层 key 为渠道编码。 */
+    private Map<String, Map<String, ChannelProperties>> apps =
+            new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
     /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
     private boolean mockEnabled = true;
@@ -37,13 +41,6 @@ public class InvoiceProperties {
         private String outputDir;
         /** 固化下载超时（毫秒）。 */
         private long downloadTimeoutMillis = 30000L;
-    }
-
-    /** 单应用的渠道配置集合。 */
-    @Data
-    public static class AppProperties {
-        /** 渠道编码 → 渠道配置。 */
-        private Map<String, ChannelProperties> channels = new LinkedHashMap<String, ChannelProperties>();
     }
 
     /** 单渠道配置：统一基础键 + attrs 渠道个性键值包。 */

@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * 基于配置文件的默认 {@link ChannelConfigProvider}：
- * 启动期把 {@code conflux.pay.apps.<appId>.channels.<channel>} 的键值对
+ * 启动期把 {@code conflux.pay.apps.<appId>.<channel>} 的键值对
  * 经各渠道的 {@code parseParams} 解析为渠道参数对象，并建立
  * 「appId+渠道」与「渠道账户键」两个方向的索引。
  *
@@ -52,10 +52,15 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
         for (ChannelProvider provider : providers) {
             providerByCode.put(provider.channelCode(), provider);
         }
-        for (Map.Entry<String, PayGatewayProperties.AppProperties> appEntry : properties.getApps().entrySet()) {
+        for (Map.Entry<String, Map<String, PayGatewayProperties.ChannelProperties>> appEntry
+                : properties.getApps().entrySet()) {
             String appId = appEntry.getKey();
+            Map<String, PayGatewayProperties.ChannelProperties> channels = appEntry.getValue();
+            if (channels == null) {
+                continue;
+            }
             for (Map.Entry<String, PayGatewayProperties.ChannelProperties> channelEntry
-                    : appEntry.getValue().getChannels().entrySet()) {
+                    : channels.entrySet()) {
                 String channelCode = channelEntry.getKey();
                 PayGatewayProperties.ChannelProperties channelProps = channelEntry.getValue() == null
                         ? new PayGatewayProperties.ChannelProperties() : channelEntry.getValue();

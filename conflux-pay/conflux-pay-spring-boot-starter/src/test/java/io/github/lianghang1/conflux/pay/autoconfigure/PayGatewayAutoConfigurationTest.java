@@ -18,10 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author lianghang
  */
 @SpringBootTest(classes = PayGatewayAutoConfigurationTest.TestApp.class, properties = {
-        "conflux.pay.apps.demo.channels.mock.notifyUrl=http://127.0.0.1/callback/mock",
-        "conflux.pay.apps.demo.channels.mock.sandbox=true",
-        "conflux.pay.apps.demo.channels.mock.attrs.appKey=demo-app-key",
-        "conflux.pay.apps.demo.channels.mock.attrs.payOutcome=paying"
+        "conflux.pay.apps.demo.mock.notifyUrl=http://127.0.0.1/callback/mock",
+        "conflux.pay.apps.demo.mock.sandbox=true",
+        "conflux.pay.apps.demo.mock.attrs.appKey=demo-app-key",
+        "conflux.pay.apps.demo.mock.attrs.payOutcome=paying"
 })
 class PayGatewayAutoConfigurationTest {
     @Autowired

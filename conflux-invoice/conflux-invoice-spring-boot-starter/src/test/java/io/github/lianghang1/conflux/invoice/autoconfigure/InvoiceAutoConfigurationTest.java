@@ -25,13 +25,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(classes = InvoiceAutoConfigurationTest.TestApp.class,
         webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
-        "conflux.invoice.apps.demo.channels.mock.seller-tax-no=91310000TEST000001",
-        "conflux.invoice.apps.demo.channels.mock.notify-url=http://127.0.0.1/callback/mock",
-        "conflux.invoice.apps.demo.channels.mock.sandbox=true",
-        "conflux.invoice.apps.demo.channels.mock.attrs.appKey=demo-app-key",
-        "conflux.invoice.apps.demo.channels.mock.attrs.appSecret=demo-secret",
-        "conflux.invoice.apps.demo.channels.mock.attrs.issueOutcome=AUTH",
-        "conflux.invoice.apps.demo.channels.mock.attrs.redConfirmOutcome=CONFIRMED"
+        "conflux.invoice.apps.demo.mock.seller-tax-no=91310000TEST000001",
+        "conflux.invoice.apps.demo.mock.notify-url=http://127.0.0.1/callback/mock",
+        "conflux.invoice.apps.demo.mock.sandbox=true",
+        "conflux.invoice.apps.demo.mock.attrs.appKey=demo-app-key",
+        "conflux.invoice.apps.demo.mock.attrs.appSecret=demo-secret",
+        "conflux.invoice.apps.demo.mock.attrs.issueOutcome=AUTH",
+        "conflux.invoice.apps.demo.mock.attrs.redConfirmOutcome=CONFIRMED"
 })
 class InvoiceAutoConfigurationTest {
     @Autowired

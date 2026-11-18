@@ -23,21 +23,20 @@ conflux.pay:
     timeout-millis: 3000
   apps:
     demo:
-      channels:
-        mock:
-          appKey: demo-app-key
-          payOutcome: paying
-        # 支付宝沙箱：open.alipay.com 控制台 → 沙箱环境
-        alipay:
-          appId: "沙箱AppID（2021xxx）"
-          privateKey: "沙箱应用私钥"
-          alipayPublicKey: "沙箱支付宝公钥"
-          gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
-          notifyUrl: https://<穿透域名>/callback/alipay
-        # PayPal 沙箱：developer.paypal.com → Sandbox 应用
-        paypal:
-          sandbox: true
-          clientId: "沙箱clientId"
-          clientSecret: "沙箱clientSecret"
-          webhookId: "Webhook订阅ID"
-        # 微信需真实商户号（无沙箱），资质到位后按 README 配置
+      mock:
+        appKey: demo-app-key
+        payOutcome: paying
+      # 支付宝沙箱：open.alipay.com 控制台 → 沙箱环境
+      alipay:
+        appId: "沙箱AppID（2021xxx）"
+        privateKey: "沙箱应用私钥"
+        alipayPublicKey: "沙箱支付宝公钥"
+        gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+        notifyUrl: https://<穿透域名>/callback/alipay
+      # PayPal 沙箱：developer.paypal.com → Sandbox 应用
+      paypal:
+        sandbox: true
+        clientId: "沙箱clientId"
+        clientSecret: "沙箱clientSecret"
+        webhookId: "Webhook订阅ID"
+      # 微信需真实商户号（无沙箱），资质到位后按 README 配置

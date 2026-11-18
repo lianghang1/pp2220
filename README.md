@@ -47,7 +47,7 @@
 ```
 
 ```yaml
-conflux.pay.apps.demo.channels.mock:
+conflux.pay.apps.demo.mock:
   notifyUrl: http://127.0.0.1:8088/callback/mock
   attrs:
     appKey: demo-app-key
@@ -103,16 +103,15 @@ conflux.invoice:
   mock-enabled: true          # 默认注册 mock 渠道，零凭据启动
   apps:
     demo:
-      channels:
-        mock:
-          seller-tax-no: "91310000MOCK000001"
-          notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
-          tier: SERVICE_API
-          attrs:
-            appKey: demo-app-key
-            appSecret: demo-secret
-            issueOutcome: AUTH       # AUTH / ASYNC / SUCCESS / FAIL
-            redConfirmOutcome: CONFIRMED
+      mock:
+        seller-tax-no: "91310000MOCK000001"
+        notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+        tier: SERVICE_API
+        attrs:
+          appKey: demo-app-key
+          appSecret: demo-secret
+          issueOutcome: AUTH       # AUTH / ASYNC / SUCCESS / FAIL
+          redConfirmOutcome: CONFIRMED
 ```
 
 注入 `InvoiceGateway` 即可调用。全部方法（开票/授权/红冲/查单/交付/修复/文件/回调）与出入参字段见 [docs/api-reference.md](docs/api-reference.md)。票据载体随结果返回、随请求回传，由使用方保管。
@@ -169,17 +168,16 @@ Spring Boot 配置例（支付，发票见下节）：
 conflux.pay:
   apps:
     demo:
-      channels:
-        wechat:
-          notifyUrl: https://your.host/pay/callback/wechat
-          sandbox: false
-          # subMchNo: "1900000000"   # 服务商模式特约商户号（可选）
-          attrs:                     # 渠道个性键，键名由各渠道定义
-            merchantId: "1900000001"
-            appId: "wx8888888888888888"
-            apiV3Key: "your-32-bytes-apiV3-key-aaaaaaaaaaaa"
-            merchantSerialNumber: "5157F09EFDC096DE15EBE81A47057A72..."
-            merchantPrivateKey: "/data/cert/apiclient_key.pem"
+      wechat:
+        notifyUrl: https://your.host/pay/callback/wechat
+        sandbox: false
+        # subMchNo: "1900000000"   # 服务商模式特约商户号（可选）
+        attrs:                     # 渠道个性键，键名由各渠道定义
+          merchantId: "1900000001"
+          appId: "wx8888888888888888"
+          apiV3Key: "your-32-bytes-apiV3-key-aaaaaaaaaaaa"
+          merchantSerialNumber: "5157F09EFDC096DE15EBE81A47057A72..."
+          merchantPrivateKey: "/data/cert/apiclient_key.pem"
 ```
 
 Spring MVC 纯 jar 装配例：

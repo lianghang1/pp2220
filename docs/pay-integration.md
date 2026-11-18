@@ -48,7 +48,7 @@ PaymentGateway gateway = PaymentGateway.builder()
 
 `builder()` 必须设置 `configProvider`；渠道通过 `.channel(...)` 逐个注册，运行期还可用 `gateway.registerChannel(provider)` 增补，`gateway.registeredChannels()` 查看已注册渠道。
 
-`InMemoryChannelConfigProvider` 注册时自动按 `ChannelAccountKey.of(params.channelAppId(), subMchNo)` 派生回调账户键（服务商模式为 `channelAppId#subMchNo`），账户键冲突注册即抛 `CONFIG_CONFLICT`；配置不限于配置文件——配置文件实现只在 Spring Boot starter（`conflux.pay.apps.<appId>.channels.<channel>.*`）里提供。
+`InMemoryChannelConfigProvider` 注册时自动按 `ChannelAccountKey.of(params.channelAppId(), subMchNo)` 派生回调账户键（服务商模式为 `channelAppId#subMchNo`），账户键冲突注册即抛 `CONFIG_CONFLICT`；配置不限于配置文件——配置文件实现只在 Spring Boot starter（`conflux.pay.apps.<appId>.<channel>.*`）里提供。
 
 ## 二、核心调用
 
@@ -108,7 +108,7 @@ public String callback(@PathVariable String channelCode,
 4. **注册渠道**：
    - starter 场景：把你的 `ChannelProvider` 声明为 Spring Bean（自动装配的 `@ConditionalOnMissingBean` 不会冲突）；
    - 纯 jar 场景：`builder().channel(new MyChannelProvider())` 或 `gateway.registerChannel(...)`。
-5. **配置键**：按 [config-keys.md](config-keys.md) 的「统一基础键 + `attrs` 扩展键」两层模型，在 `conflux.pay.apps.<appId>.channels.<渠道>` 下声明。
+5. **配置键**：按 [config-keys.md](config-keys.md) 的「统一基础键 + `attrs` 扩展键」两层模型，在 `conflux.pay.apps.<appId>.<渠道>` 下声明。
 
 ## 五、文档索引
 

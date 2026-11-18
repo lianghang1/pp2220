@@ -11,7 +11,9 @@ import io.github.lianghang1.conflux.invoice.model.ChannelTier;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -58,7 +60,7 @@ class PropertiesInvoiceConfigProviderTest {
     @Test
     void unregisteredChannelIsSkipped() {
         InvoiceProperties props = singleApp("demo", "app-1", TAX, "AUTH");
-        props.getApps().get("demo").getChannels().put("unknown", channel("app-2", TAX));
+        props.getApps().get("demo").put("unknown", channel("app-2", TAX));
         InvoiceConfigProvider provider = new PropertiesInvoiceConfigProvider(props, providers());
         assertEquals(1, provider.instances("demo", TAX).size());
     }
@@ -74,8 +76,7 @@ class PropertiesInvoiceConfigProviderTest {
     @Test
     void tierAndPriorityAreBound() {
         InvoiceProperties props = singleApp("demo", "app-1", TAX, "AUTH");
-        InvoiceProperties.ChannelProperties channel = props.getApps().get("demo")
-                .getChannels().get("mock");
+        InvoiceProperties.ChannelProperties channel = props.getApps().get("demo").get("mock");
         channel.setTier("DIRECT_TAX");
         channel.setPriority(50);
         InvoiceConfigProvider provider = new PropertiesInvoiceConfigProvider(props, providers());
@@ -96,15 +97,15 @@ class PropertiesInvoiceConfigProviderTest {
     private InvoiceProperties singleApp(String appId, String appKey, String taxNo, String outcome) {
         InvoiceProperties props = new InvoiceProperties();
         props.getApps().put(appId, app(appKey, taxNo));
-        props.getApps().get(appId).getChannels().get("mock").getAttrs()
-                .put("issueOutcome", outcome);
+        props.getApps().get(appId).get("mock").getAttrs().put("issueOutcome", outcome);
         return props;
     }
 
-    private InvoiceProperties.AppProperties app(String appKey, String taxNo) {
-        InvoiceProperties.AppProperties app = new InvoiceProperties.AppProperties();
-        app.getChannels().put("mock", channel(appKey, taxNo));
-        return app;
+    private Map<String, InvoiceProperties.ChannelProperties> app(String appKey, String taxNo) {
+        Map<String, InvoiceProperties.ChannelProperties> channels =
+                new LinkedHashMap<String, InvoiceProperties.ChannelProperties>();
+        channels.put("mock", channel(appKey, taxNo));
+        return channels;
     }
 
     private InvoiceProperties.ChannelProperties channel(String appKey, String taxNo) {

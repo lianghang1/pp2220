@@ -188,7 +188,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 **验签**：平台公开文档未定义回调签名头 / 参数，故**不伪造验签规则**；账户定位依赖回调 URL 上的 `?accountKey=...`。
 生产环境应通过网络层白名单 / 网关侧校验保障；若宿主另行约定了签名，可配 `attrs.callbackSignKey` + 查询参数 `sign` 启用 HMAC 校验。
 
-### 3.4 配置项（`conflux.invoice.apps.<appId>.channels.baiwangjs`）
+### 3.4 配置项（`conflux.invoice.apps.<appId>.baiwangjs`）
 
 | 键 | 位置 | 说明 |
 |---|---|---|
@@ -309,7 +309,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 （ThreadLocal 桥接，解析异常即清理），拿不到时退化为业务明文 JSON——
 宿主如需强制完整信封应答，可在回调 Controller 内直接用 Provider + ChannelConfig 构建。
 
-### 4.5 配置项（`conflux.invoice.apps.<appId>.channels.piaotong`）
+### 4.5 配置项（`conflux.invoice.apps.<appId>.piaotong`）
 
 | 键 | 说明 |
 |---|---|
@@ -368,7 +368,7 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 
 > 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；百旺金穗云的配置键见 3.4 节；票通云见 4.5 节。
 
-渠道路径与票种编码全部可通过 `conflux.invoice.apps.<appId>.channels.<channel>.attrs` 覆盖：
+渠道路径与票种编码全部可通过 `conflux.invoice.apps.<appId>.<channel>.attrs` 覆盖：
 
 | attrs 键 | 作用 | 对应能力 |
 |---|---|---|

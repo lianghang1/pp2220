@@ -10,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 百旺金穗云渠道参数：从 {@code conflux.invoice.apps.<appId>.channels.baiwangjs.attrs} 解析。
+ * 百旺金穗云渠道参数：从 {@code conflux.invoice.apps.<appId>.baiwangjs.attrs} 解析。
  *
  * <p><b>凭据</b>：网关 KEY / SECRET 用于 HMAC-SHA256 签名（非业务 appKey/appSecret）；
  * {@code qyId} 为企业唯一标识，通过 3.1.1 接口查询一次即可，也可直接配置；

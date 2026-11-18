@@ -22,14 +22,13 @@
 conflux.pay:
   apps:
     demo:
-      channels:
-        alipay:
-          notifyUrl: https://<穿透域名>/callback/alipay
-          attrs:
-            appId: 沙箱AppID（2021xxx）
-            privateKey: 应用私钥
-            alipayPublicKey: 支付宝公钥
-            gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+      alipay:
+        notifyUrl: https://<穿透域名>/callback/alipay
+        attrs:
+          appId: 沙箱AppID（2021xxx）
+          privateKey: 应用私钥
+          alipayPublicKey: 支付宝公钥
+          gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
 ```
 
 **验证路径**：
@@ -55,13 +54,12 @@ conflux.pay:
 conflux.pay:
   apps:
     demo:
-      channels:
-        paypal:
-          sandbox: true
-          attrs:
-            clientId: 沙箱clientId
-            clientSecret: 沙箱clientSecret
-            webhookId: Webhook订阅ID
+      paypal:
+        sandbox: true
+        attrs:
+          clientId: 沙箱clientId
+          clientSecret: 沙箱clientSecret
+          webhookId: Webhook订阅ID
 ```
 
 **验证路径**：
@@ -85,16 +83,15 @@ API 安全中心申请 API 证书（拿证书序列号与私钥）+ 设置 APIv3
 conflux.pay:
   apps:
     demo:
-      channels:
-        wechat:
-          notifyUrl: https://<域名>/callback/wechat
-          attrs:
-            wxApiVersion: v3
-            merchantId: 商户号
-            appId: 公众号/小程序AppID
-            apiV3Key: APIv3密钥
-            merchantSerialNumber: 商户证书序列号
-            merchantPrivateKey: "商户私钥 PEM"
+      wechat:
+        notifyUrl: https://<域名>/callback/wechat
+        attrs:
+          wxApiVersion: v3
+          merchantId: 商户号
+          appId: 公众号/小程序AppID
+          apiV3Key: APIv3密钥
+          merchantSerialNumber: 商户证书序列号
+          merchantPrivateKey: "商户私钥 PEM"
 ```
 
 **验证路径**：JSAPI（channelExtras 传 openid）→ 小程序付款 → 回调验签解密 → `SUCCEEDED`；
@@ -114,15 +111,14 @@ Native 扫码；退款（V3 回调）；商家转账；分账（需开通分账�
 conflux.pay:
   apps:
     demo:
-      channels:
-        unionpay:
-          notifyUrl: https://<穿透域名>/callback/unionpay
-          attrs:
-            merchantId: 商户号
-            serProvId: 服务商标识（直连可空）
-            p12CertPath: /cert/unionpay.p12
-            p12CertPassword: 证书密码
-            publicKey: 平台公钥
+      unionpay:
+        notifyUrl: https://<穿透域名>/callback/unionpay
+        attrs:
+          merchantId: 商户号
+          serProvId: 服务商标识（直连可空）
+          p12CertPath: /cert/unionpay.p12
+          p12CertPassword: 证书密码
+          publicKey: 平台公钥
 ```
 
 **验证路径**：统一下单（UNION_QR）→ 云闪付 App 扫码付款 → 回调验签 → `SUCCEEDED`；

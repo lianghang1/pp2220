@@ -2,9 +2,7 @@ package io.github.lianghang1.conflux.pay.autoconfigure;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,34 +16,19 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "conflux.pay")
 public class PayGatewayProperties {
 
-    /** 应用 → 渠道配置 */
-    private Map<String, AppProperties> apps = new LinkedHashMap<String, AppProperties>();
+    /**
+     * 应用 → 渠道配置：第一层 key 为使用方应用标识 appId，
+     * 第二层 key 为渠道编码，值为该渠道配置。
+     */
+    private Map<String, Map<String, ChannelProperties>> apps =
+            new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
-
-    public Map<String, AppProperties> getApps() {
+    public Map<String, Map<String, ChannelProperties>> getApps() {
         return apps;
     }
 
-    public void setApps(Map<String, AppProperties> apps) {
+    public void setApps(Map<String, Map<String, ChannelProperties>> apps) {
         this.apps = apps;
-    }
-
-
-    /**
-     * 单应用的渠道配置集合：统一键（notifyUrl/sandbox/subMchNo）+ attrs 渠道个性键值包。
-     */
-    public static class AppProperties {
-
-        /** 渠道编码 → 渠道配置 */
-        private Map<String, ChannelProperties> channels = new LinkedHashMap<String, ChannelProperties>();
-
-        public Map<String, ChannelProperties> getChannels() {
-            return channels;
-        }
-
-        public void setChannels(Map<String, ChannelProperties> channels) {
-            this.channels = channels;
-        }
     }
 
     /**
