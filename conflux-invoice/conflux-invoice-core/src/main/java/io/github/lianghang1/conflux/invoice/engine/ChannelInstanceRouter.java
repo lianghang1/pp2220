@@ -58,7 +58,7 @@ public class ChannelInstanceRouter {
                             instance.getInstanceId(), code);
                     continue;
                 }
-                if (!InvoiceStateMachineHelper.supports(rt, code, type)) {
+                if (!supportsType(rt, code, type)) {
                     continue;
                 }
                 candidates.add(instance);
@@ -83,14 +83,12 @@ public class ChannelInstanceRouter {
     }
 
     /** 独立的票种支持判定，避免把「不支持」当异常抛出而中断候选遍历。 */
-    private static final class InvoiceStateMachineHelper {
-        static boolean supports(InvoiceRuntime rt, String code, InvoiceType type) {
-            try {
-                rt.registry.assertTypeSupported(code, type);
-                return true;
-            } catch (GatewayException e) {
-                return false;
-            }
+    private static boolean supportsType(InvoiceRuntime rt, String code, InvoiceType type) {
+        try {
+            rt.registry.assertTypeSupported(code, type);
+            return true;
+        } catch (GatewayException e) {
+            return false;
         }
     }
 }

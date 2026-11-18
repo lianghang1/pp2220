@@ -2,178 +2,181 @@ package io.github.lianghang1.conflux.invoice.channels.mock;
 
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
+import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
+import io.github.lianghang1.conflux.invoice.api.RedApplyQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
+import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.ChannelInstance;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceAccountKey;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelRegistry;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceFileFetcher;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceIssuer;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
-import io.github.lianghang1.conflux.invoice.engine.InvoiceRuntime;
 import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
 import io.github.lianghang1.conflux.invoice.model.ChannelTier;
-import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
+import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import io.github.lianghang1.conflux.invoice.model.InvoiceType;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
 import io.github.lianghang1.conflux.invoice.model.RedApplyState;
-import io.github.lianghang1.conflux.invoice.support.InMemoryAuthSessionStore;
 import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceConfigProvider;
-import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceFileStore;
-import io.github.lianghang1.conflux.invoice.support.InMemoryInvoiceStore;
-import io.github.lianghang1.conflux.invoice.support.InMemoryRedApplyStore;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 端到端流程测试：用 mock 渠道跑通「开票 → 授权挂起 → 提交授权 → XML 归档 →
- * 红字申请 → 确认 → 开红票」，并验证异步、失败、法定原件、回调等分支。
+ * 端到端流程测试（SDK 无台账）：验证「组装载体 → 调渠道 → 归一返回」与载体往返。
  *
  * @author lianghang
  */
 class MockInvoiceFlowTest {
-
     private static final String TAX = "91310000MOCK000001";
     private static final String APP_KEY = "mock-app-key";
 
+    /**
+     * 蓝票开票 → 授权挂起 → 提交授权 → XML 原件 → 两段红冲。
+     * 每一步的载体由使用方保管并回传，SDK 不持有任何台账。
+     */
     @Test
-    void fullFlowFromAuthToRedInvoice() {
+    void fullFlowFromAuthToRedInvoiceViaCarrierRoundTrip() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams());
-
         InvoiceResult issued = gateway.issue(request("B1"));
         assertSame(InvoiceState.WAITING_AUTH, issued.getState());
         assertNotNull(issued.getAuthChallenge());
-        String sessionId = issued.getAuthChallenge().getSessionId();
+        assertNotNull(issued.getInvoice(), "开票结果应回传发票载体供使用方保管");
+        assertNotNull(issued.getAuthSession(), "WAITING_AUTH 应回传授权会话载体");
 
-        InvoiceResult authed = gateway.submitAuth(
-                new AuthSubmission().setSessionId(sessionId).setCaptcha("888888"));
+        // 授权提交：会话 + 发票载体回传
+        InvoiceResult authed = gateway.submitAuth(new AuthSubmission()
+                .setAppId("demo")
+                .setSession(issued.getAuthSession())
+                .setInvoice(issued.getInvoice())
+                .setCaptcha("888888"));
         assertSame(InvoiceState.SUCCEEDED, authed.getState());
-        assertTrue(authed.hasLegalXml(), "开票成功必须归档 XML 法定原件");
-        assertEquals(3, gateway.files(authed.getInvoiceId()).size());
-        assertNotNull(gateway.findById(authed.getInvoiceId()).getInvoiceNo());
+        assertTrue(authed.hasLegalXml(), "开票成功必须取得 XML 法定原件");
+        assertEquals(3, authed.getFiles().size());
+        Invoice blueInvoice = authed.getInvoice();
+        assertNotNull(blueInvoice.getInvoiceNo());
 
-        // 两段红冲
+        // 两段红冲第一段：原票载体回传
         RedApply apply = gateway.applyRed(new RedApplyRequest()
                 .setAppId("demo").setBizRedNo("R1")
-                .setOriginalInvoiceId(authed.getInvoiceId()).setReason("开票信息有误"));
+                .setOriginalInvoice(blueInvoice).setReason("开票信息有误"));
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
         assertNotNull(apply.getRedConfirmNo());
-        assertSame(InvoiceState.RED_APPLYING,
-                gateway.findById(authed.getInvoiceId()).getState());
+        assertNotNull(apply.getChannelOrderNo(), "红冲申请应拿到渠道单号");
 
-        RedApply confirmed = gateway.queryRedApply(apply.getRedApplyId());
+        // 查询确认状态：确认单载体回传
+        RedApply confirmed = gateway.queryRedApply(new RedApplyQueryRequest()
+                .setAppId("demo").setRedApply(apply));
         assertSame(RedApplyState.CONFIRMED, confirmed.getState());
-        assertSame(InvoiceState.RED_APPLY_CONFIRMED,
-                gateway.findById(authed.getInvoiceId()).getState());
 
+        // 第二段开具红票：确认单 + 原票载体回传
         InvoiceResult red = gateway.issueRed(new RedIssueRequest()
-                .setAppId("demo").setRedApplyId(apply.getRedApplyId()));
+                .setAppId("demo").setRedApply(confirmed).setOriginalInvoice(blueInvoice));
         assertSame(InvoiceState.SUCCEEDED, red.getState());
         assertTrue(red.hasLegalXml());
-        assertSame(InvoiceState.RED_SUCCEEDED,
-                gateway.findById(authed.getInvoiceId()).getState());
-        assertSame(RedApplyState.ISSUED,
-                gateway.findRedApply(apply.getRedApplyId()).getState());
+        assertEquals("true", red.getInvoice().getAttrs().get("RED_INVOICE"));
     }
 
+    /** 异步开票 → 查单拿快照（状态推进由使用方负责）。 */
     @Test
     void asyncIssueCanBePolledToSucceeded() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams().setIssueOutcome("ASYNC"));
         InvoiceResult accepted = gateway.issue(request("B2"));
         assertSame(InvoiceState.PROCESSING, accepted.getState());
         assertTrue(accepted.isAsyncAccepted());
-        assertEquals(0, gateway.files(accepted.getInvoiceId()).size());
+        assertTrue(accepted.getFiles().isEmpty());
 
         InvoiceResult polled = gateway.query(new InvoiceQueryRequest()
-                .setInvoiceId(accepted.getInvoiceId()));
+                .setAppId("demo").setChannelCode("mock")
+                .setInvoice(accepted.getInvoice()));
         assertSame(InvoiceState.SUCCEEDED, polled.getState());
         assertTrue(polled.hasLegalXml());
     }
 
+    /** 渠道失败：归一为 FAILED，不取得文件。 */
     @Test
-    void failedIssueDoesNotArchiveFiles() {
+    void failedIssueReturnsFailedState() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams().setIssueOutcome("FAIL"));
         InvoiceResult result = gateway.issue(request("B3"));
         assertSame(InvoiceState.FAILED, result.getState());
         assertEquals("MOCK_FAIL", result.getErrorCode());
-        assertTrue(gateway.files(result.getInvoiceId()).isEmpty());
+        assertTrue(result.getFiles().isEmpty());
     }
 
+    /** 快捷红冲：免确认时一次调用返回已开具红票。 */
     @Test
-    void issueRedBeforeConfirmationIsRejected() {
-        InvoiceGateway gateway = gateway(new MockInvoiceParams().setIssueOutcome("SUCCESS"));
-        InvoiceResult issued = gateway.issue(request("B4"));
-        RedApply apply = gateway.applyRed(new RedApplyRequest()
-                .setAppId("demo").setBizRedNo("R4")
-                .setOriginalInvoiceId(issued.getInvoiceId()).setReason("误开"));
-        GatewayException ex = assertThrows(GatewayException.class,
-                () -> gateway.issueRed(new RedIssueRequest()
-                        .setAppId("demo").setRedApplyId(apply.getRedApplyId())));
-        assertSame(InvoiceErrorCode.RED_CONFIRM_PENDING, ex.getErrorCode());
+    void quickRedAutoIssue() {
+        InvoiceGateway gateway = gateway(new MockInvoiceParams()
+                .setIssueOutcome("SUCCESS").setRedConfirmOutcome("ACCEPTED"));
+        InvoiceResult issued = gateway.issue(request("B5"));
+        assertSame(InvoiceState.SUCCEEDED, issued.getState());
+
+        QuickRedResult quick = gateway.quickRed(new RedApplyRequest()
+                .setAppId("demo").setBizRedNo("R5")
+                .setOriginalInvoice(issued.getInvoice()).setReason("测试快捷红冲"));
+        assertNotNull(quick);
+        assertNotNull(quick.getOutcome());
     }
 
+    /** 确认单拒绝场景（渠道可选能力）。 */
     @Test
-    void successWithoutLegalXmlIsRejected() {
-        InvoiceChannelRegistry registry = new InvoiceChannelRegistry();
-        registry.register(new NoXmlProvider());
-        String accountKey = InvoiceAccountKey.of(APP_KEY, TAX);
-        ChannelConfig config = new ChannelConfig().setAppId("demo")
-                .setChannelCode("noxml").setAccountKey(accountKey)
-                .setSellerTaxNo(TAX).setParams(new MockInvoiceParams());
-        ChannelInstance instance = new ChannelInstance().setInstanceId("i")
-                .setAppId("demo").setChannelCode("noxml").setAccountKey(accountKey)
-                .setSellerTaxNo(TAX).setTier(ChannelTier.SERVICE_API)
-                .setEnabled(true).setConfig(config);
-        InMemoryInvoiceConfigProvider provider = new InMemoryInvoiceConfigProvider()
-                .register(config, instance);
-        InvoiceGateway gateway = new InvoiceGateway(new InvoiceRuntime(registry, provider,
-                new InMemoryInvoiceStore(), new InMemoryRedApplyStore(),
-                new InMemoryAuthSessionStore(), new InMemoryInvoiceFileStore()));
-
-        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.issue(request("B6")));
-        assertSame(InvoiceErrorCode.XML_ORIGINAL_REQUIRED, ex.getErrorCode());
-    }
-
-    @Test
-    void callbackAdvancesInvoiceStateAndArchivesXml() {
+    void confirmRedAction() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams());
-        InvoiceResult issued = gateway.issue(request("B7"));   // WAITING_AUTH
+        InvoiceResult issued = gateway.issue(request("B6"));
+        RedApply apply = gateway.applyRed(new RedApplyRequest()
+                .setAppId("demo").setBizRedNo("R6")
+                .setOriginalInvoice(issued.getInvoice()).setReason("拒绝测试"));
+        // mock 渠道未实现主动确认能力 → SDK 明确抛出，由使用方改走查询状态流程
+        GatewayException ex = assertThrows(GatewayException.class, () ->
+                gateway.confirmRed(new RedConfirmRequest()
+                        .setAppId("demo").setRedApply(apply).setAccept(false).setReason("不同意")));
+        assertSame(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED, ex.getErrorCode());
+    }
 
+    /** 回调：只验签归一为事件，不查单、不推进状态。 */
+    @Test
+    void callbackOnlyParsesToEvent() {
+        InvoiceGateway gateway = gateway(new MockInvoiceParams());
         Map<String, String> query = new HashMap<String, String>();
         query.put(InvoiceAccountKey.ROUTING_PARAM, InvoiceAccountKey.of(APP_KEY, TAX));
-        String body = "{\"invoiceId\":\"" + issued.getInvoiceId()
-                + "\",\"state\":\"SUCCEEDED\",\"invoiceNo\":\"FP-CALLBACK\","
-                + "\"xml\":\"<EInvoice>callback</EInvoice>\"}";
+        String body = "{\"bizOrderNo\":\"FROM-CALLBACK\",\"state\":\"SUCCEEDED\","
+                + "\"invoiceNo\":\"FP-CALLBACK\",\"xml\":\"<EInvoice>callback</EInvoice>\"}";
         InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
                 .setChannelCode("mock").setQueryParams(query).setBody(body);
 
-        InvoiceResult result = gateway.handleCallback(raw);
-        assertNotNull(result);
-        assertSame(InvoiceState.SUCCEEDED, result.getState());
-        assertTrue(result.hasLegalXml());
-        assertSame(InvoiceFileType.XML, gateway.files(result.getInvoiceId()).get(0).getType());
+        InvoiceCallbackEvent event = gateway.parseCallback(raw);
+        assertNotNull(event);
+        assertEquals("FROM-CALLBACK", event.getBizOrderNo());
+        assertSame(InvoiceState.SUCCEEDED, event.getState());
+        assertEquals("FP-CALLBACK", event.getInvoiceNo());
+    }
+
+    /** 验签失败直接上抛，使用方据此应答渠道重推。 */
+    @Test
+    void callbackBadSignThrows() {
+        InvoiceGateway gateway = gateway(new MockInvoiceParams());
+        Map<String, String> query = new HashMap<String, String>();
+        query.put(InvoiceAccountKey.ROUTING_PARAM, InvoiceAccountKey.of(APP_KEY, TAX));
+        query.put("sign", "BAD-SIGN");
+        InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
+                .setChannelCode("mock").setQueryParams(query).setBody("{}");
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.parseCallback(raw));
+        assertSame(InvoiceErrorCode.SIGN_INVALID, ex.getErrorCode());
     }
 
     // ---- helpers ----
@@ -194,9 +197,8 @@ class MockInvoiceFlowTest {
                 .setEnabled(true).setConfig(config);
         InMemoryInvoiceConfigProvider provider = new InMemoryInvoiceConfigProvider()
                 .register(config, instance);
-        return new InvoiceGateway(new InvoiceRuntime(registry, provider,
-                new InMemoryInvoiceStore(), new InMemoryRedApplyStore(),
-                new InMemoryAuthSessionStore(), new InMemoryInvoiceFileStore()));
+        return InvoiceGateway.builder().configProvider(provider)
+                .channel(new MockInvoiceChannelProvider()).build();
     }
 
     private InvoiceRequest request(String bizOrderNo) {
@@ -209,34 +211,5 @@ class MockInvoiceFlowTest {
                 .setAmount(new BigDecimal("100.00"))
                 .setTaxAmount(new BigDecimal("6.00"))
                 .setAsyncAllowed(true);
-    }
-
-    /** 返回成功但不含 XML 原件的渠道，用于验证法定原件强约束。 */
-    private static final class NoXmlProvider implements InvoiceChannelProvider {
-        @Override
-        public String channelCode() {
-            return "noxml";
-        }
-
-        @Override
-        public ChannelTier channelTier() {
-            return ChannelTier.SERVICE_API;
-        }
-
-        @Override
-        public Set<InvoiceType> supportedTypes() {
-            return EnumSet.allOf(InvoiceType.class);
-        }
-
-        @Override
-        public InvoiceIssuer issuer() {
-            return ctx -> InvoiceResult.succeeded("REQ-NOXML", "FP-NOXML",
-                    "DM", LocalDate.now(), Collections.<InvoiceFile>emptyList());
-        }
-
-        @Override
-        public InvoiceFileFetcher fileFetcher() {
-            return (ctx, types) -> Collections.<InvoiceFile>emptyList();
-        }
     }
 }

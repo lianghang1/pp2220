@@ -1,15 +1,16 @@
 package io.github.lianghang1.conflux.invoice.example;
 
-import io.github.lianghang1.conflux.invoice.support.PdfImageConverter;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
+import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackReply;
 import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.QuickRedResult;
+import io.github.lianghang1.conflux.invoice.api.RedApplyQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
@@ -19,10 +20,9 @@ import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
+import io.github.lianghang1.conflux.invoice.support.PdfImageConverter;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,12 +33,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 演示 REST 入口：完整暴露蓝字开票、查单、授权提交、两段红冲、快捷红冲、渠道回调、文件查询，
- * 以及辅助能力（发票交付重发、发票修复、红字确认单主动确认/拒绝、按票号查单）。
+ * 演示 REST 入口：SDK 为无状态渠道聚合层，只做渠道调用与结果归一。
  *
- * <p>回调地址需在渠道侧带上 {@code ?accountKey=...} 查询参数，供验签前反查配置
- * （见 {@code InvoiceAccountKey}）。交付 / 修复 / 主动确认均为<b>渠道可选能力</b>，
- * 渠道未实现时由注册表抛 {@code CHANNEL_CAPABILITY_NOT_SUPPORTED}。</p>
+ * <p>开票/查单返回的 {@code InvoiceResult.invoice} 是使用方需要自己保管的载体；
+ * 后续授权、红冲、交付等把载体随请求回传。回调入口用 {@code parseCallback} 验签归一，
+ * 使用方按业务单号定位自己的单据、判重、校验金额、推进业务状态，再应答渠道。</p>
  *
  * @author lianghang
  */
@@ -58,22 +57,13 @@ public class InvoiceController {
         return gateway.issue(request);
     }
 
-    /** 查单（在途会顺带向渠道查询推进状态）。 */
-    @GetMapping("/{invoiceId}")
-    public InvoiceResult query(@PathVariable String invoiceId) {
-        return gateway.query(new InvoiceQueryRequest().setInvoiceId(invoiceId));
+    /** 查单：传 appId + channelCode + 定位要素，或使用方回传 invoice 载体。 */
+    @PostMapping("/query")
+    public InvoiceResult query(@RequestBody InvoiceQueryRequest request) {
+        return gateway.query(request);
     }
 
-    /** 按票号查单（对账 / 换渠道补单）；精确路径优先于 /{invoiceId}。 */
-    @GetMapping("/by-no")
-    public InvoiceResult queryByNo(@RequestParam String invoiceNo,
-                                   @RequestParam(required = false) String invoiceCode,
-                                   @RequestParam(required = false) String appId) {
-        return gateway.query(new InvoiceQueryRequest()
-                .setAppId(appId).setInvoiceNo(invoiceNo).setInvoiceCode(invoiceCode));
-    }
-
-    /** 提交授权凭证。 */
+    /** 提交授权凭证：会话/发票载体由使用方回传。 */
     @PostMapping("/auth")
     public InvoiceResult submitAuth(@RequestBody AuthSubmission submission) {
         return gateway.submitAuth(submission);
@@ -85,19 +75,19 @@ public class InvoiceController {
         return gateway.applyRed(request);
     }
 
-    /** 快捷红冲：一次调用覆盖红冲全流程，用 outcome 区分走到哪一步。 */
+    /** 快捷红冲。 */
     @PostMapping("/red/quick")
     public QuickRedResult quickRed(@RequestBody RedApplyRequest request) {
         return gateway.quickRed(request);
     }
 
-    /** 查询红字确认单确认状态。 */
-    @PostMapping("/red/query/{redApplyId}")
-    public RedApply queryRedApply(@PathVariable String redApplyId) {
-        return gateway.queryRedApply(redApplyId);
+    /** 查询红字确认单状态（确认单载体回传）。 */
+    @PostMapping("/red/query")
+    public RedApply queryRedApply(@RequestBody RedApplyQueryRequest request) {
+        return gateway.queryRedApply(request);
     }
 
-    /** 主动确认或拒绝红字确认单（渠道可选能力，与上面的「查状态」分开）。 */
+    /** 主动确认 / 拒绝红字确认单。 */
     @PostMapping("/red/confirm-action")
     public RedApply confirmRedAction(@RequestBody RedConfirmRequest request) {
         return gateway.confirmRed(request);
@@ -109,84 +99,71 @@ public class InvoiceController {
         return gateway.issueRed(request);
     }
 
-    /** 已归档版式文件（含 XML 法定原件）。 */
-    @GetMapping("/{invoiceId}/files")
-    public List<InvoiceFile> files(@PathVariable String invoiceId) {
-        return gateway.files(invoiceId);
+    /** 版式文件就地固化（下载/解码为字节），返回同一批文件。 */
+    @PostMapping("/files/materialize")
+    public List<InvoiceFile> materializeFiles(@RequestBody List<InvoiceFile> files,
+                                              @RequestParam String invoiceId) {
+        return gateway.materializeFiles(files, invoiceId, true);
     }
 
-    /** 取版式文件原始字节（统一出口：url/Base64 屏蔽差异；url 型首次调用即下载回写）。 */
-    @GetMapping("/{invoiceId}/files/{type}/bytes")
-    public ResponseEntity<byte[]> fileBytes(@PathVariable String invoiceId,
-                                            @PathVariable String type) {
-        byte[] bytes = gateway.fileBytes(invoiceId, InvoiceFileType.valueOf(type.toUpperCase()));
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(bytes);
+    /** 取指定类型文件字节：从一批文件里挑目标类型并解码。 */
+    @PostMapping(value = "/files/bytes", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<byte[]> fileBytes(@RequestBody List<InvoiceFile> files,
+                                            @RequestParam InvoiceFileType type) {
+        return ResponseEntity.ok(gateway.fileBytes(files, type));
     }
 
-    /** 按需转图（预览场景）：版式 PDF 逐页转 PNG，返回每页 dataURL / 尺寸元数据。 */
-    @GetMapping("/{invoiceId}/pages")
-    public List<PdfImageConverter.PageImage> pageImages(@PathVariable String invoiceId,
-                                                        @RequestParam(defaultValue = "96") int dpi) {
-        PdfImageConverter.Config config = new PdfImageConverter.Config();
-        config.dpi = dpi;
-        return gateway.pageImages(invoiceId, config);
+    /** PDF 逐页转图（使用方自己拿到 PDF 字节后按需调用）。 */
+    @PostMapping("/pdf/pages")
+    public List<PdfImageConverter.PageImage> pageImages(@RequestBody byte[] pdfBytes,
+                                                        @RequestBody(required = false) PdfImageConverter.Config config) {
+        return gateway.pageImages(pdfBytes, config == null ? new PdfImageConverter.Config() : config);
     }
 
-    /**
-     * 打印适配（按需能力）：版式 PDF 逐页栅格化后重组为指定纸型 PDF，
-     * 防丢字打印场景；paper=A4、dpi=300 时输出即为打印可用的 A4 栅格化 PDF。
-     */
-    @GetMapping("/{invoiceId}/print-adapted")
-    public ResponseEntity<byte[]> printAdapted(@PathVariable String invoiceId,
-                                               @RequestParam(defaultValue = "A4") String paper,
-                                               @RequestParam(defaultValue = "300") int dpi) {
-        byte[] bytes = gateway.printAdaptedPdf(invoiceId,
-                PdfImageConverter.PaperSize.valueOf(paper.toUpperCase()), dpi);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(bytes);
+    /** PDF 打印适配。 */
+    @PostMapping(value = "/pdf/print-adapted", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> printAdapted(@RequestBody byte[] pdfBytes,
+                                               @RequestParam(required = false) PdfImageConverter.PaperSize paper,
+                                               @RequestParam(defaultValue = "150") int dpi) {
+        return ResponseEntity.ok(gateway.printAdaptedPdf(pdfBytes, paper, dpi));
     }
 
-    /** 重新交付发票（短信/邮箱重发），不改单据状态。 */
+    /** 重新交付发票。 */
     @PostMapping("/delivery")
     public DeliveryResult resend(@RequestBody DeliveryRequest request) {
         return gateway.resend(request);
     }
 
-    /** 提交发票修复申请（渠道侧补偿，不改单据状态）。 */
+    /** 提交发票修复申请。 */
     @PostMapping("/repair")
     public RepairResult repair(@RequestBody RepairRequest request) {
         return gateway.repair(request);
     }
 
-    /** 查询发票修复结果（使用与申请相同的 channelOrderNo）。 */
+    /** 查询发票修复结果。 */
     @PostMapping("/repair/query")
     public RepairResult queryRepair(@RequestBody RepairRequest request) {
         return gateway.queryRepair(request);
     }
 
-    /** 渠道回调；按渠道协议返回应答报文。 */
+    /**
+     * 渠道回调入口：只做验签归一，业务处理（判重、金额校验、落库、状态推进）由使用方完成。
+     */
     @PostMapping("/callback/{channelCode}")
-    public ResponseEntity<String> callback(@PathVariable String channelCode,
-                                           @RequestParam Map<String, String> queryParams,
-                                           @RequestBody(required = false) String body) {
-        InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
-                .setChannelCode(channelCode)
-                .setQueryParams(queryParams)
-                .setBody(body == null ? "" : body);
+    public InvoiceCallbackReply callback(@org.springframework.web.bind.annotation.PathVariable String channelCode,
+                                          @org.springframework.web.bind.annotation.RequestParam Map<String, String> queryParams,
+                                          @org.springframework.web.bind.annotation.RequestBody(required = false) String body) {
         try {
-            gateway.handleCallback(raw);
-            InvoiceCallbackReply reply = gateway.callbackReply(channelCode, true, "SUCCESS");
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(reply.getContentType()))
-                    .body(reply.getBody());
-        } catch (RuntimeException e) {
-            InvoiceCallbackReply reply = gateway.callbackReply(channelCode, false, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .contentType(MediaType.parseMediaType(reply.getContentType()))
-                    .body(reply.getBody());
+            InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
+                    .setChannelCode(channelCode)
+                    .setQueryParams(queryParams)
+                    .setBody(body);
+            InvoiceCallbackEvent event = gateway.parseCallback(raw);
+            // 使用方在此按 event.getBizOrderNo() 定位自己的单据并推进业务，判重/金额校验自行完成
+            return gateway.callbackReply(channelCode, true, "SUCCESS");
+        } catch (Exception e) {
+            // 处理失败以失败应答触发渠道重推
+            return gateway.callbackReply(channelCode, false, e.getMessage());
         }
     }
 }

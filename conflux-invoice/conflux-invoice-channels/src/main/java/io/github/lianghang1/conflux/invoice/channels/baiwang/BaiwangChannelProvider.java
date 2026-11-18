@@ -335,7 +335,8 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
         BaiwangParams params = params(ctx);
         requireCredentials(params);
         BaiwangGateway gateway = gateway(params);
-        String confirmNo = request == null ? null : request.getRedApplyId();
+        String confirmNo = request == null || request.getRedApply() == null
+                ? null : request.getRedApply().getRedConfirmNo();
         boolean accept = request != null && request.isAccept();
         String confirmType = accept ? BaiwangSpec.CONFIRM_TYPE_ACCEPT : BaiwangSpec.CONFIRM_TYPE_REJECT;
         try {

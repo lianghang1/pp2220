@@ -331,7 +331,8 @@ public abstract class AbstractRestInvoiceChannel implements InvoiceChannelProvid
     @Override
     public AuthResult submit(InvoiceContext ctx, AuthSubmission submission) {
         Map<String, Object> body = new LinkedHashMap<String, Object>();
-        put(body, "sessionId", submission.getSessionId());
+        io.github.lianghang1.conflux.invoice.model.AuthSession session = submission.getSession();
+        put(body, "sessionId", session == null ? null : session.getSessionId());
         put(body, "captcha", submission.getCaptcha());
         put(body, "token", submission.getToken());
         View view = call(ctx, "authSubmitPath", spec.getAuthSubmitPath(), body);

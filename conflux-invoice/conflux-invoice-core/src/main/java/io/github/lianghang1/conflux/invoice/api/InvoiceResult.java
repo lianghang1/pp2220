@@ -1,5 +1,6 @@
 package io.github.lianghang1.conflux.invoice.api;
 
+import io.github.lianghang1.conflux.invoice.model.AuthSession;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
@@ -51,6 +52,19 @@ public class InvoiceResult implements Serializable {
     private String errorMsg;
     /** 渠道原始报文（排障用）。 */
     private String rawPayload;
+    /**
+     * 使用方保管的发票载体（含完整票面与渠道要素）。
+     *
+     * <p>SDK 无台账——开票/查单结果把完整载体返回给使用方，后续红冲、交付、
+     * 修复时随请求原样回传。使用方据此更新自己的单据与业务状态。</p>
+     */
+    private Invoice invoice;
+    /**
+     * 授权会话载体（WAITING_AUTH 时非空，使用方回传至 AuthSubmission）。
+     *
+     * <p>SDK 无台账——授权上下文随结果返回、随提交回传，SDK 不暂存会话。</p>
+     */
+    private AuthSession authSession;
 
     // ---- 渠道侧工厂 ----
 
@@ -103,7 +117,8 @@ public class InvoiceResult implements Serializable {
                 .setAuthChallenge(challenge)
                 .setAsyncAccepted(invoice.getState() == InvoiceState.PROCESSING)
                 .setErrorCode(invoice.getErrorCode())
-                .setErrorMsg(invoice.getErrorMsg());
+                .setErrorMsg(invoice.getErrorMsg())
+                .setInvoice(invoice);
     }
 
     /** 是否携带了法定 XML 原件。 */

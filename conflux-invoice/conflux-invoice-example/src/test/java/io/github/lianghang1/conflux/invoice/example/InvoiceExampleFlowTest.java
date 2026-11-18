@@ -3,6 +3,7 @@ package io.github.lianghang1.conflux.invoice.example;
 import io.github.lianghang1.conflux.invoice.api.AuthSubmission;
 import io.github.lianghang1.conflux.invoice.api.InvoiceRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
+import io.github.lianghang1.conflux.invoice.api.RedApplyQueryRequest;
 import io.github.lianghang1.conflux.invoice.api.RedApplyRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
@@ -18,16 +19,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.math.BigDecimal;
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-/** example 宿主全流程：验证 yml 配置、starter 装配与内存 Store 组合可运行。 */
+/**
+ * example 宿主全流程：验证 yml 配置、starter 装配与无台账载体往返可运行。
+ */
 @SpringBootTest(classes = InvoiceExampleApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class InvoiceExampleFlowTest {
-
     private static final String TAX = "91310000MOCK000001";
 
     @Autowired
@@ -43,28 +42,31 @@ class InvoiceExampleFlowTest {
                         .setItemName("咨询服务").setAmount(new BigDecimal("1000.00"))))
                 .setAmount(new BigDecimal("1000.00"))
                 .setTaxAmount(new BigDecimal("60.00"));
-
         InvoiceResult first = gateway.issue(request);
         assertSame(InvoiceState.WAITING_AUTH, first.getState());
         assertNotNull(first.getAuthChallenge());
 
         InvoiceResult issued = gateway.submitAuth(new AuthSubmission()
-                .setSessionId(first.getAuthChallenge().getSessionId()).setCaptcha("6666"));
+                .setAppId("demo")
+                .setSession(first.getAuthSession())
+                .setInvoice(first.getInvoice())
+                .setCaptcha("6666"));
         assertSame(InvoiceState.SUCCEEDED, issued.getState());
         assertTrue(issued.hasLegalXml());
-        assertEquals(3, gateway.files(issued.getInvoiceId()).size());
+        assertEquals(3, issued.getFiles().size());
 
+        // 两段红冲：载体往返
         RedApply apply = gateway.applyRed(new RedApplyRequest()
                 .setAppId("demo").setBizRedNo("EX-R1")
-                .setOriginalInvoiceId(issued.getInvoiceId()).setReason("抬头填错"));
+                .setOriginalInvoice(issued.getInvoice()).setReason("抬头填错"));
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
-        assertSame(RedApplyState.CONFIRMED,
-                gateway.queryRedApply(apply.getRedApplyId()).getState());
+        RedApply confirmed = gateway.queryRedApply(new RedApplyQueryRequest()
+                .setAppId("demo").setRedApply(apply));
+        assertSame(RedApplyState.CONFIRMED, confirmed.getState());
 
         InvoiceResult red = gateway.issueRed(new RedIssueRequest()
-                .setAppId("demo").setRedApplyId(apply.getRedApplyId()));
+                .setAppId("demo").setRedApply(confirmed).setOriginalInvoice(issued.getInvoice()));
         assertSame(InvoiceState.SUCCEEDED, red.getState());
-        assertSame(InvoiceState.RED_SUCCEEDED,
-                gateway.findById(issued.getInvoiceId()).getState());
+        assertTrue(red.hasLegalXml());
     }
 }

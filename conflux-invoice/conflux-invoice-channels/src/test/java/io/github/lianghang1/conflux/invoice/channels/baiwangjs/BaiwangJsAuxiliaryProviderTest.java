@@ -88,7 +88,7 @@ class BaiwangJsAuxiliaryProviderTest {
                 .setBizOrderNo("ORDER-1").setChannelCode(BaiwangJsSpec.CODE);
         InvoiceContext ctx = InvoiceContext.of(config(), null, invoice);
         DeliveryResult r = new BaiwangJsChannelProvider().resend(ctx,
-                new DeliveryRequest().setInvoiceId("INV-1").setPhone("13800000000"));
+                new DeliveryRequest().setInvoice(invoice).setPhone("13800000000"));
         assertFalse(r.isAccepted());
         assertEquals("DELIVERY_NO_REQUIRED", r.getErrorCode());
     }
