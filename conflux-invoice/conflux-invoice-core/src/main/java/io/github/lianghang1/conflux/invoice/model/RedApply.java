@@ -52,7 +52,4 @@ public class RedApply implements Serializable {
     private String notifyUrl;
     private String errorCode;
     private String errorMsg;
-
-    private LocalDateTime createdTime;
-    private LocalDateTime updatedTime;
 }

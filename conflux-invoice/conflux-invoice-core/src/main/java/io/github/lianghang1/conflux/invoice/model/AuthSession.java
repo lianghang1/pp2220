@@ -39,9 +39,6 @@ public class AuthSession implements Serializable {
     /** 渠道自定义会话数据。 */
     private Map<String, String> payload;
 
-    private LocalDateTime createdTime;
-    private LocalDateTime updatedTime;
-
     /** 是否已过期（以给定时间为准）。 */
     public boolean isExpired(LocalDateTime now) {
         return expireTime != null && now != null && !now.isBefore(expireTime);

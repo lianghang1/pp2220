@@ -109,8 +109,6 @@ public class Invoice implements Serializable {
     /** 红字发票指向的原蓝票。 */
     private String originalInvoiceId;
 
-    private LocalDateTime createdTime;
-    private LocalDateTime updatedTime;
     /** 扩展字段（渠道回传的自定义信息）。 */
     private Map<String, String> attrs;
 }

@@ -4,7 +4,6 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 发票版式文件。
@@ -35,8 +34,6 @@ public class InvoiceFile implements Serializable {
     private String digest;
     /** 内容字节数（未知时为 -1）。 */
     private long size = -1L;
-    /** 归档时间。 */
-    private LocalDateTime createdTime;
     /** 本地落盘路径（配置 outputDir 且固化成功时回填，未落盘为 null）。 */
     private String filePath;
 
