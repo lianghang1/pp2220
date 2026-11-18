@@ -93,6 +93,18 @@ class WechatChannelTest {
     }
 
     @Test
+    void refundTimeShouldParseBothV2AndV3Formats() {
+        // V2 退款成功时间 yyyyMMddHHmmss（V2 退款查单回填依赖此格式）
+        assertThat(WechatStateTranslator.toLocalDateTime("20150806125346"))
+                .isEqualTo(java.time.LocalDateTime.of(2015, 8, 6, 12, 53, 46));
+        // V3 ISO8601 保持兼容
+        assertThat(WechatStateTranslator.toLocalDateTime("2020-01-01T10:00:00+08:00"))
+                .isEqualTo(java.time.LocalDateTime.of(2020, 1, 1, 10, 0, 0));
+        assertThat(WechatStateTranslator.toLocalDateTime(null)).isNull();
+        assertThat(WechatStateTranslator.toLocalDateTime("not-a-time")).isNull();
+    }
+
+    @Test
     void providerShouldDeclareCapabilitiesAndParseParams() {
         WechatChannelProvider provider = new WechatChannelProvider();
         assertThat(provider.channelCode()).isEqualTo("wechat");

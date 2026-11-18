@@ -16,10 +16,12 @@ import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.pay.model.ProfitShare;
 import io.github.lianghang1.conflux.pay.model.ProfitShareReceiver;
 import io.github.lianghang1.conflux.pay.model.ProfitShareState;
+import io.github.lianghang1.conflux.common.util.JsonUtils;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -147,22 +149,19 @@ public class WechatProfitShareHandler implements ProfitShareHandler {
         }
     }
 
-    /** V2 分账接收方 JSON 串（WxJava 契约：receivers 直接承载 JSON 文本）。 */
-    private String buildV2ReceiversJson(List<ProfitShareReceiver> receivers) {
-        StringBuilder json = new StringBuilder("[");
+    /** V2 分账接收方 JSON 串（WxJava 契约：receivers 直接承载 JSON 文本）。包可见便于测试。 */
+    static String buildV2ReceiversJson(List<ProfitShareReceiver> receivers) {
+        List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
         for (ProfitShareReceiver receiver : receivers) {
-            json.append("{\"type\":\"").append("MERCHANT".equalsIgnoreCase(receiver.getReceiverType())
-                            ? "MERCHANT_ID" : "PERSONAL_OPENID")
-                    .append("\",\"account\":\"").append(receiver.getReceiverAccount())
-                    .append("\",\"amount\":").append(receiver.getAmount())
-                    .append(",\"description\":\"").append(StringUtils.defaultIfBlank(
-                            receiver.getDescription(), "分账"))
-                    .append("\"},");
+            Map<String, Object> item = new LinkedHashMap<String, Object>();
+            item.put("type", "MERCHANT".equalsIgnoreCase(receiver.getReceiverType())
+                    ? "MERCHANT_ID" : "PERSONAL_OPENID");
+            item.put("account", receiver.getReceiverAccount());
+            item.put("amount", receiver.getAmount());
+            item.put("description", StringUtils.defaultIfBlank(receiver.getDescription(), "分账"));
+            items.add(item);
         }
-        if (json.length() > 1) {
-            json.setLength(json.length() - 1);
-        }
-        return json.append(']').toString();
+        return JsonUtils.toJson(items);
     }
 
     private <T> T wrap(String action, WechatCall<T> call) {

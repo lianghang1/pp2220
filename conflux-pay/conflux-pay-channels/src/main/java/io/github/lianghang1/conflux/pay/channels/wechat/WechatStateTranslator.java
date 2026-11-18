@@ -96,15 +96,29 @@ public final class WechatStateTranslator {
         return ProfitShareState.PROCESSING;
     }
 
-    /** 微信 ISO8601 时间（如 {@code 2020-01-01T10:00:00+08:00}）→ 本地时间；解析失败返回 null。 */
-    public static LocalDateTime toLocalDateTime(String isoTime) {
-        if (isoTime == null || isoTime.isEmpty()) {
+    /** V2 时间格式（{@code yyyyMMddHHmmss}，如 {@code 20150806125346}）。 */
+    private static final DateTimeFormatter V2_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /**
+     * 微信时间 → 本地时间：兼容 V2（{@code yyyyMMddHHmmss}）与 V3 ISO8601
+     * （如 {@code 2020-01-01T10:00:00+08:00}）；解析失败返回 null。
+     */
+    public static LocalDateTime toLocalDateTime(String time) {
+        if (time == null || time.isEmpty()) {
             return null;
         }
+        if (time.length() == 14 && time.matches("\\d{14}")) {
+            try {
+                return LocalDateTime.parse(time, V2_TIME);
+            } catch (Exception e) {
+                log.debug("微信 V2 时间解析失败，按 null 处理，原值: {}", time, e);
+                return null;
+            }
+        }
         try {
-            return OffsetDateTime.parse(isoTime, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDateTime();
+            return OffsetDateTime.parse(time, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDateTime();
         } catch (Exception e) {
-            log.debug("微信 ISO8601 时间解析失败，按 null 处理，原值: {}", isoTime, e);
+            log.debug("微信 ISO8601 时间解析失败，按 null 处理，原值: {}", time, e);
             return null;
         }
     }

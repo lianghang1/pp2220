@@ -83,15 +83,17 @@ public class WechatRefundHandler implements RefundHandler {
             com.github.binarywang.wxpay.bean.result.WxPayRefundQueryResult result =
                     wrap("V2 退款查单", () -> service.refundQuery(request));
             RefundState state = RefundState.PROCESSING;
+            String channelRefundNo = null;
             String succeedTime = null;
             if (result.getRefundRecords() != null && !result.getRefundRecords().isEmpty()) {
                 com.github.binarywang.wxpay.bean.result.WxPayRefundQueryResult.RefundRecord record =
                         result.getRefundRecords().get(0);
                 state = WechatStateTranslator.toRefundState(record.getRefundStatus());
-
+                channelRefundNo = record.getRefundId();
+                succeedTime = record.getRefundSuccessTime();
             }
             return new RefundSnapshot()
-                    .setChannelRefundNo(refund.getBizRefundNo())
+                    .setChannelRefundNo(channelRefundNo)
                     .setState(state)
                     .setSucceedTime(WechatStateTranslator.toLocalDateTime(succeedTime))
                     .setRawMsg(result.getRefundRecords() == null ? null
