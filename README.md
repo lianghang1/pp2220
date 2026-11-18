@@ -185,6 +185,121 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 ---
 
+## 运行环境：Spring Boot 与 Spring MVC（非 Boot）
+
+**两种环境都完整支持**。核心与渠道模块是纯 Java（不依赖 Spring），Spring 只出现在测试范围：
+
+| 运行环境 | 接入方式 | 引入模块 | 配置来源 |
+|---|---|---|---|
+| Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` | `application.yml`（配置文件实现）或自实现 SPI |
+| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | `conflux-pay-core` + `conflux-pay-channels`（发票同理） | 任意来源：内存 / DB / 配置中心 / properties |
+
+**注意**：starter 模块依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot 环境；Spring MVC 项目请用纯 jar 方式，不要引入 starter。
+
+### Spring Boot：starter + application.yml
+
+```xml
+<dependency>
+    <groupId>io.github.lianghang1</groupId>
+    <artifactId>conflux-pay-spring-boot-starter</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+```yaml
+conflux.pay:
+  apps:
+    demo:
+      channels:
+        wechat:
+          notifyUrl: https://your.host/pay/callback/wechat   # 统一键：回调地址
+          sandbox: false                                     # 统一键：沙箱开关
+          # subMchNo: "1900000000"                           # 服务商模式特约商户号（可选）
+          attrs:                                             # 渠道个性键，键名由各渠道定义
+            merchantId: "1900000001"
+            appId: "wx8888888888888888"
+            apiV3Key: "your-32-bytes-apiV3-key-aaaaaaaaaaaa"
+            merchantSerialNumber: "5157F09EFDC096DE15EBE81A47057A72..."
+            merchantPrivateKey: "/data/cert/apiclient_key.pem"
+        alipay:
+          notifyUrl: https://your.host/pay/callback/alipay
+          attrs:
+            appId: "2021000000000000"
+            privateKey: "MIIEvQIBADANBg..."
+            alipayPublicKey: "MIIBIjANBgkq..."
+```
+
+注入 `PaymentGateway` 单例 Bean 即可调用。发票域同理（`conflux.invoice.apps.<appId>.channels.<channel>.*`，多了 `seller-tax-no` / `tier` / `priority` 路由键），完整键位见 [docs/config-keys.md](docs/config-keys.md)。
+
+### Spring MVC（非 Boot）：纯 jar 手动组装
+
+```xml
+<dependency>
+    <groupId>io.github.lianghang1</groupId>
+    <artifactId>conflux-pay-core</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+<dependency>
+    <groupId>io.github.lianghang1</groupId>
+    <artifactId>conflux-pay-channels</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+普通 Spring JavaConfig 装配即可（XML 装配 `<bean>` 同理）：
+
+```java
+@Configuration
+public class PayConfig {
+
+    @Bean
+    public PaymentGateway paymentGateway() {
+        return PaymentGateway.builder()
+                .channel(new WechatChannelProvider())
+                .channel(new AlipayChannelProvider())
+                .configProvider(configProvider())
+                .build();
+    }
+
+    /** 方式 A：内置内存实现，配置从任意来源装载（此处示例硬编码，实际可从 DB/配置中心读） */
+    @Bean
+    public ChannelConfigProvider configProvider() {
+        return new InMemoryChannelConfigProvider()
+                .register(new ChannelConfig()
+                        .setAppId("demo").setChannelCode("WECHAT")
+                        .setNotifyUrl("https://your.host/pay/callback/wechat")
+                        .setParams(WechatParams.fromMap(Map.of(
+                                "merchantId", "1900000001",
+                                "appId", "wx8888888888888888",
+                                "apiV3Key", "your-32-bytes-apiV3-key-aaaaaaaaaaaa"))));
+    }
+}
+```
+
+配置来源不限：把 `ChannelConfigProvider` 换成自实现（从 properties / DB / 配置中心读取），装载期账户键冲突会 fail-fast（`CONFIG_CONFLICT`）。发票域装配同理：
+
+```java
+@Bean
+public InvoiceGateway invoiceGateway() {
+    io.github.lianghang1.conflux.invoice.channel.ChannelConfig config =
+            new io.github.lianghang1.conflux.invoice.channel.ChannelConfig();
+    // appId / channelCode / sellerTaxNo / attrs（attrs 键名见 docs/invoice-platforms.md）...
+    ChannelInstance instance = new ChannelInstance()
+            .setInstanceId("bw-main").setChannelCode("BAIWANGJS")
+            .setSellerTaxNo("91310000...").setTier(ChannelTier.SERVICE_API)
+            .setPriority(10).setEnabled(true);
+
+    return InvoiceGateway.builder()
+            .channel(new BaiwangJsChannelProvider())
+            .configProvider(new InMemoryInvoiceConfigProvider().register(config, instance))
+            .build();
+}
+```
+
+回调接入两种环境完全一致：使用方自己暴露回调端点（Servlet `@RequestMapping` 或 MVC Controller 均可），调 `parseCallback` 验签归一后自行推进状态，示例见 [docs/pay-integration.md](docs/pay-integration.md)。
+
+---
+
 ## 发票平台接入现状（如实标注）
 
 第一版先做「完全公开、有 API 文档」的平台。**框架不编造未经核实的 URL 与字段**：`RestChannelSpec.documentVerified` 标记文档核对状态，未核对的渠道默认不带任何接口路径、不暴露「假装能用」的能力，使用方按平台最新公开文档在 `attrs` 中配置路径与字段映射后即可启用。

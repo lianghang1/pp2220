@@ -15,10 +15,6 @@ spring:
     open-in-view: false
 
 conflux.pay:
-  notify:
-    retry-seconds: [10, 10, 20]
-    secret: demo-notify-secret
-    timeout-millis: 3000
   apps:
     demo:
       channels:
