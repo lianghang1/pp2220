@@ -29,7 +29,16 @@ Conflux 支付 SDK 是**无状态渠道聚合层**：统一各渠道的方法名
 无 Spring 环境用 `PaymentGateway.builder()` 装配，零 Spring 依赖：
 
 ```java
+// 方式 A：直接用内置内存实现（配置来源为代码 / 使用方自管）
+InMemoryChannelConfigProvider configs = new InMemoryChannelConfigProvider()
+        .register(new ChannelConfig()
+                .setAppId("demo").setChannelCode("WECHAT")
+                .setNotifyUrl("https://your.host/pay/notify/wechat")
+                .setParams(new WechatParams()));   // params 为渠道自定义参数对象
+
+// 方式 B：自行实现 ChannelConfigProvider（从数据库 / 配置中心读取）
 ChannelConfigProvider configs = /* 使用方实现的配置提供者 */;
+
 PaymentGateway gateway = PaymentGateway.builder()
         .channel(new WechatChannelProvider())
         .channel(new AlipayChannelProvider())
@@ -38,6 +47,8 @@ PaymentGateway gateway = PaymentGateway.builder()
 ```
 
 `builder()` 必须设置 `configProvider`；渠道通过 `.channel(...)` 逐个注册，运行期还可用 `gateway.registerChannel(provider)` 增补，`gateway.registeredChannels()` 查看已注册渠道。
+
+`InMemoryChannelConfigProvider` 注册时自动按 `ChannelAccountKey.of(params.channelAppId(), subMchNo)` 派生回调账户键（服务商模式为 `channelAppId#subMchNo`），账户键冲突注册即抛 `CONFIG_CONFLICT`；配置不限于配置文件——配置文件实现只在 Spring Boot starter（`conflux.pay.apps.<appId>.channels.<channel>.*`）里提供。
 
 ## 二、核心调用
 

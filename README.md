@@ -51,7 +51,7 @@ conflux-parent (聚合器, 1.0.0)
 - **统一支付 API**：下单 / 查单 / 关单、退款、转账、分账，一套出入参模型，全部返回归一结果快照
 - **多渠道适配**：渠道按包隔离，渠道专属 SDK/签名/报文封闭在各自包内，新增渠道零改内核
 - **零状态**：框架不建台账、不落库；业务单号由使用方传入，判重/金额校验/状态推进由使用方完成
-- **双形态引入**：纯 jar 手动组装（`PaymentGateway.builder()`）/ Spring Boot starter 自动装配
+- **双形态引入**：纯 jar 手动组装（`PaymentGateway.builder()` + `InMemoryChannelConfigProvider`，零 Spring 依赖）/ Spring Boot starter 自动装配；配置来源不限配置文件（接口 SPI，可接 DB/配置中心）
 - **回调验签归一**：`parseCallback` 验签 + 归一为统一事件，应答报文由门面生成；下游通知由使用方自行处理
 
 | 渠道 | 支付方式 | 退款 | 转账 | 分账 | 账单 | 回调验签 |
@@ -236,7 +236,7 @@ conflux.invoice.apps.demo.channels.baiwangjs:
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **258 个用例全绿**（common 17、pay 64、invoice 177；按模块 = common 17 / pay-core 25 / pay-channels 31 / pay-starter 8 / inv-core 37 / inv-channels 130 / inv-starter 9 / inv-example 1）。支付侧覆盖参数/状态映射、编排流程（下单/退款/转账/分账/回调）、渠道能力声明、starter 装配；发票侧覆盖账户键、渠道注册表、错误码分段、蓝字开票、授权往返、异步查单、XML 法定原件强约束、红冲两段与快捷红冲、回调归一、版式文件固化与转图、starter 装配与 example 端到端；其中百旺金穗云、票通云各有专属适配器协议层/编排层单测覆盖网关签名、报文编解码、V1/V2 差异、回调分流与状态归一。
+当前全量 **262 个用例全绿**（common 17、pay 68、invoice 177；按模块 = common 17 / pay-core 29 / pay-channels 31 / pay-starter 8 / inv-core 37 / inv-channels 130 / inv-starter 9 / inv-example 1）。支付侧覆盖参数/状态映射、编排流程（下单/退款/转账/分账/回调）、渠道能力声明、starter 装配；发票侧覆盖账户键、渠道注册表、错误码分段、蓝字开票、授权往返、异步查单、XML 法定原件强约束、红冲两段与快捷红冲、回调归一、版式文件固化与转图、starter 装配与 example 端到端；其中百旺金穗云、票通云各有专属适配器协议层/编排层单测覆盖网关签名、报文编解码、V1/V2 差异、回调分流与状态归一。
 
 ## 文档索引
 
