@@ -217,8 +217,9 @@ class InvoiceOrchestrator {
                 apply.setState(RedApplyState.CONFIRMED);
             }
             Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
-            InvoiceContext redCtx = InvoiceContext.of(config, null, red).setRedApply(apply);
-            InvoiceResult redInvoice = applyOutcome(red, rt.registry.redHandler(channel).issueRed(redCtx));
+            // 渠道 quickRed 已通过快速接口（如百望 fastRed）一次调用开具红票，
+            // 直接归一渠道已返回的结果即可，禁止二次调用 issueRed（否则重复开票）。
+            InvoiceResult redInvoice = applyOutcome(red, outcome.getRedInvoice());
             return QuickRedResult.accepted(apply, redInvoice);
         }
         applyRedOutcome(apply, outcome.getRedApply());
