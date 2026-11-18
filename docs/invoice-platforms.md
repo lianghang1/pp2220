@@ -391,9 +391,9 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | `pageImages(pdfBytes, config)` | 【按需】PDF 逐页转图（PNG，携带 DPI 元数据），供预览；转换时机与参数由使用方决定 |
 | `printAdaptedPdf(pdfBytes, paper, dpi)` | 【按需】PDF 逐页栅格化后重组指定纸型 PDF（真实场景：特殊字体 PDF 直接打印丢字 → 转图再排进 A4，文字固化为像素），输出仍是单一 PDF，打印接口零改动 |
 
-后两者基于 conflux-invoice-core 的 `PdfImageConverter`，pdfbox 为 core 的强制依赖（版本经 BOM 管理，传递的 commons-logging 已排除并经 jcl-over-slf4j 桥接）
-而非 `NoClassDefFoundError`。框架绝不自动转换——是否转图、转什么纸型、什么时机，全部由使用方按需调用。
-example 的 `InvoiceController` 提供了 `/files/{id}/{type}/bytes`、`/{id}/pages`、`/{id}/print-adapted` 演示端点。
+后两者基于 conflux-invoice-core 的 `PdfImageConverter`（运行依赖 PDFBox，开箱可用）。
+框架绝不自动转换——是否转图、转什么纸型、什么时机，全部由使用方按需调用。
+example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/invoices/pdf/pages`、`/api/invoices/pdf/print-adapted` 演示端点。
 
 ## 6. 通用 REST 适配器的配置键
 
