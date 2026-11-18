@@ -30,7 +30,6 @@
         <!-- 渠道 SDK 类 -->
         <weixin-java-pay.version>4.7.2.B</weixin-java-pay.version>
         <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
-        <ttl.version>2.14.5</ttl.version>
         <!-- 百望云 BOPSDK：中央仓库不发布，需 install:install-file 到私服/本地仓库 -->
         <baiwang-bopsdk.version>3.4.871</baiwang-bopsdk.version>
     </properties>
@@ -72,11 +71,6 @@
                 <groupId>com.alipay.sdk</groupId>
                 <artifactId>alipay-sdk-java</artifactId>
                 <version>${alipay-sdk.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.alibaba</groupId>
-                <artifactId>transmittable-thread-local</artifactId>
-                <version>${ttl.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baiwang.bop</groupId>

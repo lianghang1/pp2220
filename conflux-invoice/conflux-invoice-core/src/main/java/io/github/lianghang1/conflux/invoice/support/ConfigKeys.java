@@ -5,8 +5,8 @@ package io.github.lianghang1.conflux.invoice.support;
  *
  * @author lianghang
  */
-public final class StoreSupport {
-    private StoreSupport() {
+public final class ConfigKeys {
+    private ConfigKeys() {
     }
 
     /** 以 {@code ::} 拼接非空安全的组合索引键。 */

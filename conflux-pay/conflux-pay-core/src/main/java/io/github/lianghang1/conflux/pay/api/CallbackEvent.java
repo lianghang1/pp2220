@@ -12,8 +12,9 @@ import java.util.Map;
  * 渠道回调事件：渠道回调处理器验签、解析后的归一化结果。
  *
  * <p>{@code bizOrderNo} 为渠道侧回传的业务单号（支付=业务单号、退款=业务退款单号、
- * 转账=业务转账单号），引擎据此在对应 Store 中定位订单；
- * {@code success} 为归一化结果标记，渠道原始字段保留在 {@code raw}。</p>
+ * 转账=业务转账单号），使用方据此定位自己的订单；
+ * {@code success} 为归一化结果标记，渠道原始字段保留在 {@code raw}。
+ * SDK 只验签归一、不查重、不定位台账。</p>
  *
  * @author lianghang
  */
@@ -27,7 +28,7 @@ public class CallbackEvent implements Serializable {
     private BizOrderType type;
     /** 使用方应用标识（经渠道侧应用标识换算得到） */
     private String appId;
-    /** 渠道侧回传的业务单号（定位订单的幂等键） */
+    /** 渠道侧回传的业务单号（使用方据此定位自己的订单并查重） */
     private String bizOrderNo;
     /** 渠道侧单号 */
     private String channelOrderNo;

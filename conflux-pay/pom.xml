@@ -67,7 +67,7 @@
                 <artifactId>conflux-pay-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- 渠道 SDK 类三方件（weixin/alipay/ttl）版本经 BOM 管理，此处不再重复 -->
+            <!-- 渠道 SDK 类三方件（weixin/alipay）版本经 BOM 管理，此处不再重复 -->
         </dependencies>
     </dependencyManagement>
 

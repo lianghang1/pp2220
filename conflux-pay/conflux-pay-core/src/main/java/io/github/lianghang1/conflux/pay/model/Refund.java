@@ -22,7 +22,7 @@ public class Refund implements Serializable {
 
     /** 使用方应用标识 */
     private String appId;
-    /** 使用方业务退款单号（appId 内唯一，幂等键） */
+    /** 使用方业务退款单号（渠道商户单号，渠道侧幂等键；查重由使用方负责） */
     private String bizRefundNo;
     /** 关联的使用方业务单号（冗余，便于查询） */
     private String bizOrderNo;

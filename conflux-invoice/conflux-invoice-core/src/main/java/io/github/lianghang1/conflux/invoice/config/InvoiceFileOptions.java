@@ -19,7 +19,7 @@ import java.io.IOException;
  *       XML 法定原件不随开关变化——下载失败一律阻断置成功</li>
  *   <li>{@code outputDir}（可选）：配置后固化字节同步写盘
  *       {@code {outputDir}/{invoiceId}/{fileId}.{ext}}，并回填
- *       {@code InvoiceFile.filePath}；写盘失败仅告警不阻断（字节已在 FileStore）</li>
+ *       {@code InvoiceFile.filePath}；写盘失败仅告警不阻断（字节已内联在载体）</li>
  * </ul>
  *
  * <p>转图/A4 重组等「文件再加工」不属于本类职责——那是按需调用的门面能力
@@ -32,7 +32,7 @@ public class InvoiceFileOptions {
     /** 归档时是否对 url 型文件立即下载固化（XML 法定原件始终强制）。 */
     private boolean immediateDownload = true;
 
-    /** 本地落盘根目录；null = 不落盘，字节仅存 FileStore。 */
+    /** 本地落盘根目录；null = 不落盘，字节仅内联在文件载体。 */
     private String outputDir;
 
     /** 固化下载超时（毫秒）。 */

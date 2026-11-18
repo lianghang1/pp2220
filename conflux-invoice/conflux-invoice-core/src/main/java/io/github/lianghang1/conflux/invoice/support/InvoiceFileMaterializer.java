@@ -30,16 +30,9 @@ import java.util.List;
 public class InvoiceFileMaterializer {
 
     private final InvoiceFileOptions options;
-    private final PersistCallback persist;
 
-    /** 固化结果回写持久层（幂等）；null 表示仅就地修改不回写（如调用方自行批量保存）。 */
-    public interface PersistCallback {
-        void persist(List<InvoiceFile> files);
-    }
-
-    public InvoiceFileMaterializer(InvoiceFileOptions options, PersistCallback persist) {
+    public InvoiceFileMaterializer(InvoiceFileOptions options) {
         this.options = options == null ? new InvoiceFileOptions() : options;
-        this.persist = persist;
     }
 
     /**
@@ -52,7 +45,6 @@ public class InvoiceFileMaterializer {
         if (files == null || files.isEmpty()) {
             return;
         }
-        boolean changed = false;
         for (InvoiceFile file : files) {
             if (file == null || file.getType() == null || !file.hasPayload()) {
                 continue;
@@ -63,7 +55,6 @@ public class InvoiceFileMaterializer {
             }
             try {
                 materializeOne(file, strict);
-                changed = true;
             } catch (GatewayException e) {
                 // 两级失败策略：strict 仅对 XML 法定原件生效（失败阻断置成功）；
                 // PDF/OFD/IMAGE 展示文件下载失败一律只告警、保留 url 待 fileBytes/repair 补拉。
@@ -73,9 +64,6 @@ public class InvoiceFileMaterializer {
                 log.warn("版式文件固化失败（不阻断）: invoiceId={}, type={}, url={}, error={}",
                         file.getInvoiceId(), file.getType(), file.getUrl(), e.getMessage());
             }
-        }
-        if (changed && persist != null) {
-            persist.persist(files);
         }
     }
 
@@ -88,20 +76,12 @@ public class InvoiceFileMaterializer {
         if (file.getContent() != null && file.getContent().length() > 0) {
             byte[] bytes = decode(file);
             applyDigest(file, bytes);
-            if (persist != null) {
-                persist.persist(java.util.Collections.singletonList(file));
-            }
             return bytes;
         }
         GatewayAssert.notBlank(file.getUrl(), InvoiceErrorCode.FILE_NOT_FOUND,
                 "版式文件既无内联内容也无下载地址: {}", file.getFileId());
-        byte[] bytes = download(file);
-        // 下载后必须回写持久层（FileStore 返回的是拷贝对象）：否则下次 fileBytes 仍是
-        // url-only，会重复下载。回写幂等，第二次命中 isMaterialized 直接解码。
-        if (persist != null) {
-            persist.persist(java.util.Collections.singletonList(file));
-        }
-        return bytes;
+        // download 就地回填 content/digest/size，第二次 fileBytes 命中 isMaterialized 直接解码，不重复下载。
+        return download(file);
     }
 
     /** 按类型取扩展名（IMAGE 统一 img，具体格式以内容为准）。 */
@@ -203,7 +183,7 @@ public class InvoiceFileMaterializer {
         file.setSize(bytes.length);
     }
 
-    /** 配置了落盘目录时写字节到本地（失败仅告警不阻断，字节已在 FileStore）。 */
+    /** 配置了落盘目录时写字节到本地（失败仅告警不阻断，字节已内联在载体）。 */
     private void ensureDiskCopy(InvoiceFile file) {
         if (options.getOutputDir() == null || file.getFilePath() != null) {
             return;
@@ -223,8 +203,8 @@ public class InvoiceFileMaterializer {
         }
     }
 
-    /** 供测试/手动装配使用的无持久化构造。 */
+    /** 工厂入口：固化只就地修改载体，不持有任何台账。 */
     public static InvoiceFileMaterializer detached(InvoiceFileOptions options) {
-        return new InvoiceFileMaterializer(options, null);
+        return new InvoiceFileMaterializer(options);
     }
 }

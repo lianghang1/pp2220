@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 版式文件固化回归：Base64/url 两种渠道形态统一拉平为字节，
- * digest/size 核算、可选落盘、XML 法定原件 strict 阻断、持久化回调。
+ * digest/size 核算、可选落盘、XML 法定原件 strict 阻断、就地回填。
  */
 class InvoiceFileMaterializationTest {
 
@@ -90,17 +90,14 @@ class InvoiceFileMaterializationTest {
 
     @Test
     void urlFileIsDownloadedAndBackfilled() {
-        List<InvoiceFile> persisted = new ArrayList<>();
-        InvoiceFileMaterializer m = new InvoiceFileMaterializer(new InvoiceFileOptions(),
-                persisted::addAll);
+        InvoiceFileMaterializer m = InvoiceFileMaterializer.detached(new InvoiceFileOptions());
         InvoiceFile file = pdfWithUrl("/ok.pdf");
         m.materialize(single(file), true);
         assertThat(hits.get()).isEqualTo(1);
         assertThat(file.isMaterialized()).isTrue();
+        // 固化结果就地回填到载体（无台账，由使用方随载体带回）
         assertThat(new String(InvoiceFileMaterializer.decode(file), StandardCharsets.US_ASCII))
                 .isEqualTo(PDF_BYTES_SOURCE);
-        // 固化结果已回写持久层
-        assertThat(persisted).contains(file);
     }
 
     @Test

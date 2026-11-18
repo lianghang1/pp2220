@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>{@code fpkj status=1} → <b>只补充票面字段</b>（state 为空，不迁移状态）；</li>
  *   <li>{@code qdbswj status=1} → 携带 XML/OFD/PDF 地址并置 {@code SUCCEEDED}；</li>
- *   <li>无论两回调先后顺序，票号与法定原件都能收敛到同一单据（编排层字段补充按 CAS 合并）。</li>
+ *   <li>两次回调各自产出归一事件，使用方按业务单号把票号与法定原件合并到自己的单据。</li>
  * </ul>
  *
  * <p><b>验签</b>：平台公开文档未定义回调签名头/参数，故不伪造验签规则；
@@ -87,8 +87,8 @@ public final class BaiwangJsCallbackParser {
                 || BaiwangJsSpec.YW_CXNSRFX.equalsIgnoreCase(ywlxdm)) {
             parseAuth(root, event, attrs);
         } else if (BaiwangJsSpec.YW_HZCX.equalsIgnoreCase(ywlxdm)) {
-            // 3.3.17 可冲销明细查询的异步结果：只登记金额/明细摘要，绝不改单据状态，
-            // 否则会被误当成 fpkj 开票结果推进状态机。
+            // 3.3.17 可冲销明细查询的异步结果：只携带金额/明细摘要，不置开票状态，
+            // 否则会被误当成 fpkj 开票结果回调。
             parseRedAvailable(root, event, attrs);
         } else {
             // fpkj（蓝字开票结果 / 红字开具结果）及未知类型统一按开票结果处理

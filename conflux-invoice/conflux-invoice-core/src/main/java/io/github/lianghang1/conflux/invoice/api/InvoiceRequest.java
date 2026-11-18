@@ -28,7 +28,7 @@ public class InvoiceRequest implements Serializable {
 
     /** 使用方应用标识（必填）。 */
     private String appId;
-    /** 使用方业务单号（必填，与 appId 组成幂等键）。 */
+    /** 使用方业务单号（必填，渠道商户单号；查重由使用方负责）。 */
     private String bizOrderNo;
     /** 指定渠道编码（可空，空则按通道分级路由）。 */
     private String channelCode;

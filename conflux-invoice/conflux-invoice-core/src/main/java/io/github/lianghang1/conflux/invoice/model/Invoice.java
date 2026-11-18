@@ -11,10 +11,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 发票单据实体（持久化对象）。
+ * 发票载体：承载完整票面与渠道要素，随开票/查单结果返回、随后续请求回传。
  *
- * <p><b>法定原件</b>：开票成功的判定不仅看渠道状态码，还要求归档至少一份
- * {@code InvoiceFileType.XML} 原件，文件单独存 {@code InvoiceFileStore}。</p>
+ * <p>SDK 无台账——本对象是渠道交互与使用方业务之间的数据载体，不做持久化。
+ * <b>法定原件</b>：开票成功的判定不仅看渠道状态码，还要求至少一份
+ * {@code InvoiceFileType.XML} 原件，由使用方随载体自行归档。</p>
  *
  * @author lianghang
  */
@@ -28,7 +29,7 @@ public class Invoice implements Serializable {
     private String invoiceId;
     /** 使用方应用标识。 */
     private String appId;
-    /** 使用方业务单号（与 appId 组成幂等键）。 */
+    /** 使用方业务单号（渠道商户单号；查重由使用方负责）。 */
     private String bizOrderNo;
     /** 实际使用的渠道编码。 */
     private String channelCode;

@@ -19,7 +19,7 @@ import java.util.List;
  * 发票操作统一结果。
  *
  * <p>渠道能力实现用静态工厂表达「受理/等待授权/成功/失败」，编排器用
- * {@link #fromInvoice(Invoice, List, AuthChallenge)} 把持久化实体转为对使用方的返回，
+ * {@link #fromInvoice(Invoice, List, AuthChallenge)} 把发票载体转为对使用方的返回，
  * 保证同一份状态、同一套字段，不出现两套模型漂移。</p>
  *
  * @author lianghang
@@ -94,7 +94,7 @@ public class InvoiceResult implements Serializable {
 
     // ---- 编排器出口 ----
 
-    /** 由持久化实体构造对外结果。 */
+    /** 由发票载体构造对外结果。 */
     public static InvoiceResult fromInvoice(Invoice invoice, List<InvoiceFile> files,
                                             AuthChallenge challenge) {
         if (invoice == null) {

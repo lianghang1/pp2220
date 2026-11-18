@@ -33,7 +33,7 @@ public class InvoiceProperties {
     public static class FileProperties {
         /** 归档时对 url 型文件立即下载固化（XML 法定原件始终强制，不随开关变化）。 */
         private boolean immediateDownload = true;
-        /** 本地落盘根目录；留空 = 不落盘，字节仅存 FileStore。 */
+        /** 本地落盘根目录；留空 = 不落盘，字节仅内联在文件载体。 */
         private String outputDir;
         /** 固化下载超时（毫秒）。 */
         private long downloadTimeoutMillis = 30000L;

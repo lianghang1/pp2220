@@ -18,7 +18,6 @@ public enum InvoiceErrorCode implements ErrorCode {
 
     // ---- 单据 30xx ----
     INVOICE_NOT_FOUND(3001, "发票单据不存在", 404),
-    DUPLICATE_BIZ_ORDER(3002, "相同业务单号的开票请求已存在且参数不一致", 409),
     STATE_ILLEGAL(3003, "发票当前状态不允许该操作", 409),
     AMOUNT_MISMATCH(3004, "渠道回传金额与请求金额不一致", 409),
     ITEM_REQUIRED(3005, "发票明细行不能为空", 400),
@@ -52,12 +51,9 @@ public enum InvoiceErrorCode implements ErrorCode {
     RED_CONFIRM_REJECTED(3305, "红字确认单被对方拒绝", 409),
     RED_NOT_AVAILABLE(3306, "原票可冲销校验未通过，不能发起红冲", 409),
 
-    // ---- 文件 / 持久化 34xx ----
+    // ---- 版式文件 34xx ----
     FILE_NOT_FOUND(3401, "发票版式文件不存在", 404),
     XML_ORIGINAL_REQUIRED(3402, "缺少法定 XML 原件，禁止置为开票成功", 500),
-    STORE_MISSING(3403, "持久化实现未注册", 500),
-    STORE_CONCURRENT_MODIFICATION(3404, "单据已被并发修改，请重试", 409),
-    STORE_CLAIM_FAILED(3405, "待处理单据认领失败", 409),
     FILE_ARCHIVE_FAILED(3406, "版式文件归档失败", 500),
     FILE_URL_EXPIRED(3407, "版式文件下载地址已失效，请走修复补拉", 502),
     FILE_MATERIALIZE_FAILED(3408, "版式文件固化失败（下载/解码）", 500),

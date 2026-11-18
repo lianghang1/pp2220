@@ -49,7 +49,7 @@ class InvoiceErrorCodeTest {
         assertTrue(InvoiceErrorCode.RED_CONFIRM_PENDING.getCode() / 100 == 33,
                 "红字确认单应落在 33xx");
         assertTrue(InvoiceErrorCode.XML_ORIGINAL_REQUIRED.getCode() / 100 == 34,
-                "文件/持久化应落在 34xx");
+                "版式文件应落在 34xx");
     }
 
     private void collect(Set<Integer> target, ErrorCode[] codes) {

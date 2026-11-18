@@ -16,10 +16,8 @@ public enum GatewayErrorCode implements ErrorCode {
 
     // ---- 订单 2xxx ----
     ORDER_NOT_FOUND(2001, "订单不存在", 404),
-    DUPLICATE_ORDER(2002, "相同业务单号的订单已存在且参数不一致", 409),
     STATE_ILLEGAL(2003, "订单当前状态不允许该操作", 409),
     AMOUNT_MISMATCH(2004, "回调金额与订单金额不一致", 409),
-    REFUND_EXCEED_REFUNDABLE(2005, "退款金额超出可退余额", 409),
     PAYEE_REQUIRED(2006, "缺少收款方信息", 400),
 
     // ---- 渠道 21xx ----
@@ -30,11 +28,7 @@ public enum GatewayErrorCode implements ErrorCode {
     CHANNEL_CALL_FAILED(2105, "渠道调用失败", 500),
     SIGN_INVALID(2106, "回调验签失败", 400),
     CALLBACK_PARSE_FAILED(2107, "回调报文解析失败", 400),
-    CONFIG_CONFLICT(2108, "渠道账户标识冲突，无法唯一定位回调配置", 500),
-
-    // ---- 持久化/通知 22xx ----
-    STORE_MISSING(2201, "持久化实现未注册", 500),
-    NOTIFY_SEND_FAILED(2202, "下游通知发送失败", 500);
+    CONFIG_CONFLICT(2108, "渠道账户标识冲突，无法唯一定位回调配置", 500);
 
     private final int code;
     private final String message;

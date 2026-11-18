@@ -31,12 +31,12 @@ public class InMemoryInvoiceConfigProvider implements InvoiceConfigProvider {
 
     /** 注册一个渠道实例及其配置；账户键冲突时立即失败。 */
     public InMemoryInvoiceConfigProvider register(ChannelConfig config, ChannelInstance instance) {
-        String appKey = StoreSupport.key(config.getAppId(), config.getChannelCode(),
+        String appKey = ConfigKeys.key(config.getAppId(), config.getChannelCode(),
                 config.getSellerTaxNo());
         byApp.put(appKey, config);
 
         if (config.getAccountKey() != null) {
-            String accountIndexKey = StoreSupport.key(config.getChannelCode(), config.getAccountKey());
+            String accountIndexKey = ConfigKeys.key(config.getChannelCode(), config.getAccountKey());
             ChannelConfig existing = byAccount.putIfAbsent(accountIndexKey, config);
             if (existing != null) {
                 throw new GatewayException(InvoiceErrorCode.CONFIG_CONFLICT,
@@ -56,7 +56,7 @@ public class InMemoryInvoiceConfigProvider implements InvoiceConfigProvider {
 
     @Override
     public ChannelConfig getConfig(String appId, String channelCode, String sellerTaxNo) {
-        ChannelConfig config = byApp.get(StoreSupport.key(appId, channelCode, sellerTaxNo));
+        ChannelConfig config = byApp.get(ConfigKeys.key(appId, channelCode, sellerTaxNo));
         if (config == null) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
                     "发票渠道配置缺失: appId={}, channel={}, taxNo={}",
@@ -67,7 +67,7 @@ public class InMemoryInvoiceConfigProvider implements InvoiceConfigProvider {
 
     @Override
     public ChannelConfig getByAccountKey(String channelCode, String accountKey) {
-        ChannelConfig config = byAccount.get(StoreSupport.key(channelCode, accountKey));
+        ChannelConfig config = byAccount.get(ConfigKeys.key(channelCode, accountKey));
         if (config == null) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
                     "发票渠道账户键无对应配置: channel={}, accountKey={}", channelCode, accountKey);

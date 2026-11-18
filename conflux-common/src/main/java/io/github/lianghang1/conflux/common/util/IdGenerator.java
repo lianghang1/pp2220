@@ -7,9 +7,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 网关单号生成器：前缀 + 时间戳（17 位）+ 3 位循环序列，单机线程安全。
  *
- * <p>同毫秒内由 {@link AtomicLong} 循环计数保证不重复；跨节点部署时业务单号的
- * 唯一性由 {@code appId + 业务单号} 的幂等约束兜底（Store 实现方保证），
- * 网关单号仅要求单机唯一。所有方法线程安全。</p>
+ * <p>同毫秒内由 {@link AtomicLong} 循环计数保证不重复，仅要求单机唯一。
+ * 这些内部标识只用于渠道交互载荷；业务单号由使用方提供、查重由使用方完成。
+ * 所有方法线程安全。</p>
  *
  * @author lianghang
  */

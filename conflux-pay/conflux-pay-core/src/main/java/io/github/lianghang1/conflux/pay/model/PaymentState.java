@@ -1,12 +1,12 @@
 package io.github.lianghang1.conflux.pay.model;
 
 /**
- * 支付单状态机。
+ * 支付状态语义（渠道归一化结果 + 使用方业务推进参考）。
  *
- * <p>迁移约束（由引擎内部保证，Store 实现方无需校验）：
+ * <p>SDK 无状态机：这些状态取自渠道归一快照或由使用方在自己的业务里推进，
+ * SDK 不维护迁移、不校验状态流转。典型业务链路：
  * {@code CREATED → PAYING → SUCCEEDED / FAILED / CLOSED}；
- * {@code SUCCEEDED → REFUNDING → PART_REFUNDED → REFUNDED}；
- * PAYING 状态下允许由渠道查询/对账修正为终态。</p>
+ * {@code SUCCEEDED → REFUNDING → PART_REFUNDED → REFUNDED}。</p>
  *
  * @author lianghang
  */

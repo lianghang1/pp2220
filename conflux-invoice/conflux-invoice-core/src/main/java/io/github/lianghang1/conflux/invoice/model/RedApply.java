@@ -24,7 +24,7 @@ public class RedApply implements Serializable {
     /** 网关红字确认单号（主键）。 */
     private String redApplyId;
     private String appId;
-    /** 使用方业务单号（幂等键）。 */
+    /** 使用方业务单号（渠道侧幂等键，查重由使用方负责）。 */
     private String bizRedNo;
     /** 原蓝字发票单据号。 */
     private String originalInvoiceId;

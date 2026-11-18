@@ -22,7 +22,7 @@ public class Transfer implements Serializable {
 
     /** 使用方应用标识 */
     private String appId;
-    /** 使用方业务转账单号（appId 内唯一，幂等键） */
+    /** 使用方业务转账单号（渠道商户单号，渠道侧幂等键；查重由使用方负责） */
     private String bizTransferNo;
     /** 转账方式编码（PayMethod.code，如 WECHAT_TRANS / ALI_TRANSFER） */
     private String method;

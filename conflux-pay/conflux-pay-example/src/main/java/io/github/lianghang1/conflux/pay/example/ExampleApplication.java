@@ -2,13 +2,11 @@ package io.github.lianghang1.conflux.pay.example;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 演示宿主启动类：展示通过 starter 接入支付网关的最小工程形态——
- * 使用方只需实现 Store Bean、暴露回调入口、挂接兜底定时任务。
+ * 注入网关 Bean、暴露回调入口即可。SDK 无台账，落库、查重与兜底查单由使用方自行实现。
  */
-@EnableScheduling
 @SpringBootApplication
 public class ExampleApplication {
 
