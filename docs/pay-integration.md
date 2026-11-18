@@ -1,8 +1,8 @@
 # 支付域接入指南
 
-Conflux 支付 SDK 是**无状态渠道聚合层**：统一各渠道的方法名、出入参、结果与回调验签归一；不落库、不查重、不维护状态机、不通知下游。落库、判重、金额校验、状态推进、下游通知全部由使用方在自己的业务链完成。
+无状态渠道聚合层：统一方法名、出入参、结果、回调验签归一。落库、判重、金额校验、状态推进、下游通知由使用方完成。
 
-> 先读 README 的「核心契约」：渠道受理态 ≠ 业务终态，最终态来自回调或主动查单；业务单号（`bizOrderNo`）是贯穿全程的唯一线索。
+> 受理态 ≠ 终态，最终态来自回调或主动查单；`bizOrderNo` 贯穿全程。完整契约见 [README](../README.md)。
 
 ## 一、两种引入形态
 
@@ -90,11 +90,7 @@ public String callback(@PathVariable String channelCode,
             .setFormParams(/* form */)
             .setBody(/* 原始 body */));
 
-    // ↓ 以下是业务，SDK 一概不碰 ↓
-    // 1) 按 event.getBizOrderNo() 定位自己的订单
-    // 2) 判重（同一事件可能重复到达）
-    // 3) 校验 event.getAmount() 与订单金额一致
-    // 4) 成功后改订单状态、通知订单/库存系统……
+    // 使用方：定位订单 → 判重 → 校验金额 → 推进状态（SDK 不介入）
 
     return paymentGateway.callbackSuccessReply(channelCode); // 处理异常用 callbackFailureReply
 }
@@ -113,8 +109,6 @@ public String callback(@PathVariable String channelCode,
    - starter 场景：把你的 `ChannelProvider` 声明为 Spring Bean（自动装配的 `@ConditionalOnMissingBean` 不会冲突）；
    - 纯 jar 场景：`builder().channel(new MyChannelProvider())` 或 `gateway.registerChannel(...)`。
 5. **配置键**：按 [config-keys.md](config-keys.md) 的「统一基础键 + `attrs` 扩展键」两层模型，在 `conflux.pay.apps.<appId>.channels.<渠道>` 下声明。
-
-> 当前内置渠道在 starter 中以逐个条件 Bean 注册（新增内置渠道需同步在 `PayGatewayAutoConfiguration` 加 Bean）；三方渠道按上述 SPI 方式**无需改 starter**。
 
 ## 五、文档索引
 

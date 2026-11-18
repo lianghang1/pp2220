@@ -54,7 +54,7 @@ conflux.pay.apps.demo.channels.mock:
     payOutcome: paying
 ```
 
-注入 `PaymentGateway` 即可调用。完整配置键、联调清单与回调示例见 [docs/config-keys.md](docs/config-keys.md)、[docs/integration-checklist.md](docs/integration-checklist.md)。
+注入 `PaymentGateway` 即可调用。全部方法（下单/查单/关单/退款/转账/分账/账单/回调）与出入参字段见 [docs/api-reference.md](docs/api-reference.md)；配置键与联调清单见 [docs/config-keys.md](docs/config-keys.md)、[docs/integration-checklist.md](docs/integration-checklist.md)。
 
 ```java
 // 下单：bizOrderNo 由使用方生成，作为渠道商户单号
@@ -115,7 +115,7 @@ conflux.invoice:
             redConfirmOutcome: CONFIRMED
 ```
 
-注入 `InvoiceGateway` 即可调用。票据载体随结果返回、随请求回传，由使用方保管。
+注入 `InvoiceGateway` 即可调用。全部方法（开票/授权/红冲/查单/交付/修复/文件/回调）与出入参字段见 [docs/api-reference.md](docs/api-reference.md)。票据载体随结果返回、随请求回传，由使用方保管。
 
 ```java
 InvoiceResult r = invoiceGateway.issue(new InvoiceRequest()
@@ -241,6 +241,7 @@ mvn -q -DfailIfNoTests=false test
 
 ## 文档索引
 
+- [docs/api-reference.md](docs/api-reference.md) — **API 参考**：两个网关的全部方法、出入参字段、枚举取值
 - [docs/pay-integration.md](docs/pay-integration.md) — 支付域接入指南（两种引入形态、核心调用、回调接入、自定义渠道）
 - [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表与服务商模式回调路由
 - [docs/integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单
