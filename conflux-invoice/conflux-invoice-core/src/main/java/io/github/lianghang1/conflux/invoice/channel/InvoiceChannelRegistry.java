@@ -97,18 +97,6 @@ public class InvoiceChannelRegistry {
         return capability(channelCode, provider(channelCode).repairer(), "发票修复");
     }
 
-    /** 可选能力查询：渠道未实现时返回 null，供编排层跳过而非抛异常。 */
-    public InvoiceDeliverer delivererOrNull(String channelCode) {
-        InvoiceChannelProvider p = provider(channelCode);
-        return p == null ? null : p.deliverer();
-    }
-
-    /** 可选能力查询：渠道未实现时返回 null，供编排层跳过而非抛异常。 */
-    public InvoiceRepairer repairerOrNull(String channelCode) {
-        InvoiceChannelProvider p = provider(channelCode);
-        return p == null ? null : p.repairer();
-    }
-
     private <T> T capability(String channelCode, T handler, String capabilityName) {
         if (handler == null) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED,

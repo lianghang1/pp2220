@@ -44,7 +44,7 @@ Content-Type: application/json
 | `action` | 接口动作，`fpkj_zzs` | `RestChannelSpec.actionCode` |
 | `async` | 是否允许转异步 | `Invoice.asyncAllowed` |
 | `nsrsbh` | 销方纳税人识别号 | `Invoice.sellerTaxNo` |
-| `ly_ddbh` | 来源订单号（幂等键） | `Invoice.bizOrderNo` |
+| `ly_ddbh` | 来源订单号（渠道商户单号） | `Invoice.bizOrderNo` |
 | `jshj` | 价税合计 | `Invoice.amount` |
 | `hjse` | 合计税额 | `Invoice.taxAmount` |
 | `wjgs` | 文件格局（框架固定 `xml`） | — |
@@ -169,9 +169,10 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 ### 3.3 异步回调：票号与版式分离
 
-平台把「开票结果」与「版式文件地址」拆成**两次独立回调**，与框架「`SUCCEEDED` 前必须归档 XML 法定原件」冲突。
-为此编排层（`InvoiceOrchestrator`）新增「**补充型回调**」语义：只合并票面字段 / 归档文件、**不迁移状态**，
-两类回调先后顺序不定也能收敛到同一单据，且按 CAS 合并避免先到的票号被后到的版式回调抹掉。
+平台把「开票结果」与「版式文件地址」拆成**两次独立回调**。SDK 只做验签 + 归一：
+`InvoiceOrchestrator` 对「补充型回调」只归一票面字段 / 文件载体、**不定义状态推进**，两类回调的字段合并、
+去重与最终态判定由使用方按自己的单据处理（SDK 无台账、无 CAS、无状态机）。
+法定 XML 原件约束体现在归一结果的判定辅助上，是否置为成功由使用方决定。
 
 | `ywlxdm` | 含义 | 框架处理 |
 |---|---|---|
@@ -230,7 +231,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 按「通用渠道平台」视角，只把**填实已有骨架能力**与**跨渠道一等可选能力**纳入实现；
 商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等纯业务 / 渠道专属接口不进骨架。
-**数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` / `InvoiceStore` 不因此改动。
+**数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` 状态语义不因此改动。
 
 **A 档（填实已有能力，不改 SPI 签名）**：
 
@@ -243,7 +244,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | BW-40 / 3.4.5 | 异步二维码走 `attrs.qrMode=ASYNC`，与同步版共用同一能力 |
 | BW-43 / BW-52 / 3.4.8 / 3.4.15 | `fetch()` 真查版式文件；失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程 |
 | BW-51 / 3.4.14 | `submit()` 扫脸分支接认证结果查询，`sfsl=N` 直接通过 |
-| BW-50 / 3.4.13 | 骨架层：`InvoiceQueryRequest` 加 `invoiceNo/invoiceCode`，`locate()` 复用 `Store.findByInvoiceNo` |
+| BW-50 / 3.4.13 | 骨架层：`InvoiceQueryRequest` 加 `invoiceNo/invoiceCode`，由请求直接携带票号查询（SDK 无台账，不依赖 Store 反查） |
 
 **B 档（新增可选能力，一律 `default null`）**：
 
@@ -256,7 +257,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 门面/编排层新增 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
 渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`，
-`mock` / 企享云等渠道不受影响；`hzcx` 回调只登记 attrs、绝不迁移状态机。
+`mock` / 企享云等渠道不受影响；`hzcx` 回调只归一 attrs、不涉及状态推进（SDK 无状态机）。
 
 **如实标注的边界**：
 
@@ -373,23 +374,23 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
   回写 SHA-256 digest / size，可选落盘。
 - **两级失败策略**：XML 法定原件固化失败一律阻断置成功（错误码 `XML_ORIGINAL_REQUIRED`）；
   PDF/OFD/IMAGE 展示文件失败仅告警、保留 url，由 `fileBytes`/`refresh`/`repair` 异步补拉，不阻断开票成功。
-- 固化结果回写 `FileStore`（幂等），`InvoiceFile.isMaterialized()` 标识已固化。
+- 固化结果就地回填到 `InvoiceFile`（content/digest/size），`InvoiceFile.isMaterialized()` 标识已固化；SDK 无 FileStore，载体由使用方保管。
 - 配置项 `conflux.invoice.file.*`：
 
 | 键 | 默认值 | 说明 |
 |---|---|---|
 | `immediate-download` | `true` | 归档时对 url 型展示文件立即下载；XML 法定原件始终强制下载，不随开关变化 |
-| `output-dir` | 空 | 本地落盘根目录；留空则字节仅存 FileStore（SDK 的 FileStore 是短期工作区，长期归档由使用方落对象存储） |
+| `output-dir` | 空 | 本地落盘根目录；留空则字节仅在 `InvoiceFile` 载体中（SDK 无 FileStore，长期归档由使用方落对象存储） |
 | `download-timeout-millis` | `30000` | 固化下载超时 |
 
 ### 5.2 统一字节出口与按需加工（门面 API）
 
 | 门面方法 | 作用 |
 |---|---|
-| `files(invoiceId)` | 已归档文件列表（可能含未固化的 url 型展示文件） |
-| `fileBytes(invoiceId, type)` | 统一字节出口：content 直接解码；仅 url 则下载并回写（幂等）；url 失效自动降级渠道 `InvoiceFileFetcher` 重拉一次，仍失败抛 `FILE_URL_EXPIRED` 引导修复 |
-| `pageImages(invoiceId, config)` | 【按需】PDF 逐页转图（PNG，携带 DPI 元数据），供预览；转换时机与参数由使用方决定 |
-| `printAdaptedPdf(invoiceId, paper, dpi)` | 【按需】PDF 逐页栅格化后重组指定纸型 PDF（真实场景：特殊字体 PDF 直接打印丢字 → 转图再排进 A4，文字固化为像素），输出仍是单一 PDF，打印接口零改动 |
+| `materializeFiles(files, invoiceId, strict)` | 就地固化一批 `InvoiceFile`（url 型下载/Base64 解码后回填载体），strict 控制 XML 原件失败是否阻断 |
+| `fileBytes(file)` / `fileBytes(files, type)` | 统一字节出口：content 直接解码；仅 url 则下载并就地回填；文件由使用方随结果取得并保管 |
+| `pageImages(pdfBytes, config)` | 【按需】PDF 逐页转图（PNG，携带 DPI 元数据），供预览；转换时机与参数由使用方决定 |
+| `printAdaptedPdf(pdfBytes, paper, dpi)` | 【按需】PDF 逐页栅格化后重组指定纸型 PDF（真实场景：特殊字体 PDF 直接打印丢字 → 转图再排进 A4，文字固化为像素），输出仍是单一 PDF，打印接口零改动 |
 
 后两者基于 conflux-invoice-core 的 `PdfImageConverter`，pdfbox 为 core 的强制依赖（版本经 BOM 管理，传递的 commons-logging 已排除并经 jcl-over-slf4j 桥接）
 而非 `NoClassDefFoundError`。框架绝不自动转换——是否转图、转什么纸型、什么时机，全部由使用方按需调用。
@@ -443,7 +444,7 @@ example 的 `InvoiceController` 提供了 `/files/{id}/{type}/bytes`、`/{id}/pa
 - `AccountKey` 复合键与配置装载期 `putIfAbsent` + `CONFIG_CONFLICT` fail-fast；
 - `HttpTransport`（common）统一 OkHttp 传输层，渠道不直接依赖 OkHttp；
 - `ErrorCode` 三段分层（1xxx / 2xxx / 3xxx）；
-- Store SPI 交由使用方实现、框架零表结构。
+- 无状态聚合：框架零台账、零状态机，判重/落库/状态推进全部交由使用方。
 
-发票域额外引入的状态机挂起态、授权会话、通道分级、XML 法定原件、两段红冲、
-Store CAS 与租约，均为支付域没有的语义，详见 [README](../README.md)。
+发票域额外引入的挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲，
+均为支付域没有的语义，详见 [README](../README.md)。
