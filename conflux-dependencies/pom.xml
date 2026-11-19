@@ -34,6 +34,8 @@
         <baiwang-bopsdk.version>3.4.871</baiwang-bopsdk.version>
         <!-- 诺诺开放平台 SDK：Maven Central 可获取，JDK 8 兼容 -->
         <nuonuo-sdk.version>1.0.6.1</nuonuo-sdk.version>
+        <!-- sms4j 短信聚合 SDK：作为短信渠道底层 SDK 引入，版本单源管控 -->
+        <sms4j.version>3.3.5</sms4j.version>
     </properties>
 
     <dependencyManagement>
@@ -83,6 +85,17 @@
                 <groupId>com.nuonuo</groupId>
                 <artifactId>open-sdk</artifactId>
                 <version>${nuonuo-sdk.version}</version>
+            </dependency>
+            <!-- sms4j 短信聚合 SDK：core/provider 由 BOM 统一管理版本 -->
+            <dependency>
+                <groupId>org.dromara.sms4j</groupId>
+                <artifactId>sms4j-core</artifactId>
+                <version>${sms4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara.sms4j</groupId>
+                <artifactId>sms4j-provider</artifactId>
+                <version>${sms4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

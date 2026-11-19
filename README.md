@@ -1,6 +1,6 @@
 # Conflux
 
-可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付** 与 **数电发票** 两个能力域。
+可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付**、**数电发票** 与 **短信**（PoC 阶段）三个能力域。
 
 > **定位**：Conflux 不是独立运行的中间件，而是给成熟应用直接引入的 SDK。它只做一件事——统一渠道差异；**不持有台账、不做幂等/CAS、不维护状态机、不落库、不通知下游**。落库、判重、状态推进、下游通知、定时任务全部由使用方在自己的业务链里完成。
 
@@ -14,7 +14,7 @@
 
 ## 模块构成
 
-`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。core 与 channels 零 Spring 依赖，starter 提供 Boot 自动装配。
+`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-sms`（core / channels / spring-boot-starter，PoC 阶段薄门面）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。core 与 channels 零 Spring 依赖，starter 提供 Boot 自动装配。
 
 ---
 
@@ -150,14 +150,44 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 ---
 
+## 能力域三：短信（conflux-sms，PoC）
+
+短信域是**薄门面**：底层复用 [sms4j](https://github.com/dromara/SMS4J) 作为渠道 SDK，但**配置规则与调用方式沿用 Conflux 自己的装载模式**——`conflux.sms.apps.<appId>.<channel>.attrs` 声明渠道个性键，经渠道 provider 的 `parseParams` 解析为渠道参数，经 `SmsGateway.send(appId, channel, request)` 归一调用。核心/channels 零 Spring、零 sms4j 之外的业务依赖。
+
+PoC 阶段仅接入**阿里云短信**一家（`aliyun`），用于验证"配置是我们的、调用也是我们的"这一架构可行性；发送即终态，SDK 不持有台账、不判重、不做频率控制。
+
+```yaml
+conflux:
+  sms:
+    apps:
+      demo:
+        aliyun:
+          attrs:
+            access-key-id: xxx
+            access-key-secret: xxx
+            signature: 你的签名
+            template-id: SMS_xxx
+            template-name: code
+```
+
+```java
+SmsSendResult r = smsGateway.send("demo", "aliyun",
+        new SmsSendRequest().setBizId("B-1").setPhone("18888888888")
+                .setParams(Collections.singletonMap("code", "123456")));
+```
+
+依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core` + `conflux-sms-channels`（纯 Java/MVC）。sms4j 作为渠道 SDK 由 channels 层引入，版本在 BOM 单源管理。
+
+---
+
 ## Spring Boot 与 Spring MVC 接入
 
 **两种环境都完整支持**。core 与 channels 是纯 Java（Spring 只出现在测试范围）：
 
 | 运行环境 | 接入方式 | 引入模块 | 配置来源 |
 |---|---|---|---|
-| Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` | `application.yml` 或自实现配置源 |
-| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | `conflux-pay-core` + `conflux-pay-channels`（发票同理） | 任意来源：内存 / DB / 配置中心 / properties |
+| Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` / `conflux-sms-spring-boot-starter` | `application.yml` 或自实现配置源 |
+| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | `conflux-pay-core` + `conflux-pay-channels`（发票、短信同理） | 任意来源：内存 / DB / 配置中心 / properties |
 
 starter 依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot；MVC 项目请引入 core + channels，不要引入 starter。
 
