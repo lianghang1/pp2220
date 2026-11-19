@@ -46,6 +46,23 @@ class SmsBlendRegistryTest {
     }
 
     @Test
+    void configChangeShouldRebuildBlend() {
+        SmsBlendRegistry registry = new SmsBlendRegistry();
+        registry.register("rebuild", "alibaba", alibabaAttrs());
+        SmsBlend first = SmsFactory.getSmsBlend("rebuild::alibaba");
+
+        // 相同配置复用（指纹一致）
+        registry.register("rebuild", "alibaba", alibabaAttrs());
+        assertThat(SmsFactory.getSmsBlend("rebuild::alibaba")).isSameAs(first);
+
+        // 配置变更（密钥轮换）触发重建（指纹变化）
+        Map<String, String> changed = alibabaAttrs();
+        changed.put("accessKeySecret", "rotated-secret");
+        registry.register("rebuild", "alibaba", changed);
+        assertThat(SmsFactory.getSmsBlend("rebuild::alibaba")).isNotSameAs(first);
+    }
+
+    @Test
     void differentAppsShouldIsolateConfigId() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
         String a = registry.register("appA", "alibaba", alibabaAttrs());

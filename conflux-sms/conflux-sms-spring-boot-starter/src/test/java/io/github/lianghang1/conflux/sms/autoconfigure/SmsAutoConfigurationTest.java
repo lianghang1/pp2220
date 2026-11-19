@@ -1,5 +1,7 @@
 package io.github.lianghang1.conflux.sms.autoconfigure;
 
+import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
+import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.engine.SmsGateway;
 import org.dromara.sms4j.api.SmsBlend;
 import org.dromara.sms4j.core.factory.SmsFactory;
@@ -9,9 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.ACCESS_KEY_ID;
-import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.ACCESS_KEY_SECRET;
-import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.SIGNATURE;
-import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.TEMPLATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -21,6 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author lianghang
  */
 class SmsAutoConfigurationTest {
+
+    private SmsGateway gateway(SmsProperties props) {
+        SmsAutoConfiguration auto = new SmsAutoConfiguration();
+        SmsConfigProvider provider = auto.smsConfigProvider(props);
+        return auto.smsGateway(provider);
+    }
 
     @Test
     void shouldLoadOurAppsStructureIntoFactory() {
@@ -36,9 +41,9 @@ class SmsAutoConfigurationTest {
         channels.put("alibaba", channel);
         props.getApps().put("demo-boot", channels);
 
-        SmsGateway gateway = new SmsAutoConfiguration().smsGateway(props);
+        SmsGateway gw = gateway(props);
 
-        assertThat(gateway.loadedConfigIds()).contains("demo-boot::alibaba");
+        assertThat(gw.registeredChannels()).contains("demo-boot::alibaba");
         SmsBlend blend = SmsFactory.getSmsBlend("demo-boot::alibaba");
         assertThat(blend).isNotNull();
         assertThat(blend.getSupplier()).isEqualTo("alibaba");
@@ -57,13 +62,17 @@ class SmsAutoConfigurationTest {
         channels.put("alibaba", channel);
         props.getApps().put("override-app", channels);
 
-        SmsGateway gateway = new SmsAutoConfiguration().smsGateway(props);
-        assertThat(gateway.loadedConfigIds()).contains("override-app::alibaba");
+        SmsGateway gw = gateway(props);
+        assertThat(gw.registeredChannels()).contains("override-app::alibaba");
+        // 统一键优先：直接查 provider 的合并结果
+        SmsConfigProvider provider = new PropertiesSmsConfigProvider(props);
+        SmsChannelConfig cfg = provider.getConfig("override-app", "alibaba");
+        assertThat(cfg.getAttrs()).containsEntry(ACCESS_KEY_ID, "unified-new-key");
     }
 
     @Test
     void emptyPropertiesShouldProduceEmptyGateway() {
-        SmsGateway gateway = new SmsAutoConfiguration().smsGateway(new SmsProperties());
-        assertThat(gateway.loadedConfigIds()).isEmpty();
+        SmsGateway gw = gateway(new SmsProperties());
+        assertThat(gw.registeredChannels()).isEmpty();
     }
 }

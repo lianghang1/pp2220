@@ -154,7 +154,7 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 短信域内部**全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter），我们只保留两层：
 
-- **配置装载**：`conflux.sms.apps.<appId>.<channel>` 声明配置，装载期由 sms4j 官方 Factory 构造厂商 Config 并注册进 `SmsFactory`；
+- **配置装载**：由 `SmsConfigProvider` SPI（对齐支付/发票的同名契约）提供配置——starter 默认实现读 `conflux.sms.apps.<appId>.<channel>`，装载期由 sms4j 官方 Factory 构造厂商 Config 并注册进 `SmsFactory`；发送时每次从 provider 读取，凭证变更可重建客户端，接 DB / 配置中心只需自定义该接口；
 - **出口门面**：`SmsGateway.send(appId, channel, request)` 从 `SmsFactory` 取出 `SmsBlend` 发送，归一 `SmsResponse`。
 
 渠道的配置对象与发送能力**全部来自 sms4j**，我们不含任何渠道实现代码。`channel` 直接采用 sms4j 的供应商标识（`alibaba`/`tencent`/`huawei`…），因此 **sms4j 支持的 22 家厂商无需新增代码即可使用**；发送即终态，SDK 不持有台账、不判重、不做频率控制。core 零 Spring 依赖，纯 Java / MVC 项目同样可用。
@@ -192,11 +192,34 @@ cfg.put("accessKeyId", "xxx");
 cfg.put("accessKeySecret", "xxx");
 cfg.put("signature", "你的签名");
 cfg.put("templateId", "SMS_xxx");
-gateway.register("demo", "alibaba", cfg);          // 配置装载
+gateway.registerChannel("demo", "alibaba", cfg);   // 标准命名（register 为兼容别名）
 SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 ```
 
+也可自定义配置源（如从 DB 读），与支付/发票同构：
+
+```java
+SmsConfigProvider dbProvider = (appId, channel) -> /* 查库返回 SmsChannelConfig */ ...;
+SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider).build();
+```
+
 依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core`（纯 Java/MVC，经 core 传递引入 sms4j 原始包）。sms4j 版本在 BOM 单源管理。
+
+### 三域对外契约一致
+
+支付、发票、短信三个能力域的**框架用法同一套范式**（业务字段各不相同，但外层契约一致）：
+
+| 契约 | 支付 | 发票 | 短信 |
+|---|---|---|---|
+| 门面 | `PaymentGateway` | `InvoiceGateway` | `SmsGateway` |
+| 构建 | `builder()` | `builder()` | `builder()` |
+| 配置源 SPI | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` |
+| 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` |
+| Builder 注入 | `.configProvider(...)` | `.configProvider(...)` | `.configProvider(...)` |
+| 已装载渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
+| 配置结构 | `conflux.pay.apps.*` | `conflux.invoice.apps.*` | `conflux.sms.apps.*`（均含 `attrs`） |
+
+三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。差异仅在于支付/发票的渠道实现在自有 `ChannelProvider`（注册用 `registerChannel(provider)`），短信渠道实现全在 sms4j、无该 SPI——这是能力来源不同，不影响上述对外契约。
 
 ---
 

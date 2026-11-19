@@ -2,6 +2,7 @@ package io.github.lianghang1.conflux.sms.engine;
 
 import cn.hutool.core.bean.BeanUtil;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
 import io.github.lianghang1.conflux.sms.config.SmsSupplierFactories;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,8 @@ public class SmsBlendRegistry {
 
     private final Map<String, String> factoryOverride = new ConcurrentHashMap<String, String>();
     private final Set<String> configIds = ConcurrentHashMap.newKeySet();
+    /** configId → 配置指纹；配置变更时重建 SmsBlend（对齐支付/发票凭证热更新语义）。 */
+    private final Map<String, String> fingerprints = new ConcurrentHashMap<String, String>();
 
     /**
      * 初始化 sms4j 原始包运行所需的全局线程池。
@@ -70,6 +73,12 @@ public class SmsBlendRegistry {
         if (appId == null || appId.trim().isEmpty() || channel == null || channel.trim().isEmpty()) {
             throw new GatewayException(SmsErrorCode.BAD_REQUEST, "appId/channel 必填");
         }
+        String configId = configId(appId, channel);
+        String fingerprint = fingerprint(attrs);
+        // 指纹一致则复用已装载的 blend，避免每次发送都重建；配置变更则重建覆盖
+        if (configIds.contains(configId) && fingerprint.equals(fingerprints.get(configId))) {
+            return configId;
+        }
         ensureSms4jInitialized(null);
         String factoryName = factoryOverride.containsKey(channel)
                 ? factoryOverride.get(channel) : SmsSupplierFactories.factoryClassName(channel);
@@ -85,12 +94,34 @@ public class SmsBlendRegistry {
         }
 
         BaseConfig config = buildConfig(factory, attrs);
-        String configId = configId(appId, channel);
         config.setConfigId(configId);
         SmsFactory.createSmsBlend(config);
         configIds.add(configId);
+        fingerprints.put(configId, fingerprint);
         log.info("短信渠道装载完成: configId={}, supplier={}", configId, factory.getSupplier());
         return configId;
+    }
+
+    /** 按配置对象确保装载（发送链路：从 SmsConfigProvider 取到配置后调用）。 */
+    public String ensureLoaded(SmsChannelConfig channelConfig) {
+        if (channelConfig == null) {
+            throw new GatewayException(SmsErrorCode.CONFIG_MISSING, "短信渠道配置为空");
+        }
+        return register(channelConfig.getAppId(), channelConfig.getChannel(), channelConfig.getAttrs());
+    }
+
+    /** 配置指纹：稳定排序后拼接，键变或值变都会触发重建。 */
+    private static String fingerprint(Map<String, String> attrs) {
+        if (attrs == null || attrs.isEmpty()) {
+            return "";
+        }
+        java.util.List<String> keys = new java.util.ArrayList<String>(attrs.keySet());
+        java.util.Collections.sort(keys);
+        StringBuilder sb = new StringBuilder();
+        for (String key : keys) {
+            sb.append(key).append('=').append(attrs.get(key)).append('\u0001');
+        }
+        return sb.toString();
     }
 
     /** 补充/覆盖某渠道标识的 sms4j Factory 全类名（新增厂商时无需改代码）。 */

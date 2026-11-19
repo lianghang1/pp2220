@@ -1,13 +1,16 @@
 # API 参考
 
-统一入口是两个门面类，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。全部请求/结果类位于 `*.api` 包，状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）。
+统一入口是三个门面类，三域对外契约同构，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。全部请求/结果类位于 `*.api` 包，状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）。
 
 | 门面 | 全限定名 | 获取方式 |
 |---|---|---|
 | 支付 | `io.github.lianghang1.conflux.pay.engine.PaymentGateway` | Spring 注入，或 `PaymentGateway.builder()....build()` |
 | 发票 | `io.github.lianghang1.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
+| 短信 | `io.github.lianghang1.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
 
 金额单位：支付 = 分（`Long`），发票 = 元（`BigDecimal`）。
+
+三域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（支付 `ChannelConfigProvider` / 发票 `InvoiceConfigProvider` / 短信 `SmsConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。差异仅在支付/发票有自有 `ChannelProvider` SPI，短信渠道实现全在 sms4j、无该 SPI。
 
 ## 一、支付 API（PaymentGateway）
 
@@ -195,18 +198,44 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `ChannelTier` | `DIRECT_TAX` `SERVICE_API` `WEB_PORTAL` |
 | `InvoiceFileType` | `XML` `OFD` `PDF` `IMAGE` |
 
-## 三、构建器（纯 jar 场景）
+## 三、短信 API（SmsGateway）
 
-| 门面 Builder 方法 | 说明 |
+短信渠道实现全量委托 sms4j 原始包（api/core/provider），门面只做配置装载与出口归一。`channel` 直接用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码可用。
+
+### 3.1 方法清单
+
+| 方法 | 入参 | 返回 | 说明 |
+|---|---|---|---|
+| `send` | `String appId, String channel, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
+| `registerChannel` | `String appId, String channel, Map<String,String> attrs` | `String` | 装载渠道配置（返回 configId；`register` 为兼容别名） |
+| `registerFactory` | `String supplier, String factoryClassName` | `void` | 补充内置清单外的 sms4j 厂商 Factory 映射 |
+| `registeredChannels` | — | `Set<String>` | 已装载渠道的 configId 集合（`loadedConfigIds` 为兼容别名） |
+| `builder` | — | `Builder` | 创建构建器 |
+
+`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（可选，注入后 send 每次读配置）、`.build()`。无 `.channel(...)` —— 短信渠道实现由 sms4j 承担，无自有 `ChannelProvider` SPI。
+
+### 3.2 请求/结果与配置
+
+| 类型 | 字段 |
 |---|---|
-| `.channel(Provider)` | 注册渠道，可多次调用 |
-| `.configProvider(...)` | 配置提供者（必填） |
-| `.clock(Clock)` | 注入时钟（测试用） |
-| `.fileOptions(InvoiceFileOptions)` | 版式文件固化选项（仅发票） |
-| `.build()` | 构建网关 |
+| `SmsSendRequest` | `bizId` `phone` `content` `params`（模板变量，非空时走 Map 重载，否则走文本重载） |
+| `SmsSendResult` | `success` `bizId` `channel` `appId` `raw`（sms4j 原始返回） `error` |
+| `SmsChannelConfig` | `appId` `channel` `attrs`（键名对齐 sms4j Config 字段） |
 
-## 四、相关文档
+配置源 SPI：`SmsConfigProvider.getConfig(appId, channel)` 返回 `SmsChannelConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemorySmsConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesSmsConfigProvider`（读 `conflux.sms.apps.*`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
 
-- 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）
+## 四、构建器（纯 jar 场景）
+
+| 门面 Builder 方法 | 支付 | 发票 | 短信 | 说明 |
+|---|---|---|---|---|
+| `.channel(Provider)` | ✓ | ✓ | — | 注册渠道提供者，可多次调用（短信无自有渠道 SPI） |
+| `.configProvider(...)` | ✓ | ✓ | ✓ | 配置提供者；支付/发票必填，短信可选 |
+| `.clock(Clock)` | ✓ | ✓ | — | 注入时钟（测试用） |
+| `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | 版式文件固化选项 |
+| `.build()` | ✓ | ✓ | ✓ | 构建网关 |
+
+## 五、相关文档
+
+- 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）、README「能力域三：短信」（短信）
 - 接入流程：[pay-integration.md](pay-integration.md)
 - 平台核对与协议细节：[invoice-platforms.md](invoice-platforms.md)

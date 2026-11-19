@@ -1,69 +1,50 @@
 package io.github.lianghang1.conflux.sms.autoconfigure;
 
-import io.github.lianghang1.conflux.common.util.StringUtils;
-import io.github.lianghang1.conflux.sms.config.SmsConfigKeys;
+import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
+import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.engine.SmsGateway;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
- * 短信网关自动装配：把 {@code conflux.sms.apps.<appId>.<channel>} 配置装载进
- * sms4j，并暴露 {@link SmsGateway} 单例门面。
+ * 短信网关自动装配：配置提供者 + 网关门面，与支付/发票 starter 同构。
  *
- * <p>装配层只做配置装载（统一键下沉 + attrs 合并 → 注册），渠道能力全在
- * sms4j 原始包；使用方自定义同类型 Bean 可覆盖默认门面。</p>
+ * <p>默认提供基于配置文件的 {@link PropertiesSmsConfigProvider}（可被使用方
+ * 同类型 Bean 覆盖，如 DB/配置中心实现），注入 {@link SmsGateway}；启动期遍历
+ * 已配置渠道预热装载，坏配置 fail-fast。渠道能力全在 sms4j 原始包。</p>
  *
  * @author lianghang
  */
+@Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties(SmsProperties.class)
 public class SmsAutoConfiguration {
 
+    /** 默认配置提供者：读 conflux.sms.apps.*；使用方自定义同类型 Bean 可覆盖。 */
+    @Bean
+    @ConditionalOnMissingBean(SmsConfigProvider.class)
+    public SmsConfigProvider smsConfigProvider(SmsProperties properties) {
+        return new PropertiesSmsConfigProvider(properties);
+    }
+
+    /** 网关门面：注入配置提供者，启动期预热已配置渠道。 */
     @Bean
     @ConditionalOnMissingBean(SmsGateway.class)
-    public SmsGateway smsGateway(SmsProperties properties) {
-        SmsGateway gateway = SmsGateway.builder().build();
-        for (Map.Entry<String, Map<String, SmsProperties.ChannelProperties>> appEntry
-                : properties.getApps().entrySet()) {
-            String appId = appEntry.getKey();
-            Map<String, SmsProperties.ChannelProperties> channels = appEntry.getValue();
-            if (channels == null) {
-                continue;
-            }
-            for (Map.Entry<String, SmsProperties.ChannelProperties> channelEntry : channels.entrySet()) {
-                String channel = channelEntry.getKey();
-                SmsProperties.ChannelProperties props = channelEntry.getValue() == null
-                        ? new SmsProperties.ChannelProperties() : channelEntry.getValue();
-                gateway.register(appId, channel, mergeProperties(props));
+    public SmsGateway smsGateway(SmsConfigProvider configProvider) {
+        SmsGateway gateway = SmsGateway.builder().configProvider(configProvider).build();
+        // 启动期预热：Properties 实现可遍历全部配置；自定义 provider 无此能力则跳过
+        if (configProvider instanceof PropertiesSmsConfigProvider) {
+            List<SmsChannelConfig> all = ((PropertiesSmsConfigProvider) configProvider).allConfigs();
+            for (SmsChannelConfig cfg : all) {
+                gateway.registerChannel(cfg.getAppId(), cfg.getChannel(), cfg.getAttrs());
             }
         }
+        log.info("SmsGateway 装配完成: channels={}", gateway.registeredChannels());
         return gateway;
-    }
-
-    /**
-     * 统一凭证字段 + 厂商特有 attrs 合并为一张配置表，键名与 sms4j Config 字段一致。
-     * 先放 attrs 再用非空统一键覆盖（外层结构化声明优先）。
-     */
-    private Map<String, String> mergeProperties(SmsProperties.ChannelProperties props) {
-        Map<String, String> merged = new LinkedHashMap<String, String>();
-        if (props.getAttrs() != null) {
-            merged.putAll(props.getAttrs());
-        }
-        putIfNotBlank(merged, SmsConfigKeys.ACCESS_KEY_ID, props.getAccessKeyId());
-        putIfNotBlank(merged, SmsConfigKeys.ACCESS_KEY_SECRET, props.getAccessKeySecret());
-        putIfNotBlank(merged, SmsConfigKeys.SIGNATURE, props.getSignature());
-        putIfNotBlank(merged, SmsConfigKeys.TEMPLATE_ID, props.getTemplateId());
-        return merged;
-    }
-
-    private void putIfNotBlank(Map<String, String> map, String key, String value) {
-        if (!StringUtils.isBlank(value)) {
-            map.put(key, value);
-        }
     }
 }
