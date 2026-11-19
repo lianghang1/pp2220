@@ -32,6 +32,18 @@
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
+回调应答报文由 `callbackSuccessReply` / `callbackFailureReply` 按渠道生成，使用方直接把返回值原样写回响应体即可。各渠道取值：
+
+| 渠道 | 成功应答 | 失败应答 |
+|---|---|---|
+| `wechat` | `{"code":"SUCCESS","message":"成功"}` | `{"code":"FAIL","message":"失败"}` |
+| `alipay` | `success` | `fail` |
+| `chinaums`（天满） | `SUCCESS` | `FAILED` |
+| `unionpay` | `success` | `fail` |
+| `paypal` | `OK` | `FAIL` |
+
+> 天满失败应答必须是 `FAILED`（非 `FAIL`），依据官方「支付结果通知」规则；写错会导致渠道认为商户应答无效并在 24 小时内重复重推通知。天满回调采用「触发主动查单确认」，不验通知里的签名，详见 [pay-integration.md](pay-integration.md)。
+
 ### 1.2 请求对象字段
 
 | 类 | 字段 |
