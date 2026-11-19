@@ -20,11 +20,12 @@ import java.util.Map;
 /**
  * 天满异步通知处理器：解析 form 报文后「主动查单确认」。
  *
- * <p>天满通知携带 sign 字段，但其验签算法未在公开文档/SDK 中提供（支付结果通知
- * 详情页失效、官方示例 Notify 为空）。为避免臆造验签，本处理器不信任通知内容中的
- * 状态与金额，仅用其中的 merOrderId/mid 定位配置，随后以 OPEN-BODY-SIG 双向认证
- * 调用查单接口（/v1/netpay/query）获取权威状态，构造归一化事件。
- * 这正是天满官方"以查询接口响应的订单状态更新订单状态"推荐的兜底模式。</p>
+ * <p>天满通知携带 sign，且官方"通知验签规则"给出了基于通讯密钥的验签算法；但本处理器
+ * 采用更强的兜底策略：不信任通知内容中的状态与金额，仅用其中的 merOrderId/mid 定位配置，
+ * 随后以 OPEN-BODY-SIG 双向认证调用查单接口（/v1/netpay/query）获取权威状态，构造归一化事件。
+ * 验签只能证明报文来源，查单拿到的才是渠道当前真实状态，故以查询接口为准；这也是天满官方
+ * "以查询接口响应的订单状态更新订单状态"推荐的模式。通讯密钥与 appKey 是否相同未经真实
+ * 凭证验证，不在本实现范围内臆造验签。</p>
  *
  * @author lianghang
  */
@@ -81,6 +82,7 @@ public class ChinaumsCallbackHandler implements ChannelCallbackHandler {
 
     @Override
     public String failureReply() {
-        return "FAIL";
+        // 天满要求处理失败应答 "FAILED"（支付结果通知规则）
+        return "FAILED";
     }
 }

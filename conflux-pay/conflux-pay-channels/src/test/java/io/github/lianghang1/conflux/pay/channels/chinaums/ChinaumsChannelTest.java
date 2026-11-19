@@ -168,6 +168,6 @@ class ChinaumsChannelTest {
     void callbackRepliesShouldFollowDocument() {
         ChinaumsCallbackHandler handler = new ChinaumsCallbackHandler(new ChinaumsClient());
         assertThat(handler.successReply()).isEqualTo("SUCCESS");
-        assertThat(handler.failureReply()).isEqualTo("FAIL");
+        assertThat(handler.failureReply()).isEqualTo("FAILED");
     }
 }
