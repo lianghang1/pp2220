@@ -192,7 +192,7 @@ cfg.put("accessKeyId", "xxx");
 cfg.put("accessKeySecret", "xxx");
 cfg.put("signature", "你的签名");
 cfg.put("templateId", "SMS_xxx");
-gateway.registerChannel("demo", "alibaba", cfg);   // 标准命名（register 为兼容别名）
+gateway.registerChannel("demo", "alibaba", cfg);   // 装载渠道配置
 SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 ```
 

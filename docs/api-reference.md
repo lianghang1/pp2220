@@ -207,9 +207,9 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
 | `send` | `String appId, String channel, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `String appId, String channel, Map<String,String> attrs` | `String` | 装载渠道配置（返回 configId；`register` 为兼容别名） |
+| `registerChannel` | `String appId, String channel, Map<String,String> attrs` | `String` | 装载渠道配置（返回 configId） |
 | `registerFactory` | `String supplier, String factoryClassName` | `void` | 补充内置清单外的 sms4j 厂商 Factory 映射 |
-| `registeredChannels` | — | `Set<String>` | 已装载渠道的 configId 集合（`loadedConfigIds` 为兼容别名） |
+| `registeredChannels` | — | `Set<String>` | 已装载渠道的 configId 集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
 `SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（可选，注入后 send 每次读配置）、`.build()`。无 `.channel(...)` —— 短信渠道实现由 sms4j 承担，无自有 `ChannelProvider` SPI。

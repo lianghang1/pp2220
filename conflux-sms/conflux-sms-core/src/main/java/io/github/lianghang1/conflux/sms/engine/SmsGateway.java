@@ -45,7 +45,7 @@ public class SmsGateway {
     }
 
     /**
-     * 装载配置渠道（标准命名，与支付/发票 {@code registerChannel} 对齐）：
+     * 装载配置渠道（与支付/发票 {@code registerChannel} 对齐）：
      * 本质是向 sms4j 注册一个 SmsBlend。
      *
      * @param appId   使用方应用标识
@@ -57,26 +57,14 @@ public class SmsGateway {
         return registry.register(appId, channel, attrs);
     }
 
-    /**
-     * 装载配置（{@link #registerChannel} 的兼容别名）。
-     */
-    public String register(String appId, String channel, Map<String, String> attrs) {
-        return registerChannel(appId, channel, attrs);
-    }
-
     /** 补充自定义渠道 Factory（新增 sms4j 厂商时使用）。 */
     public void registerFactory(String supplier, String factoryClassName) {
         registry.registerFactory(supplier, factoryClassName);
     }
 
-    /** 已装载渠道的 configId 快照（标准命名，对齐支付/发票 registeredChannels）。 */
+    /** 已装载渠道的 configId 快照（对齐支付/发票 registeredChannels）。 */
     public Set<String> registeredChannels() {
         return registry.loadedConfigIds();
-    }
-
-    /** 已装载的 configId 快照（兼容别名）。 */
-    public Set<String> loadedConfigIds() {
-        return registeredChannels();
     }
 
     /**
