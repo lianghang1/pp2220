@@ -207,13 +207,13 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
 | `send` | `String appId, String channel, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `SmsChannelProvider` | `void` | 声明渠道（与支付/发票同构），登记渠道编码与 sms4j Factory 映射 |
+| `registerChannel` | `SmsChannelProvider` | `void` | 声明渠道（与支付/发票同构），把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder` |
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
 `SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（注入后 send 每次读配置；实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（声明渠道，可多次调用）、`.build()`。
 
-`SmsChannelProvider.of(channelCode)` 声明内置 sms4j 渠道；`SmsChannelProvider.of(channelCode, factoryClassName)` 补充内置清单外的厂商。Provider 只做渠道声明/转换，渠道实现全部来自 sms4j。
+`SmsChannelProvider.of(channelCode)` 声明内置 sms4j 渠道；`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
 
 ### 3.2 请求/结果与配置
 

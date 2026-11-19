@@ -1,50 +1,59 @@
 package io.github.lianghang1.conflux.sms.channel;
 
 import io.github.lianghang1.conflux.sms.config.SmsSupplierFactories;
+import org.dromara.sms4j.provider.factory.BaseProviderFactory;
 
 /**
  * 短信渠道声明对象：与支付域 {@code ChannelProvider}、发票域 {@code InvoiceChannelProvider}
- * 处于同一层——只声明「渠道是谁、用哪个 sms4j 工厂装载」。
+ * 处于同一层——承载一个 sms4j 原生 {@link BaseProviderFactory} 实例。
  *
- * <p>渠道的配置对象、签名、请求、响应、发送能力全部来自 sms4j 原始包，本类不含任何
- * 渠道实现；配置键值仍由 {@code SmsConfigProvider} 按 appId + channel 读取，与支付/发票
- * 「Provider 声明渠道、configProvider 提供配置」的对外形态一致。</p>
+ * <p>渠道的实现（SmsBlend / SupplierConfig / Factory 三接口）全部按
+ * <a href="https://sms4j.com/doc3/custom.html">sms4j 官方文档</a>由 sms4j 提供或由使用方
+ * 自行扩展，本类只是把 Factory 实例包装成三域统一的 Provider 形态：注册时经 sms4j 原生
+ * 入口 {@code ProviderFactoryHolder.registerFactory(factory)} 注入，不含任何渠道业务代码。</p>
  *
  * @author lianghang
  */
 public final class SmsChannelProvider {
 
-    private final String channelCode;
-    private final String factoryClassName;
+    private final BaseProviderFactory<?, ?> factory;
 
-    private SmsChannelProvider(String channelCode, String factoryClassName) {
-        this.channelCode = channelCode;
-        this.factoryClassName = factoryClassName;
+    private SmsChannelProvider(BaseProviderFactory<?, ?> factory) {
+        if (factory == null) {
+            throw new IllegalArgumentException("sms4j Factory 不能为空");
+        }
+        this.factory = factory;
     }
 
-    /** 声明一个内置 sms4j 渠道（工厂取内置映射）。 */
+    /** 声明一个 sms4j 内置渠道（工厂取内置清单，等价于官方 starter 的 registerDefaultFactory）。 */
     public static SmsChannelProvider of(String channelCode) {
-        return new SmsChannelProvider(channelCode, null);
+        BaseProviderFactory<?, ?> factory = SmsSupplierFactories.factoryInstance(channelCode);
+        if (factory == null) {
+            throw new IllegalArgumentException("未知的内置短信渠道标识: " + channelCode);
+        }
+        return new SmsChannelProvider(factory);
     }
 
-    /** 声明一个渠道并显式指定 sms4j Factory 全类名（内置清单外的厂商）。 */
-    public static SmsChannelProvider of(String channelCode, String factoryClassName) {
-        return new SmsChannelProvider(channelCode, factoryClassName);
+    /**
+     * 声明一个自定义渠道：直接接收使用方按 sms4j 文档实现的 Factory 实例。
+     * 内置清单外的厂商走此入口，无需改动框架代码。
+     */
+    public static SmsChannelProvider of(BaseProviderFactory<?, ?> factory) {
+        return new SmsChannelProvider(factory);
     }
 
-    /** 渠道标识（sms4j supplier，如 alibaba / tencent / huawei）。 */
+    /** 渠道标识（取 sms4j Factory 的 supplier，三者实现必须一致）。 */
     public String channelCode() {
-        return channelCode;
+        return factory.getSupplier();
     }
 
-    /** sms4j Factory 全类名：显式指定优先，否则取内置映射，未知返回 null。 */
-    public String factoryClassName() {
-        return factoryClassName != null ? factoryClassName
-                : SmsSupplierFactories.factoryClassName(channelCode);
+    /** sms4j 原生 Factory 实例，供注册进 ProviderFactoryHolder。 */
+    public BaseProviderFactory<?, ?> factory() {
+        return factory;
     }
 
     @Override
     public String toString() {
-        return "SmsChannelProvider{channelCode='" + channelCode + "'}";
+        return "SmsChannelProvider{channelCode='" + channelCode() + "'}";
     }
 }

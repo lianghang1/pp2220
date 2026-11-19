@@ -24,7 +24,7 @@ class SmsAutoConfigurationTest {
     private SmsGateway gateway(SmsProperties props) {
         SmsAutoConfiguration auto = new SmsAutoConfiguration();
         SmsConfigProvider provider = auto.smsConfigProvider(props);
-        return auto.smsGateway(provider);
+        return auto.smsGateway(provider, java.util.Collections.<io.github.lianghang1.conflux.sms.channel.SmsChannelProvider>emptyList());
     }
 
     @Test

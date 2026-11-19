@@ -175,7 +175,17 @@ conflux:
             region-id: cn-hangzhou
 ```
 
-统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。要接入内置清单外的厂商，用 `SmsChannelProvider.of(supplier, factoryClassName)` 声明渠道时补充映射，无需改代码。
+统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。
+
+内置 22 家渠道开箱即用（标识见 sms4j 官方清单）。接入清单外的厂商完全走 sms4j [官方自定义扩展](https://sms4j.com/doc3/custom.html)：按文档实现 `SmsBlend`/`SupplierConfig`/`BaseProviderFactory` 三个接口，把 Factory 实例交给 `SmsChannelProvider.of(factory)` 声明即可，不走我们自己的渠道实现、无需改框架代码：
+
+```java
+BaseProviderFactory myFactory = new MyProviderFactory();   // sms4j 官方自定义三接口实现
+SmsGateway gateway = SmsGateway.builder()
+        .configProvider(provider)
+        .channel(SmsChannelProvider.of(myFactory))          // 与内置渠道同一注册路径
+        .build();
+```
 
 ```java
 SmsSendResult r = smsGateway.send("demo", "alibaba",
@@ -223,7 +233,7 @@ SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider)
 | 已注册渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
 | 配置结构 | `conflux.pay.apps.*` | `conflux.invoice.apps.*` | `conflux.sms.apps.*`（均含 `attrs`） |
 
-三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。三域对外形态完全一致：`builder().channel(provider)` 声明渠道、`gateway.registerChannel(provider)` 增补、`registeredChannels()` 查看。差异仅在 Provider 内容——支付/发票的 Provider 内含渠道实现 handler，短信的 `SmsChannelProvider` 只声明渠道编码与 sms4j Factory 映射，渠道实现仍在 sms4j 原始包。
+三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。三域对外形态完全一致：`builder().channel(provider)` 声明渠道、`gateway.registerChannel(provider)` 增补、`registeredChannels()` 查看。差异仅在 Provider 内容——支付/发票的 Provider 内含渠道实现 handler，短信的 `SmsChannelProvider` 只承载一个 sms4j 原生 Factory 实例（内置清单或用户按 sms4j 文档自定义的），渠道实现始终在 sms4j 原始包。
 
 ---
 

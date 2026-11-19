@@ -22,9 +22,13 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 短信渠道装载器：Conflux 配置 → sms4j 官方 SmsFactory。
  *
- * <p>本类只做「配置装载」一件事：按渠道标识找到 sms4j 的 Factory，用配置键值
- * 填充出厂商 Config，交给 {@link SmsFactory#createSmsBlend(SupplierConfig)} 注册。
- * 渠道的配置对象与发送能力全部是 sms4j 原始包的实现，本类不含任何渠道业务代码，
+ * <p>本类只做「配置装载」一件事：按渠道标识从 sms4j 原生注册表
+ * {@link ProviderFactoryHolder} 取到 Factory，用配置键值填充出厂商 Config，交给
+ * {@link SmsFactory#createSmsBlend} 注册。Factory 的注册完全走 sms4j 原生入口
+ * {@code ProviderFactoryHolder.registerFactory(factory)}——内置渠道由内置清单兜底注册，
+ * 自定义渠道由使用方经 {@link SmsChannelProvider#of(BaseProviderFactory)} 声明，二者同路。</p>
+ *
+ * <p>渠道的配置对象与发送能力全部是 sms4j 原始包的实现，本类不含任何渠道业务代码，
  * 也不依赖 sms4j 的 Spring Boot starter——纯 Java 项目同样可用。</p>
  *
  * <p>configId 采用「appId::channel」隔离：同一渠道在不同 app 下持有各自实例，
@@ -38,7 +42,6 @@ public class SmsBlendRegistry {
     private static final Object INIT_LOCK = new Object();
     private static volatile boolean initialized = false;
 
-    private final Map<String, String> factoryOverride = new ConcurrentHashMap<String, String>();
     private final Set<String> configIds = ConcurrentHashMap.newKeySet();
     /** 已声明渠道编码（与支付/发票 registeredChannels 对齐）。 */
     private final Set<String> registeredChannels = ConcurrentHashMap.newKeySet();
@@ -67,6 +70,11 @@ public class SmsBlendRegistry {
     /**
      * 装载一个「应用 + 渠道」配置：构造 sms4j Config 并注册进 SmsFactory。
      *
+     * <p>Factory 一律从 sms4j 原生注册表 {@link ProviderFactoryHolder} 按 supplier 取；
+     * 取不到时若属内置清单则兜底注册其官方 Factory（等价于官方 starter 的
+     * registerDefaultFactory），清单外的自定义渠道须先经
+     * {@link #register(SmsChannelProvider)} 注册。</p>
+     *
      * @param appId    使用方应用标识
      * @param channel  渠道标识（sms4j supplier，如 alibaba/tencent/huawei）
      * @param attrs    配置键值（键名与 sms4j Config 字段一致，如 accessKeyId/secretKey）
@@ -83,19 +91,13 @@ public class SmsBlendRegistry {
             return configId;
         }
         ensureSms4jInitialized(null);
-        String factoryName = factoryOverride.containsKey(channel)
-                ? factoryOverride.get(channel) : SmsSupplierFactories.factoryClassName(channel);
-        if (factoryName == null) {
+
+        BaseProviderFactory factory = factoryFor(channel);
+        if (factory == null) {
             throw new GatewayException(SmsErrorCode.CHANNEL_NOT_FOUND,
-                    "不支持的短信渠道标识: {}", channel);
+                    "sms4j 渠道工厂未注册: {}，请先 registerChannel 声明渠道", channel);
         }
         registeredChannels.add(channel);
-
-        BaseProviderFactory factory = loadFactory(factoryName);
-        // 确保 Factory 注册进 sms4j 全局表（不用 starter 时不会有自动注册）
-        if (ProviderFactoryHolder.requireForSupplier(factory.getSupplier()) == null) {
-            ProviderFactoryHolder.registerFactory(factory);
-        }
 
         BaseConfig config = buildConfig(factory, attrs);
         config.setConfigId(configId);
@@ -104,6 +106,19 @@ public class SmsBlendRegistry {
         fingerprints.put(configId, fingerprint);
         log.info("短信渠道装载完成: configId={}, supplier={}", configId, factory.getSupplier());
         return configId;
+    }
+
+    /** 从 sms4j 原生注册表取工厂；内置渠道未注册时兜底注册其官方工厂。 */
+    private BaseProviderFactory factoryFor(String channel) {
+        BaseProviderFactory factory = ProviderFactoryHolder.requireForSupplier(channel);
+        if (factory == null) {
+            BaseProviderFactory<?, ?> builtin = SmsSupplierFactories.factoryInstance(channel);
+            if (builtin != null) {
+                ProviderFactoryHolder.registerFactory(builtin);
+                factory = builtin;
+            }
+        }
+        return factory;
     }
 
     /** 按配置对象确保装载（发送链路：从 SmsConfigProvider 取到配置后调用）。 */
@@ -129,17 +144,15 @@ public class SmsBlendRegistry {
     }
 
     /**
-     * 声明一个渠道（与支付/发票 registerChannel(provider) 对齐）：登记渠道编码与
-     * sms4j Factory 映射。显式 factory 覆盖内置清单；未声明工厂仍可用内置映射。
+     * 声明渠道（与支付/发票 registerChannel(provider) 对齐）：把 sms4j 原生 Factory
+     * 经官方入口注册进 ProviderFactoryHolder。内置与自定义渠道走同一条路径。
      */
     public void register(SmsChannelProvider provider) {
         if (provider == null || provider.channelCode() == null || provider.channelCode().trim().isEmpty()) {
             throw new GatewayException(SmsErrorCode.BAD_REQUEST, "渠道声明或 channelCode 为空");
         }
+        ProviderFactoryHolder.registerFactory(provider.factory());
         registeredChannels.add(provider.channelCode());
-        if (provider.factoryClassName() != null) {
-            factoryOverride.put(provider.channelCode(), provider.factoryClassName());
-        }
     }
 
     /** 已声明/已装载的渠道编码集合（对齐支付/发票 registeredChannels）。 */
@@ -166,24 +179,6 @@ public class SmsBlendRegistry {
     /** configId 生成规则：appId::channel。 */
     public static String configId(String appId, String channel) {
         return appId + "::" + channel;
-    }
-
-    private BaseProviderFactory loadFactory(String factoryClassName) {
-        try {
-            Class<?> clazz = Class.forName(factoryClassName);
-            // sms4j 各厂商 Factory 均为单例：优先用官方 instance() 入口
-            try {
-                return (BaseProviderFactory) clazz.getMethod("instance").invoke(null);
-            } catch (NoSuchMethodException ignore) {
-                // 兼容无 instance() 的自定义 Factory：反射调用无参构造
-                java.lang.reflect.Constructor<?> ctor = clazz.getDeclaredConstructor();
-                ctor.setAccessible(true);
-                return (BaseProviderFactory) ctor.newInstance();
-            }
-        } catch (Exception e) {
-            throw new GatewayException(SmsErrorCode.CHANNEL_NOT_FOUND,
-                    "无法装载短信渠道 Factory: " + factoryClassName, e);
-        }
     }
 
     @SuppressWarnings("unchecked")

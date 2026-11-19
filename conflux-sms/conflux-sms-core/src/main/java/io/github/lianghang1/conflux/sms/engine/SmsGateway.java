@@ -47,7 +47,7 @@ public class SmsGateway {
 
     /**
      * 声明渠道（与支付/发票 {@code registerChannel(provider)} 对齐）：登记渠道编码
-     * 与 sms4j Factory 映射。渠道实现仍全部来自 sms4j，本方法不含任何渠道逻辑。
+     * 的 sms4j 原生 Factory 实例。渠道实现仍全部来自 sms4j，本方法不含任何渠道逻辑。
      */
     public void registerChannel(SmsChannelProvider provider) {
         registry.register(provider);

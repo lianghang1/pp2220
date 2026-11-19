@@ -2,10 +2,14 @@ package io.github.lianghang1.conflux.sms.engine;
 
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
-import io.github.lianghang1.conflux.sms.config.SmsSupplierFactories;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
+import org.dromara.sms4j.aliyun.config.AlibabaConfig;
+import org.dromara.sms4j.aliyun.config.AlibabaFactory;
 import org.dromara.sms4j.api.SmsBlend;
+import org.dromara.sms4j.api.universal.SupplierConfig;
 import org.dromara.sms4j.core.factory.SmsFactory;
+import org.dromara.sms4j.provider.factory.BaseProviderFactory;
+import org.dromara.sms4j.provider.factory.ProviderFactoryHolder;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -90,10 +94,30 @@ class SmsBlendRegistryTest {
     }
 
     @Test
-    void customFactoryShouldExtendSuppliers() {
+    void customFactoryInstanceShouldExtendSuppliers() {
+        // 自定义渠道走 sms4j 原生扩展：把 Factory 实例经 SmsChannelProvider 注册。
+        // 这里委托官方 AlibabaFactory 实现一个标识为 mycustom 的自定义工厂，验证原生注册路径。
+        final AlibabaFactory delegate = AlibabaFactory.instance();
+        BaseProviderFactory customFactory = new BaseProviderFactory() {
+            @Override
+            public SmsBlend createSms(SupplierConfig config) {
+                return delegate.createSms((AlibabaConfig) config);
+            }
+            @Override
+            @SuppressWarnings("unchecked")
+            public Class getConfigClass() {
+                return AlibabaConfig.class;
+            }
+            @Override
+            public String getSupplier() {
+                return "mycustom";
+            }
+        };
         SmsBlendRegistry registry = new SmsBlendRegistry();
-        registry.register(SmsChannelProvider.of("myali", SmsSupplierFactories.factoryClassName("alibaba")));
-        String configId = registry.register("custom", "myali", alibabaAttrs());
+        registry.register(SmsChannelProvider.of(customFactory));
+        // 工厂已进入 sms4j 原生注册表
+        assertThat(ProviderFactoryHolder.requireForSupplier("mycustom")).isNotNull();
+        String configId = registry.register("custom", "mycustom", alibabaAttrs());
         assertThat(SmsFactory.getSmsBlend(configId)).isNotNull();
     }
 }
