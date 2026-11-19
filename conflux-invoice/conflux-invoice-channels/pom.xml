@@ -14,8 +14,8 @@
     <artifactId>conflux-invoice-channels</artifactId>
     <packaging>jar</packaging>
     <name>conflux-invoice-channels</name>
-    <description>数电票服务商渠道实现：mock / 企享云 / 百旺金穗云 / 百望云 / 票通云 / 诺诺网，
-        按包隔离；企享云走 common OkHttp 通用适配，其余渠道为专属适配器（其中百望云、诺诺网依赖官方 SDK）。</description>
+    <description>数电票服务商渠道实现：mock / 百旺金穗云 / 百望云 / 票通云 / 诺诺网，
+        按包隔离，均为专属适配器（其中百望云、诺诺网依赖官方 SDK）。</description>
 
     <dependencies>
         <dependency>

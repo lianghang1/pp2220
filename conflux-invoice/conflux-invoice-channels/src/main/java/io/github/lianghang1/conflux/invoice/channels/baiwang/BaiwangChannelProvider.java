@@ -57,7 +57,7 @@ import java.util.Set;
  * 百望云（BOPSDK）渠道实现。
  *
  * <p>基于官方 BOPSDK 的接口组模式（{@code client.sOutputinvoice().invoice(query...)}），
- * 渠道差异封闭在本包内，不复用通用 REST 适配器（百望的签名/token/报文均由 SDK 封装）。：</p>
+ * 渠道差异封闭在本包内，签名/token/报文均由 SDK 封装。</p>
  * <ul>
  *   <li>token 由 {@link BaiwangGateway} 密码登录获取并缓存（appSecret 仅用于签名）；</li>
  *   <li>开票/红冲为异步受理，结果走回调或查单；只有拿到票号才置 SUCCEEDED；</li>

@@ -20,7 +20,7 @@ import java.util.Set;
  */
 public interface InvoiceChannelProvider {
 
-    /** 渠道编码（全局唯一，如 mock / baiwangjs / qixiangyun）。 */
+    /** 渠道编码（全局唯一，如 mock / baiwangjs / baiwang）。 */
     String channelCode();
 
     /** 通道级别（决定路由优先级）。 */

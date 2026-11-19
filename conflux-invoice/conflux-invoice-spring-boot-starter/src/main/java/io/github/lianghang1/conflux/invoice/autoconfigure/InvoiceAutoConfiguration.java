@@ -6,7 +6,6 @@ import io.github.lianghang1.conflux.invoice.channels.baiwang.BaiwangChannelProvi
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsChannelProvider;
 import io.github.lianghang1.conflux.invoice.channels.mock.MockInvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channels.nuonuo.NuonuoChannelProvider;
-import io.github.lianghang1.conflux.invoice.channels.qixiangyun.QixiangyunChannelProvider;
 import io.github.lianghang1.conflux.invoice.config.InvoiceConfigProvider;
 import io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
@@ -40,12 +39,6 @@ public class InvoiceAutoConfiguration {
             havingValue = "true", matchIfMissing = true)
     public MockInvoiceChannelProvider mockInvoiceChannelProvider() {
         return new MockInvoiceChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(QixiangyunChannelProvider.class)
-    public QixiangyunChannelProvider qixiangyunChannelProvider() {
-        return new QixiangyunChannelProvider();
     }
 
     @Bean

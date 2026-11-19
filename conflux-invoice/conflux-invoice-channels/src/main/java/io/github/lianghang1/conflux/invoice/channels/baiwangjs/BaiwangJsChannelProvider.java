@@ -58,8 +58,7 @@ import java.util.Set;
 /**
  * 百旺金穗云「税务共享销项」渠道实现（以官方公开文档为准）。
  *
- * <p><b>与通用 REST 适配器的差异</b>：本渠道协议特殊，故不复用
- * {@code AbstractRestInvoiceChannel}，而是独立实现全部能力，把协议细节封闭在本包内：</p>
+ * <p><b>实现形态</b>：本渠道协议特殊，独立实现全部能力，把协议细节封闭在本包内：</p>
  * <ul>
  *   <li>请求为 JSON 经 Base64(UTF-8) 转码的字符串，Content-Type 仍为 application/json；</li>
  *   <li>网关签名 {@code Base64(HmacSHA256(sign_str, SECRET))}，每次调用重算（Date/nonce 变化）；</li>
