@@ -1,6 +1,6 @@
 # Conflux
 
-可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付**、**数电发票** 与 **短信**（PoC 阶段）三个能力域。
+可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付**、**数电发票** 与 **短信** 三个能力域。
 
 > **定位**：Conflux 不是独立运行的中间件，而是给成熟应用直接引入的 SDK。它只做一件事——统一渠道差异；**不持有台账、不做幂等/CAS、不维护状态机、不落库、不通知下游**。落库、判重、状态推进、下游通知、定时任务全部由使用方在自己的业务链里完成。
 
@@ -14,7 +14,7 @@
 
 ## 模块构成
 
-`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-sms`（core / channels / spring-boot-starter，PoC 阶段薄门面）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。core 与 channels 零 Spring 依赖，starter 提供 Boot 自动装配。
+`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-sms`（core / spring-boot-starter，内部全量委托 sms4j 原始包）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。支付/发票的 core 与 channels、短信的 core 均零 Spring 依赖，各 starter 提供 Boot 自动装配。
 
 ---
 
@@ -150,37 +150,53 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 ---
 
-## 能力域三：短信（conflux-sms，PoC）
+## 能力域三：短信（conflux-sms）
 
-短信域是**薄门面**：底层复用 [sms4j](https://github.com/dromara/SMS4J) 作为渠道 SDK，但**配置规则与调用方式沿用 Conflux 自己的装载模式**——`conflux.sms.apps.<appId>.<channel>.attrs` 声明渠道个性键，经渠道 provider 的 `parseParams` 解析为渠道参数，经 `SmsGateway.send(appId, channel, request)` 归一调用。核心/channels 零 Spring、零 sms4j 之外的业务依赖。
+短信域内部**全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter），我们只保留两层：
 
-PoC 阶段仅接入**阿里云短信**一家（`aliyun`），用于验证"配置是我们的、调用也是我们的"这一架构可行性；发送即终态，SDK 不持有台账、不判重、不做频率控制。
+- **配置装载**：`conflux.sms.apps.<appId>.<channel>` 声明配置，装载期由 sms4j 官方 Factory 构造厂商 Config 并注册进 `SmsFactory`；
+- **出口门面**：`SmsGateway.send(appId, channel, request)` 从 `SmsFactory` 取出 `SmsBlend` 发送，归一 `SmsResponse`。
+
+渠道的配置对象与发送能力**全部来自 sms4j**，我们不含任何渠道实现代码。`channel` 直接采用 sms4j 的供应商标识（`alibaba`/`tencent`/`huawei`…），因此 **sms4j 支持的 22 家厂商无需新增代码即可使用**；发送即终态，SDK 不持有台账、不判重、不做频率控制。core 零 Spring 依赖，纯 Java / MVC 项目同样可用。
 
 ```yaml
 conflux:
   sms:
     apps:
       demo:
-        aliyun:
+        alibaba:                   # sms4j 供应商标识；aliyun 作为别名也识别
           # 统一键（sms4j BaseConfig 公共字段，跨渠道同名同义）
           access-key-id: xxx
           access-key-secret: xxx
           signature: 你的签名
           template-id: SMS_xxx
-          attrs:                 # 厂商特有键，由各渠道自定义
+          attrs:                   # 厂商特有键，键名与 sms4j Config 字段一致
             template-name: code
             region-id: cn-hangzhou
 ```
 
-统一键在装载期下沉进 attrs 后交给渠道 `parseParams`（统一键优先、attrs 兜底），渠道 provider 无需关心凭证来自哪一层；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）仍放 `attrs`。
+统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。要接入内置清单外的厂商，可调用 `smsGateway.registerFactory(supplier, factoryClassName)` 补充映射，无需改代码。
 
 ```java
-SmsSendResult r = smsGateway.send("demo", "aliyun",
+SmsSendResult r = smsGateway.send("demo", "alibaba",
         new SmsSendRequest().setBizId("B-1").setPhone("18888888888")
                 .setParams(Collections.singletonMap("code", "123456")));
 ```
 
-依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core` + `conflux-sms-channels`（纯 Java/MVC）。sms4j 作为渠道 SDK 由 channels 层引入，版本在 BOM 单源管理。
+纯 Java / MVC 手动组装：
+
+```java
+SmsGateway gateway = SmsGateway.builder().build();
+Map<String, String> cfg = new HashMap<>();
+cfg.put("accessKeyId", "xxx");
+cfg.put("accessKeySecret", "xxx");
+cfg.put("signature", "你的签名");
+cfg.put("templateId", "SMS_xxx");
+gateway.register("demo", "alibaba", cfg);          // 配置装载
+SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
+```
+
+依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core`（纯 Java/MVC，经 core 传递引入 sms4j 原始包）。sms4j 版本在 BOM 单源管理。
 
 ---
 

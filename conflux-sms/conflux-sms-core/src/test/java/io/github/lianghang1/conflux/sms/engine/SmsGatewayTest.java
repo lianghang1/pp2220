@@ -1,85 +1,108 @@
 package io.github.lianghang1.conflux.sms.engine;
 
+import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.sms.api.SmsSendRequest;
 import io.github.lianghang1.conflux.sms.api.SmsSendResult;
-import io.github.lianghang1.conflux.sms.channel.SmsChannelConfig;
-import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
-import io.github.lianghang1.conflux.sms.channel.SmsParams;
-import io.github.lianghang1.conflux.sms.channel.SmsSender;
-import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
+import org.dromara.sms4j.api.SmsBlend;
+import org.dromara.sms4j.api.entity.SmsResponse;
+import org.dromara.sms4j.core.factory.SmsFactory;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 短信网关门面测试：用桩渠道验证「纯 jar builder 组装 + 统一 send 调用」链路，
- * 不依赖网络与真实凭据。验证 SDK 无状态门面按 appId+渠道取配置、路由并归一结果。
+ * 网关门面测试：把 mock SmsBlend 注册进 sms4j 的 SmsFactory，验证 send
+ * 「取 blend → 调用 sms4j 发送 → 归一 SmsResponse」链路。不触发真实网络。
  *
  * @author lianghang
  */
 class SmsGatewayTest {
 
-    /** 桩渠道：记录收到的配置与请求，返回固定成功结果。 */
-    private static class StubProvider implements SmsChannelProvider {
-        SmsSendRequest lastRequest;
-        SmsChannelConfig lastConfig;
-
-        @Override
-        public String channelCode() {
-            return "stub";
-        }
-
-        @Override
-        public SmsParams parseParams(Map<String, String> properties) {
-            return () -> "stub-app";
-        }
-
-        @Override
-        public SmsSender smsSender() {
-            return (request, config) -> {
-                lastRequest = request;
-                lastConfig = config;
-                return new SmsSendResult().setSuccess(true).setRaw("stub-ok");
-            };
-        }
+    private SmsBlend mockBlend(String configId, boolean success, Object data) {
+        SmsBlend blend = mock(SmsBlend.class);
+        when(blend.getConfigId()).thenReturn(configId);
+        SmsResponse resp = new SmsResponse();
+        resp.setSuccess(success);
+        resp.setData(data);
+        resp.setConfigId(configId);
+        when(blend.sendMessage(any(String.class), any(String.class))).thenReturn(resp);
+        when(blend.sendMessage(any(String.class), any(LinkedHashMap.class))).thenReturn(resp);
+        SmsFactory.register(blend);
+        return blend;
     }
 
     @Test
-    void builderShouldRouteAndNormalizeSend() {
-        StubProvider stub = new StubProvider();
-        SmsConfigProvider configProvider = (appId, channel) ->
-                new SmsChannelConfig().setAppId(appId).setChannelCode(channel)
-                        .setParams(() -> "stub-app");
-
-        SmsGateway gateway = SmsGateway.builder()
-                .channel(stub)
-                .configProvider(configProvider)
-                .build();
+    void shouldNormalizeSmsResponse() {
+        SmsGateway gateway = SmsGateway.builder().build();
+        mockBlend("gw::alibaba", true, "REQ-OK");
 
         SmsSendRequest request = new SmsSendRequest()
                 .setBizId("BIZ-1")
                 .setPhone("18888888888")
                 .setContent("验证码 123456");
-        SmsSendResult result = gateway.send("demo", "stub", request);
+        SmsSendResult result = gateway.send("gw", "alibaba", request);
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getBizId()).isEqualTo("BIZ-1");
-        assertThat(result.getChannel()).isEqualTo("stub");
-        assertThat(result.getAppId()).isEqualTo("demo");
-        assertThat(result.getRaw()).isEqualTo("stub-ok");
-        assertThat(stub.lastRequest).isSameAs(request);
-        assertThat(stub.lastConfig.getAppId()).isEqualTo("demo");
-        assertThat(gateway.registeredChannels()).containsExactly("stub");
+        assertThat(result.getChannel()).isEqualTo("alibaba");
+        assertThat(result.getAppId()).isEqualTo("gw");
+        assertThat(result.getRaw()).isEqualTo("REQ-OK");
+        assertThat(result.getError()).isNull();
     }
 
     @Test
-    void builderShouldRequireConfigProvider() {
-        StubProvider stub = new StubProvider();
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                SmsGateway.builder().channel(stub).build())
-                .isInstanceOf(io.github.lianghang1.conflux.common.exception.GatewayException.class);
+    void templateParamsShouldUseMapOverload() {
+        SmsGateway gateway = SmsGateway.builder().build();
+        SmsBlend blend = mockBlend("tpl::alibaba", true, "OK");
+
+        Map<String, String> vars = new LinkedHashMap<String, String>();
+        vars.put("code", "123456");
+        SmsSendRequest request = new SmsSendRequest()
+                .setPhone("18888888888")
+                .setParams(vars);
+        gateway.send("tpl", "alibaba", request);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LinkedHashMap<String, String>> captor = ArgumentCaptor.forClass(LinkedHashMap.class);
+        verify(blend).sendMessage(eq("18888888888"), captor.capture());
+        assertThat(captor.getValue()).containsEntry("code", "123456");
+    }
+
+    @Test
+    void failureResponseShouldBeNormalized() {
+        SmsGateway gateway = SmsGateway.builder().build();
+        mockBlend("fail::alibaba", false, "BALANCE_NOT_ENOUGH");
+
+        SmsSendResult result = gateway.send("fail", "alibaba",
+                new SmsSendRequest().setPhone("18888888888").setContent("hi"));
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getError()).contains("BALANCE_NOT_ENOUGH");
+    }
+
+    @Test
+    void missingBlendShouldFailFast() {
+        SmsGateway gateway = SmsGateway.builder().build();
+        assertThatThrownBy(() -> gateway.send("none", "alibaba",
+                new SmsSendRequest().setPhone("18888888888").setContent("hi")))
+                .isInstanceOfSatisfying(GatewayException.class, e ->
+                        assertThat(e.getErrorCode().getCode()).isEqualTo(4103));
+    }
+
+    @Test
+    void badRequestShouldFailFast() {
+        SmsGateway gateway = SmsGateway.builder().build();
+        assertThatThrownBy(() -> gateway.send("", "alibaba",
+                new SmsSendRequest().setPhone("18888888888")))
+                .isInstanceOf(GatewayException.class);
     }
 }

@@ -86,7 +86,8 @@
                 <artifactId>open-sdk</artifactId>
                 <version>${nuonuo-sdk.version}</version>
             </dependency>
-            <!-- sms4j 短信聚合 SDK：core/provider 由 BOM 统一管理版本 -->
+            <!-- sms4j 短信聚合原始包（非 starter）：core/provider 由 BOM 统一管理版本，
+                 api/comm/hutool 经 core 传递引入 -->
             <dependency>
                 <groupId>org.dromara.sms4j</groupId>
                 <artifactId>sms4j-core</artifactId>

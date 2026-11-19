@@ -8,8 +8,9 @@ import java.util.Map;
 /**
  * 网关 starter 配置（{@code conflux.sms.*}）。
  *
- * <p>与支付域 PayGatewayProperties 完全同构的「应用 → 渠道 → 键值对」结构。
- * 统一基础键（如 notifyUrl）在短信域暂不需要，全部个性键走 attrs。</p>
+ * <p>与支付域 PayGatewayProperties 同构的「应用 → 渠道 → 配置」结构。渠道编码
+ * 直接采用 sms4j 的 supplier 标识（alibaba/tencent/huawei…）；统一凭证键提到外层，
+ * 其余字段按 sms4j Config 字段名放在 attrs，装载期合并后交给 sms4j 官方工厂。</p>
  *
  * @author lianghang
  */

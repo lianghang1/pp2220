@@ -10,12 +10,12 @@
     <packaging>pom</packaging>
     <name>conflux-sms</name>
     <description>Conflux 短信能力域父 pom：独立版本号与技术栈（JDK 8 / Spring Boot 2.7.18），
-        薄门面复用 sms4j 作为渠道 SDK，配置与调用体验与 pay / invoice 域一致。
-        仅作为 conflux-sms-* 子模块的 parent，版本与其他域互不影响。</description>
+        内部全量委托 sms4j 原始包（非 starter）承载渠道能力，我们只做配置装载与出口门面，
+        配置与调用体验与 pay / invoice 域一致。仅作为 conflux-sms-* 子模块的 parent，
+        版本与其他域互不影响。</description>
 
     <modules>
         <module>conflux-sms-core</module>
-        <module>conflux-sms-channels</module>
         <module>conflux-sms-spring-boot-starter</module>
     </modules>
 
@@ -46,11 +46,6 @@
             <dependency>
                 <groupId>io.github.lianghang1</groupId>
                 <artifactId>conflux-sms-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.lianghang1</groupId>
-                <artifactId>conflux-sms-channels</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

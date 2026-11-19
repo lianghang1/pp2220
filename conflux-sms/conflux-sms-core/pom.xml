@@ -14,12 +14,21 @@
     <artifactId>conflux-sms-core</artifactId>
     <packaging>jar</packaging>
     <name>conflux-sms-core</name>
-    <description>短信内核：统一发送模型、渠道 SPI、配置 SPI、门面（零 Spring 依赖，零 sms4j 依赖）</description>
+    <description>短信内核：统一发送模型 + 配置装载 + 出口门面，内部委托 sms4j 原始包（零 Spring 依赖）</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.lianghang1</groupId>
             <artifactId>conflux-common</artifactId>
+        </dependency>
+        <!-- sms4j 原始包（非 starter）：渠道配置对象与发送能力全部由它提供，纯 Java 项目可用 -->
+        <dependency>
+            <groupId>org.dromara.sms4j</groupId>
+            <artifactId>sms4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.dromara.sms4j</groupId>
+            <artifactId>sms4j-provider</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
