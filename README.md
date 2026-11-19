@@ -162,13 +162,17 @@ conflux:
     apps:
       demo:
         aliyun:
-          attrs:
-            access-key-id: xxx
-            access-key-secret: xxx
-            signature: 你的签名
-            template-id: SMS_xxx
+          # 统一键（sms4j BaseConfig 公共字段，跨渠道同名同义）
+          access-key-id: xxx
+          access-key-secret: xxx
+          signature: 你的签名
+          template-id: SMS_xxx
+          attrs:                 # 厂商特有键，由各渠道自定义
             template-name: code
+            region-id: cn-hangzhou
 ```
+
+统一键在装载期下沉进 attrs 后交给渠道 `parseParams`（统一键优先、attrs 兜底），渠道 provider 无需关心凭证来自哪一层；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）仍放 `attrs`。
 
 ```java
 SmsSendResult r = smsGateway.send("demo", "aliyun",

@@ -28,10 +28,49 @@ public class SmsProperties {
         this.apps = apps;
     }
 
-    /** 单渠道配置：渠道个性键值包。 */
+    /** 单渠道配置：统一凭证字段 + 渠道个性键值包。 */
     public static class ChannelProperties {
-        /** 渠道个性键值包（键名由各渠道定义，经 SmsChannelProvider.parseParams 解析）。 */
+
+        // ---- 统一键：sms4j BaseConfig 公共字段中跨渠道同名同义的凭证四件套 ----
+        private String accessKeyId;
+        private String accessKeySecret;
+        private String signature;
+        private String templateId;
+
+        /** 渠道个性键值包（厂商特有键名，如 sdkAppId/sender/signId，经 parseParams 解析）。 */
         private Map<String, String> attrs = new LinkedHashMap<String, String>();
+
+        public String getAccessKeyId() {
+            return accessKeyId;
+        }
+
+        public void setAccessKeyId(String accessKeyId) {
+            this.accessKeyId = accessKeyId;
+        }
+
+        public String getAccessKeySecret() {
+            return accessKeySecret;
+        }
+
+        public void setAccessKeySecret(String accessKeySecret) {
+            this.accessKeySecret = accessKeySecret;
+        }
+
+        public String getSignature() {
+            return signature;
+        }
+
+        public void setSignature(String signature) {
+            this.signature = signature;
+        }
+
+        public String getTemplateId() {
+            return templateId;
+        }
+
+        public void setTemplateId(String templateId) {
+            this.templateId = templateId;
+        }
 
         public Map<String, String> getAttrs() {
             return attrs;

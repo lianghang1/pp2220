@@ -3,6 +3,7 @@ package io.github.lianghang1.conflux.sms.channels.aliyun;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.sms.channel.SmsParams;
+import io.github.lianghang1.conflux.sms.config.SmsConfigKeys;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
 import lombok.Data;
 
@@ -31,10 +32,11 @@ public class AliyunParams implements SmsParams {
     public static AliyunParams fromMap(Map<String, String> properties) {
         AliyunParams p = new AliyunParams();
         if (properties != null) {
-            p.setAccessKeyId(properties.get("accessKeyId"));
-            p.setAccessKeySecret(properties.get("accessKeySecret"));
-            p.setSignature(properties.get("signature"));
-            p.setTemplateId(properties.get("templateId"));
+            p.setAccessKeyId(properties.get(SmsConfigKeys.ACCESS_KEY_ID));
+            p.setAccessKeySecret(properties.get(SmsConfigKeys.ACCESS_KEY_SECRET));
+            p.setSignature(properties.get(SmsConfigKeys.SIGNATURE));
+            p.setTemplateId(properties.get(SmsConfigKeys.TEMPLATE_ID));
+            // 厂商特有键：仍从合并后的 map 读取，键名由本渠道定义
             p.setTemplateName(properties.get("templateName"));
             p.setRegionId(properties.get("regionId"));
         }

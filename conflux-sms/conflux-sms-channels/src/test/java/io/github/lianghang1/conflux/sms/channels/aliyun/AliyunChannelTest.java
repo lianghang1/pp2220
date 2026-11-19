@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -21,10 +22,10 @@ class AliyunChannelTest {
 
     private static Map<String, String> attrs() {
         Map<String, String> p = new HashMap<String, String>();
-        p.put("accessKeyId", "LTAI5tTestKey");
-        p.put("accessKeySecret", "testSecret");
-        p.put("signature", "签名");
-        p.put("templateId", "SMS_123456");
+        p.put(ACCESS_KEY_ID, "LTAI5tTestKey");
+        p.put(ACCESS_KEY_SECRET, "testSecret");
+        p.put(SIGNATURE, "签名");
+        p.put(TEMPLATE_ID, "SMS_123456");
         p.put("templateName", "code");
         p.put("regionId", "cn-hangzhou");
         return p;
