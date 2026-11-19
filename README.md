@@ -227,7 +227,7 @@ SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider)
 | 构建 | `builder()` | `builder()` | `builder()` |
 | 配置源 SPI | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` |
 | 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` |
-| Builder 注入 | `.configProvider(...)` | `.configProvider(...)` | `.configProvider(...)` |
+| Builder 注入 | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） |
 | 声明渠道 | `.channel(provider)` | `.channel(provider)` | `.channel(SmsChannelProvider)` |
 | 注册渠道 | `registerChannel(provider)` | `registerChannel(provider)` | `registerChannel(SmsChannelProvider)` |
 | 已注册渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
@@ -345,7 +345,8 @@ mvn -q -DfailIfNoTests=false test
 
 ## 文档索引
 
-- [docs/api-reference.md](docs/api-reference.md) — **API 参考**：两个网关的全部方法、出入参字段、枚举取值
+- [docs/framework-contract.md](docs/framework-contract.md) — **三域框架统一契约**：图纸 / 规范 / 检查清单，新增能力或渠道必须严格执行
+- [docs/api-reference.md](docs/api-reference.md) — **API 参考**：三个网关的全部方法、出入参字段、枚举取值
 - [docs/pay-integration.md](docs/pay-integration.md) — 支付域接入指南（两种引入形态、核心调用、回调接入、自定义渠道）
 - [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表与服务商模式回调路由
 - [docs/integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单

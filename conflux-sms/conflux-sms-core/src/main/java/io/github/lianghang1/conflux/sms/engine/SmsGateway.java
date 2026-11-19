@@ -74,10 +74,8 @@ public class SmsGateway {
             throw new GatewayException(SmsErrorCode.BAD_REQUEST,
                     "发送参数不完整: appId/channelCode/request.phone 必填");
         }
-        if (configProvider != null) {
-            SmsChannelConfig cfg = configProvider.getConfig(appId, channelCode);
-            registry.ensureLoaded(cfg);
-        }
+        SmsChannelConfig cfg = configProvider.getConfig(appId, channelCode);
+        registry.ensureLoaded(cfg);
         SmsBlend blend = registry.smsBlend(appId, channelCode);
         SmsResponse response = dispatch(blend, request);
         boolean ok = response != null && response.isSuccess();
@@ -112,7 +110,7 @@ public class SmsGateway {
         }
 
         /**
-         * 渠道配置提供者（对齐支付/发票同名方法）：发送链路每次从中读取配置。
+         * 渠道配置提供者（必填，对齐支付/发票同名方法）：发送链路每次从中读取配置。
          * 若实现 {@link SmsConfigProvider#allConfigs()}，构建时按全部配置预热装载、坏配置 fail-fast。
          */
         public Builder configProvider(SmsConfigProvider configProvider) {
@@ -120,11 +118,13 @@ public class SmsGateway {
             return this;
         }
 
+        /** 构建；渠道配置提供者必填（对齐支付/发票）。 */
         public SmsGateway build() {
-            if (configProvider != null) {
-                for (SmsChannelConfig cfg : configProvider.allConfigs()) {
-                    registry.ensureLoaded(cfg);
-                }
+            if (configProvider == null) {
+                throw new GatewayException(SmsErrorCode.CONFIG_MISSING, "未设置渠道配置提供者");
+            }
+            for (SmsChannelConfig cfg : configProvider.allConfigs()) {
+                registry.ensureLoaded(cfg);
             }
             return new SmsGateway(this);
         }

@@ -211,7 +211,7 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（注入后 send 每次读配置；实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（声明渠道，可多次调用）、`.build()`。
+`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（声明渠道，可多次调用）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
 
 `SmsChannelProvider.of(channelCode)` 声明内置 sms4j 渠道；`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
 
@@ -230,13 +230,14 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | 门面 Builder 方法 | 支付 | 发票 | 短信 | 说明 |
 |---|---|---|---|---|
 | `.channel(Provider)` | ✓ | ✓ | ✓ | 声明/注册渠道，可多次调用；短信传 `SmsChannelProvider`（只声明编码+Factory，实现在 sms4j） |
-| `.configProvider(...)` | ✓ | ✓ | ✓ | 配置提供者，注入后每次调用读取 |
+| `.configProvider(...)` | ✓ 必填 | ✓ 必填 | ✓ 必填 | 配置提供者，必填、每次调用读取 |
 | `.clock(Clock)` | ✓ | ✓ | — | 注入时钟（测试用） |
 | `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | 版式文件固化选项 |
 | `.build()` | ✓ | ✓ | ✓ | 构建网关 |
 
 ## 五、相关文档
 
+- **三域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](framework-contract.md) —— 新增能力或渠道必须严格执行
 - 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）、README「能力域三：短信」（短信）
 - 接入流程：[pay-integration.md](pay-integration.md)
 - 平台核对与协议细节：[invoice-platforms.md](invoice-platforms.md)
