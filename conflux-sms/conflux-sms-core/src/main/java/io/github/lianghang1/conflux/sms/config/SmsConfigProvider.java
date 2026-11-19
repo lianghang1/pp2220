@@ -1,5 +1,8 @@
 package io.github.lianghang1.conflux.sms.config;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * 短信渠道配置提供者 SPI：按应用与渠道换取渠道配置。
  *
@@ -17,4 +20,12 @@ public interface SmsConfigProvider {
 
     /** 按 appId + 渠道标识换取配置（发送链路）。 */
     SmsChannelConfig getConfig(String appId, String channel);
+
+    /**
+     * 枚举全部已配置渠道（启动期预热装载 / fail-fast 用）；默认空。
+     * 自定义 provider（DB/配置中心）可覆盖；不影响 {@link #getConfig} 主契约。
+     */
+    default List<SmsChannelConfig> allConfigs() {
+        return Collections.emptyList();
+    }
 }

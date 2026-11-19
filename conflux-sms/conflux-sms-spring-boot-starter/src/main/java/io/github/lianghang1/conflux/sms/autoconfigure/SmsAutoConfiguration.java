@@ -1,5 +1,6 @@
 package io.github.lianghang1.conflux.sms.autoconfigure;
 
+import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
 import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
 import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.engine.SmsGateway;
@@ -32,18 +33,15 @@ public class SmsAutoConfiguration {
         return new PropertiesSmsConfigProvider(properties);
     }
 
-    /** 网关门面：注入配置提供者，启动期预热已配置渠道。 */
+    /** 网关门面：注入配置提供者并按配置声明渠道；build 阶段预热装载（坏配置 fail-fast）。 */
     @Bean
     @ConditionalOnMissingBean(SmsGateway.class)
     public SmsGateway smsGateway(SmsConfigProvider configProvider) {
-        SmsGateway gateway = SmsGateway.builder().configProvider(configProvider).build();
-        // 启动期预热：Properties 实现可遍历全部配置；自定义 provider 无此能力则跳过
-        if (configProvider instanceof PropertiesSmsConfigProvider) {
-            List<SmsChannelConfig> all = ((PropertiesSmsConfigProvider) configProvider).allConfigs();
-            for (SmsChannelConfig cfg : all) {
-                gateway.registerChannel(cfg.getAppId(), cfg.getChannel(), cfg.getAttrs());
-            }
+        SmsGateway.Builder builder = SmsGateway.builder().configProvider(configProvider);
+        for (SmsChannelConfig cfg : configProvider.allConfigs()) {
+            builder.channel(SmsChannelProvider.of(cfg.getChannel()));
         }
+        SmsGateway gateway = builder.build();
         log.info("SmsGateway 装配完成: channels={}", gateway.registeredChannels());
         return gateway;
     }

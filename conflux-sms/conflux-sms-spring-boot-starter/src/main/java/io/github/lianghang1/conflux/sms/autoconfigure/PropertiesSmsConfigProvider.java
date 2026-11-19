@@ -44,6 +44,7 @@ public class PropertiesSmsConfigProvider implements SmsConfigProvider {
     }
 
     /** 遍历全部已配置渠道（供启动期预热装载，fail-fast）。 */
+    @Override
     public java.util.List<SmsChannelConfig> allConfigs() {
         java.util.List<SmsChannelConfig> result = new java.util.ArrayList<SmsChannelConfig>();
         for (Map.Entry<String, Map<String, SmsProperties.ChannelProperties>> appEntry

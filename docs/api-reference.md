@@ -207,12 +207,13 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
 | `send` | `String appId, String channel, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `String appId, String channel, Map<String,String> attrs` | `String` | 装载渠道配置（返回 configId） |
-| `registerFactory` | `String supplier, String factoryClassName` | `void` | 补充内置清单外的 sms4j 厂商 Factory 映射 |
-| `registeredChannels` | — | `Set<String>` | 已装载渠道的 configId 集合 |
+| `registerChannel` | `SmsChannelProvider` | `void` | 声明渠道（与支付/发票同构），登记渠道编码与 sms4j Factory 映射 |
+| `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（可选，注入后 send 每次读配置）、`.build()`。无 `.channel(...)` —— 短信渠道实现由 sms4j 承担，无自有 `ChannelProvider` SPI。
+`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（注入后 send 每次读配置；实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（声明渠道，可多次调用）、`.build()`。
+
+`SmsChannelProvider.of(channelCode)` 声明内置 sms4j 渠道；`SmsChannelProvider.of(channelCode, factoryClassName)` 补充内置清单外的厂商。Provider 只做渠道声明/转换，渠道实现全部来自 sms4j。
 
 ### 3.2 请求/结果与配置
 
@@ -228,8 +229,8 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 | 门面 Builder 方法 | 支付 | 发票 | 短信 | 说明 |
 |---|---|---|---|---|
-| `.channel(Provider)` | ✓ | ✓ | — | 注册渠道提供者，可多次调用（短信无自有渠道 SPI） |
-| `.configProvider(...)` | ✓ | ✓ | ✓ | 配置提供者；支付/发票必填，短信可选 |
+| `.channel(Provider)` | ✓ | ✓ | ✓ | 声明/注册渠道，可多次调用；短信传 `SmsChannelProvider`（只声明编码+Factory，实现在 sms4j） |
+| `.configProvider(...)` | ✓ | ✓ | ✓ | 配置提供者，注入后每次调用读取 |
 | `.clock(Clock)` | ✓ | ✓ | — | 注入时钟（测试用） |
 | `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | 版式文件固化选项 |
 | `.build()` | ✓ | ✓ | ✓ | 构建网关 |

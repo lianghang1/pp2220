@@ -4,6 +4,7 @@ import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.sms.api.SmsSendRequest;
 import io.github.lianghang1.conflux.sms.api.SmsSendResult;
+import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
 import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
 import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
@@ -19,8 +20,8 @@ import java.util.Set;
  * 纯 jar 经 {@link #builder()} 手动组装，Spring Boot 由 starter 装配为单例 Bean。
  *
  * <p>与支付/发票门面对齐的对外契约：{@link Builder#configProvider(SmsConfigProvider)}
- * 注入配置源（文件/DB/配置中心均可），{@link #registerChannel(String, String, Map)}
- * 装载渠道，{@link #registeredChannels()} 查看已装载渠道。发送时每次从
+ * 注入配置源（文件/DB/配置中心均可），{@link #registerChannel(SmsChannelProvider)}
+ * 声明渠道，{@link #registeredChannels()} 查看已声明渠道。发送时每次从
  * {@code SmsConfigProvider} 读取配置，凭证变更可被装载层感知并重建客户端。</p>
  *
  * <p>内部完全委托 sms4j 原始包：{@link SmsBlendRegistry} 负责配置装载，
@@ -45,33 +46,23 @@ public class SmsGateway {
     }
 
     /**
-     * 装载配置渠道（与支付/发票 {@code registerChannel} 对齐）：
-     * 本质是向 sms4j 注册一个 SmsBlend。
-     *
-     * @param appId   使用方应用标识
-     * @param channel 渠道标识（sms4j supplier，如 alibaba/tencent/huawei）
-     * @param attrs   配置键值（键名与 sms4j Config 字段一致）
-     * @return 注册使用的 configId
+     * 声明渠道（与支付/发票 {@code registerChannel(provider)} 对齐）：登记渠道编码
+     * 与 sms4j Factory 映射。渠道实现仍全部来自 sms4j，本方法不含任何渠道逻辑。
      */
-    public String registerChannel(String appId, String channel, Map<String, String> attrs) {
-        return registry.register(appId, channel, attrs);
+    public void registerChannel(SmsChannelProvider provider) {
+        registry.register(provider);
     }
 
-    /** 补充自定义渠道 Factory（新增 sms4j 厂商时使用）。 */
-    public void registerFactory(String supplier, String factoryClassName) {
-        registry.registerFactory(supplier, factoryClassName);
-    }
-
-    /** 已装载渠道的 configId 快照（对齐支付/发票 registeredChannels）。 */
+    /** 已声明渠道编码集合（对齐支付/发票 registeredChannels）。 */
     public Set<String> registeredChannels() {
-        return registry.loadedConfigIds();
+        return registry.registeredChannels();
     }
 
     /**
      * 统一发送：按 appId + 渠道取出 sms4j SmsBlend 发送，并归一结果。
      *
-     * <p>若注入了 {@link SmsConfigProvider}，每次调用都从中读取配置并确保装载
-     * （凭证变更可重建）；未注入时直接使用 {@link #registerChannel} 预装载的 blend。</p>
+     * <p>每次调用都从 {@link SmsConfigProvider} 读取配置并确保装载
+     * （凭证变更可重建）。配置源由 {@link Builder#configProvider} 注入。</p>
      *
      * @param appId       使用方应用标识
      * @param channelCode 渠道标识
@@ -108,15 +99,21 @@ public class SmsGateway {
         return blend.sendMessage(request.getPhone(), request.getContent());
     }
 
-    /** 网关构建器：持有装载器与可选配置提供者，零外部框架依赖。 */
+    /** 网关构建器：持有装载器与配置提供者，零外部框架依赖。 */
     public static class Builder {
 
         private final SmsBlendRegistry registry = new SmsBlendRegistry();
         private SmsConfigProvider configProvider;
 
+        /** 声明渠道（对齐支付/发票同名方法），可多次调用。 */
+        public Builder channel(SmsChannelProvider provider) {
+            registry.register(provider);
+            return this;
+        }
+
         /**
-         * 渠道配置提供者（可选，对齐支付/发票同名方法）：注入后发送链路每次从中读取配置。
-         * 未注入时可用 {@link SmsGateway#registerChannel} 预装载。
+         * 渠道配置提供者（对齐支付/发票同名方法）：发送链路每次从中读取配置。
+         * 若实现 {@link SmsConfigProvider#allConfigs()}，构建时按全部配置预热装载、坏配置 fail-fast。
          */
         public Builder configProvider(SmsConfigProvider configProvider) {
             this.configProvider = configProvider;
@@ -124,6 +121,11 @@ public class SmsGateway {
         }
 
         public SmsGateway build() {
+            if (configProvider != null) {
+                for (SmsChannelConfig cfg : configProvider.allConfigs()) {
+                    registry.ensureLoaded(cfg);
+                }
+            }
             return new SmsGateway(this);
         }
     }

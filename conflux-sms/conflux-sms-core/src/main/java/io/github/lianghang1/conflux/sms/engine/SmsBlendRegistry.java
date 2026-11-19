@@ -2,6 +2,7 @@ package io.github.lianghang1.conflux.sms.engine;
 
 import cn.hutool.core.bean.BeanUtil;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
 import io.github.lianghang1.conflux.sms.config.SmsChannelConfig;
 import io.github.lianghang1.conflux.sms.config.SmsSupplierFactories;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
@@ -39,6 +40,8 @@ public class SmsBlendRegistry {
 
     private final Map<String, String> factoryOverride = new ConcurrentHashMap<String, String>();
     private final Set<String> configIds = ConcurrentHashMap.newKeySet();
+    /** 已声明渠道编码（与支付/发票 registeredChannels 对齐）。 */
+    private final Set<String> registeredChannels = ConcurrentHashMap.newKeySet();
     /** configId → 配置指纹；配置变更时重建 SmsBlend（对齐支付/发票凭证热更新语义）。 */
     private final Map<String, String> fingerprints = new ConcurrentHashMap<String, String>();
 
@@ -86,6 +89,7 @@ public class SmsBlendRegistry {
             throw new GatewayException(SmsErrorCode.CHANNEL_NOT_FOUND,
                     "不支持的短信渠道标识: {}", channel);
         }
+        registeredChannels.add(channel);
 
         BaseProviderFactory factory = loadFactory(factoryName);
         // 确保 Factory 注册进 sms4j 全局表（不用 starter 时不会有自动注册）
@@ -124,13 +128,23 @@ public class SmsBlendRegistry {
         return sb.toString();
     }
 
-    /** 补充/覆盖某渠道标识的 sms4j Factory 全类名（新增厂商时无需改代码）。 */
-    public void registerFactory(String supplier, String factoryClassName) {
-        if (supplier == null || supplier.trim().isEmpty()
-                || factoryClassName == null || factoryClassName.trim().isEmpty()) {
-            throw new GatewayException(SmsErrorCode.BAD_REQUEST, "supplier/factoryClassName 必填");
+    /**
+     * 声明一个渠道（与支付/发票 registerChannel(provider) 对齐）：登记渠道编码与
+     * sms4j Factory 映射。显式 factory 覆盖内置清单；未声明工厂仍可用内置映射。
+     */
+    public void register(SmsChannelProvider provider) {
+        if (provider == null || provider.channelCode() == null || provider.channelCode().trim().isEmpty()) {
+            throw new GatewayException(SmsErrorCode.BAD_REQUEST, "渠道声明或 channelCode 为空");
         }
-        factoryOverride.put(supplier, factoryClassName);
+        registeredChannels.add(provider.channelCode());
+        if (provider.factoryClassName() != null) {
+            factoryOverride.put(provider.channelCode(), provider.factoryClassName());
+        }
+    }
+
+    /** 已声明/已装载的渠道编码集合（对齐支付/发票 registeredChannels）。 */
+    public Set<String> registeredChannels() {
+        return java.util.Collections.unmodifiableSet(registeredChannels);
     }
 
     /** 按 appId + 渠道取出已注册的 SmsBlend；未装载抛明确异常。 */

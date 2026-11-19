@@ -175,7 +175,7 @@ conflux:
             region-id: cn-hangzhou
 ```
 
-统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。要接入内置清单外的厂商，可调用 `smsGateway.registerFactory(supplier, factoryClassName)` 补充映射，无需改代码。
+统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。要接入内置清单外的厂商，用 `SmsChannelProvider.of(supplier, factoryClassName)` 声明渠道时补充映射，无需改代码。
 
 ```java
 SmsSendResult r = smsGateway.send("demo", "alibaba",
@@ -186,21 +186,23 @@ SmsSendResult r = smsGateway.send("demo", "alibaba",
 纯 Java / MVC 手动组装：
 
 ```java
-SmsGateway gateway = SmsGateway.builder().build();
-Map<String, String> cfg = new HashMap<>();
-cfg.put("accessKeyId", "xxx");
-cfg.put("accessKeySecret", "xxx");
-cfg.put("signature", "你的签名");
-cfg.put("templateId", "SMS_xxx");
-gateway.registerChannel("demo", "alibaba", cfg);   // 装载渠道配置
+SmsConfigProvider provider = new InMemorySmsConfigProvider()
+        .register("demo", "alibaba", cfg);          // cfg: accessKeyId/accessKeySecret/signature/templateId…
+SmsGateway gateway = SmsGateway.builder()
+        .configProvider(provider)
+        .channel(SmsChannelProvider.of("alibaba"))  // 声明渠道，与支付/发票同构
+        .build();
 SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 ```
 
 也可自定义配置源（如从 DB 读），与支付/发票同构：
 
 ```java
-SmsConfigProvider dbProvider = (appId, channel) -> /* 查库返回 SmsChannelConfig */ ...;
-SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider).build();
+SmsConfigProvider dbProvider = new SmsConfigProvider() {
+    public SmsChannelConfig getConfig(String appId, String channel) { /* 查库 */ ... }
+};
+SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider)
+        .channel(SmsChannelProvider.of("alibaba")).build();
 ```
 
 依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core`（纯 Java/MVC，经 core 传递引入 sms4j 原始包）。sms4j 版本在 BOM 单源管理。
@@ -216,10 +218,12 @@ SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider).build();
 | 配置源 SPI | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` |
 | 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` |
 | Builder 注入 | `.configProvider(...)` | `.configProvider(...)` | `.configProvider(...)` |
-| 已装载渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
+| 声明渠道 | `.channel(provider)` | `.channel(provider)` | `.channel(SmsChannelProvider)` |
+| 注册渠道 | `registerChannel(provider)` | `registerChannel(provider)` | `registerChannel(SmsChannelProvider)` |
+| 已注册渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
 | 配置结构 | `conflux.pay.apps.*` | `conflux.invoice.apps.*` | `conflux.sms.apps.*`（均含 `attrs`） |
 
-三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。差异仅在于支付/发票的渠道实现在自有 `ChannelProvider`（注册用 `registerChannel(provider)`），短信渠道实现全在 sms4j、无该 SPI——这是能力来源不同，不影响上述对外契约。
+三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。三域对外形态完全一致：`builder().channel(provider)` 声明渠道、`gateway.registerChannel(provider)` 增补、`registeredChannels()` 查看。差异仅在 Provider 内容——支付/发票的 Provider 内含渠道实现 handler，短信的 `SmsChannelProvider` 只声明渠道编码与 sms4j Factory 映射，渠道实现仍在 sms4j 原始包。
 
 ---
 

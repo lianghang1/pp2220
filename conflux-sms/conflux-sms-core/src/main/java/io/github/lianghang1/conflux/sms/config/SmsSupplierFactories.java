@@ -10,7 +10,7 @@ import java.util.Map;
  * <p>本类只描述「渠道标识对应的 sms4j 工厂类」，不含任何渠道实现逻辑——
  * 真正的配置对象与发送能力全部来自 sms4j 原始包。清单与 sms4j 3.3.5
  * 官方 starter 的 {@code SupplierConfig#factoryList()} 一致；如 sms4j 新增
- * 厂商，使用方也可通过 {@link SmsBlendRegistry#registerFactory(String, String)}
+ * 厂商，使用方也可用 {@code SmsChannelProvider.of(code, factoryClassName)} 声明时
  * 自行补充映射，无需改动本类。</p>
  *
  * @author lianghang

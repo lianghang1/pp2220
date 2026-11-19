@@ -1,6 +1,7 @@
 package io.github.lianghang1.conflux.sms.engine;
 
 import io.github.lianghang1.conflux.common.exception.GatewayException;
+import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
 import io.github.lianghang1.conflux.sms.config.SmsSupplierFactories;
 import io.github.lianghang1.conflux.sms.exception.SmsErrorCode;
 import org.dromara.sms4j.api.SmsBlend;
@@ -91,7 +92,7 @@ class SmsBlendRegistryTest {
     @Test
     void customFactoryShouldExtendSuppliers() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
-        registry.registerFactory("myali", SmsSupplierFactories.factoryClassName("alibaba"));
+        registry.register(SmsChannelProvider.of("myali", SmsSupplierFactories.factoryClassName("alibaba")));
         String configId = registry.register("custom", "myali", alibabaAttrs());
         assertThat(SmsFactory.getSmsBlend(configId)).isNotNull();
     }

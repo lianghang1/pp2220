@@ -43,7 +43,7 @@ class SmsAutoConfigurationTest {
 
         SmsGateway gw = gateway(props);
 
-        assertThat(gw.registeredChannels()).contains("demo-boot::alibaba");
+        assertThat(gw.registeredChannels()).contains("alibaba");
         SmsBlend blend = SmsFactory.getSmsBlend("demo-boot::alibaba");
         assertThat(blend).isNotNull();
         assertThat(blend.getSupplier()).isEqualTo("alibaba");
@@ -63,7 +63,7 @@ class SmsAutoConfigurationTest {
         props.getApps().put("override-app", channels);
 
         SmsGateway gw = gateway(props);
-        assertThat(gw.registeredChannels()).contains("override-app::alibaba");
+        assertThat(gw.registeredChannels()).contains("alibaba");
         // 统一键优先：直接查 provider 的合并结果
         SmsConfigProvider provider = new PropertiesSmsConfigProvider(props);
         SmsChannelConfig cfg = provider.getConfig("override-app", "alibaba");
