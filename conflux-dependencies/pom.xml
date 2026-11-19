@@ -32,6 +32,8 @@
         <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
         <!-- 百望云 BOPSDK：中央仓库不发布，需 install:install-file 到私服/本地仓库 -->
         <baiwang-bopsdk.version>3.4.871</baiwang-bopsdk.version>
+        <!-- 诺诺开放平台 SDK：Maven Central 可获取，JDK 8 兼容 -->
+        <nuonuo-sdk.version>1.0.6.1</nuonuo-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -76,6 +78,11 @@
                 <groupId>com.baiwang.bop</groupId>
                 <artifactId>baiwang-bopsdk</artifactId>
                 <version>${baiwang-bopsdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.nuonuo</groupId>
+                <artifactId>open-sdk</artifactId>
+                <version>${nuonuo-sdk.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

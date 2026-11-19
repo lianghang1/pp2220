@@ -18,6 +18,7 @@
 | `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（官方公开文档）** | 专属适配器：蓝字 V2/V1、查单、红字两段（含 3.3.12 确认后开具 / 3.3.15 状态 / 3.3.16 主动确认）、登录与实人认证（同步+异步二维码）、3.4.15 / 3.4.8 版式文件查询、3.4.7 交付重发、3.4.11/12/13 发票修复、3.3.17 可冲销校验、`ywlxdm` 回调分流、XML 法定原件 |
 | `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
+| `nuonuo` | 诺诺网 | SERVICE_API | 开票/查单/回调**已核对（官方公开文档）** | 基于官方 SDK：蓝字开票、发票结果查询、开票结果回调解析；红冲/交付/授权/修复等未核对，未暴露 |
 
 **通道分级**说明：
 
@@ -328,6 +329,46 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 **未纳入**（与百旺口径一致）：作废类、快捷冲红（2.10/2.37）、索单撤销（2.32）、
 企业注册（2.2）、二维码开票（2.16~2.18）、统计类、机动车（2.39~2.42）、
 纸票（文档 3.2.0 未覆盖，生产在用的 `/invoicePaperCommon.pt` 等挂 C 档）。
+
+## 4.1 诺诺网：官方 SDK 适配器
+
+诺诺走统一网关 + 官方 SDK（`com.nuonuo:open-sdk`）的模式，与前面几家"自签名 + 自组报文"不同：
+签名、报文组装、HTTP 全部由 `NNOpenSDK#sendPostSyncRequest` 完成，渠道侧只组装业务 JSON、解析响应，
+**不自行实现任何签名算法**。
+
+- **网关**：正式 `https://sdk.nuonuo.com/open/v1/services`，沙箱
+  `https://sandbox.nuonuocs.cn/open/v1/services`（沙箱环境 token 可为空）。
+- **接口 method**：开票 `nuonuo.OpeMplatform.requestBillingNew`（私有参数打包在 `order` 对象，
+  返回 `result.invoiceSerialNum`）；查单 `nuonuo.OpeMplatform.queryInvoiceResult`
+  （入参 `serialNos`/`orderNos` 数组，返回 `result` 数组）。
+- **状态码**：查单 `status=2` 开票完成、`20` 开票中、`21` 签章中、`22` 失败；
+  回调 `status=1` 完成、`2` 失败、`3` 签章失败——两套语义不同，严禁混用。
+- **回调**：JSON body（`action/order_no/invoice_no/invoice_down_url/status/message`），
+  成功应答字符串 `success`（返回其他内容会触发重推）。PDF 地址在 `invoice_down_url`，
+  解析后归档到回调事件。
+
+**配置项**（`conflux.invoice.apps.<appId>.nuonuo.attrs`）：
+
+| 键 | 说明 |
+|---|---|
+| `appKey` / `appSecret` | 平台分配的应用凭据（SDK 签名与令牌） |
+| `accessToken` / `token` | 业务令牌；沙箱可空，正式必填或由 `getMerchantToken` 获取 |
+| `tokenJsonPath` | 从令牌返回 JSON 中提取令牌的点分路径（默认自动尝试常见字段） |
+| `sellerTaxNo` / `salerTaxNum` / `taxnum` | 销方税号（自用型应用开票 `salerTaxNum`） |
+| `gateway` / `gatewayUrl` / `baseUrl` | 覆盖网关地址（缺省按 `sandbox` 选正式/沙箱） |
+| `sandbox` | 是否沙箱 |
+| `callbackUrl` / `notifyUrl` | 回调地址覆盖 |
+| `drawer` / `clerk` | 开票员 |
+| `attrs.invoiceLine` / `attrs.pushMode` / `attrs.withTaxFlag` / `attrs.invoiceType` | 开票要素覆盖项 |
+
+**两个易踩的坑**：
+1. 官方文档示例的包名 `com.nuonuo.open.NNOpenSDK` 是错的，jar 内真实包名为
+   `nuonuo.open.sdk.NNOpenSDK`，照文档抄会编译失败。
+2. SDK 返回的 `result` 在不同接口/版本下可能是对象、数组或 JSON 字符串，
+   Codec 已统一兼容三种形态。
+
+**能力边界**：本次按公开文档核对并实现蓝字开票、查单、开票回调；红冲/交付/授权/修复
+等未核对到足够字段，按"不臆造"原则未暴露（Provider 不实现对应 Handler）。
 
 ## 5. 版式文件交付形态与固化策略
 

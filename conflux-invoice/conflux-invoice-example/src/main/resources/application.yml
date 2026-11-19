@@ -125,3 +125,28 @@ conflux:
         #     # passengerTransportList: '[{"traveler":"张三","travelDate":"2024-01-08","travelerIdType":"...","travelerIdNo":"..."}]'
         #     # realEstateSaleList: '[{"region":"上海市黄浦区","detailedAddress":"东江北路68号"}]'
         #     # herBuyerList: '[]'
+
+        # ------------------------------------------------------------------
+        # 诺诺网（nuonuo）官方 SDK 适配器配置模板
+        # 基于官方 SDK（com.nuonuo:open-sdk）：签名/报文/HTTP 全由 SDK 完成。
+        # 目前支持蓝字开票、发票结果查询、开票结果回调；红冲/交付等未暴露。
+        # 字段与能力边界见 docs/invoice-platforms.md 第 4.1 节。
+        # ------------------------------------------------------------------
+        # nuonuo:
+        #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（自用型应用开票 salerTaxNum）
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/nuonuo?accountKey=<APP_KEY>%2391310000XXXXXXXXXX"
+        #   sandbox: true                         # 沙箱环境 token 可为空
+        #   tier: SERVICE_API
+        #   priority: 20
+        #   enabled: false
+        #   attrs:
+        #     appKey: "<平台分配的 appKey>"
+        #     appSecret: "<平台分配的 appSecret>"
+        #     # accessToken: "<业务令牌；沙箱可空，正式必填或由 getMerchantToken 获取>"
+        #     # tokenJsonPath: "result.accessToken"  # 令牌返回 JSON 的取值路径（默认自动尝试常见字段）
+        #     # gateway: "https://sdk.nuonuo.com/open/v1/services"
+        #     # callbackUrl: "http://127.0.0.1:8080/api/invoices/callback/nuonuo"
+        #     # drawer: "<开票员 clerk>"
+        #     # invoiceLine: "p"                   # 发票种类（默认 p）
+        #     # pushMode: "2"                      # 推送方式：-1 不推 / 0 邮箱 / 1 手机 / 2 两者
+        #     # withTaxFlag: "0"                   # 单价含税标志：0 不含税 / 1 含税

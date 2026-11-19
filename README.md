@@ -237,6 +237,7 @@ public PaymentGateway paymentGateway() {
 | `piaotong` | 票通云 | 已核对（官方公开文档） | 专属适配器：蓝字开具、查单、红字两段、登录认证、文件下载、加密回调 |
 | `baiwang` | 百旺票税云 | 待核对 | 骨架已注册 |
 | `kingdee` | 金蝶发票云 | 待核对 | 骨架已注册 |
+| `nuonuo` | 诺诺网 | 开票/查单/回调已核对（官方公开文档） | 基于官方 SDK：蓝字开票、发票结果查询、开票结果回调解析；红冲/交付等未暴露 |
 
 > 各渠道均为协议层实现 + 单测，**尚未做真实平台联调**；字段级配置见 [docs/invoice-platforms.md](docs/invoice-platforms.md)。
 

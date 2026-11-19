@@ -37,6 +37,12 @@
             <groupId>com.baiwang.bop</groupId>
             <artifactId>baiwang-bopsdk</artifactId>
         </dependency>
+        <!-- 诺诺开放平台 SDK：签名/报文组装/HTTP 均由官方 NNOpenSDK 封装，
+             渠道侧只组装业务 JSON 并解析响应，不自行实现签名 -->
+        <dependency>
+            <groupId>com.nuonuo</groupId>
+            <artifactId>open-sdk</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
