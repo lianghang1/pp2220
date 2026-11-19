@@ -6,8 +6,9 @@
 > `documentVerified` 标记文档是否已逐项核对；未核对的渠道默认不带任何接口路径，
 > 对应能力不会暴露，使用前必须按平台最新公开文档配置路径与字段映射。
 >
-> **例外**：百旺金穗云协议特殊，采用专属适配器（见第 3 节），自带已核对的默认路径与签名实现，
-> 不再走「先配路径再启用」的通用骨架流程；其余渠道仍按上述规则。
+> **例外**：百旺金穗云（第 3 节）、百望云（3.5 节）、票通云（第 4 节）、诺诺网（4.1 节）协议特殊，
+> 采用专属适配器，自带已核对的默认路径与签名实现（或用官方 SDK），不再走「先配路径再启用」的
+> 通用骨架流程；其余渠道仍按上述规则。
 
 ## 1. 平台清单
 
@@ -16,7 +17,7 @@
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全部（蓝字、授权、异步查单、XML 原件、红字两段、回调） |
 | `qixiangyun` | 企享云 | SERVICE_API | 蓝字开具**已核对**；其余待核对 | 蓝字开票（issue）、回调解析 |
 | `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（官方公开文档）** | 专属适配器：蓝字 V2/V1、查单、红字两段（含 3.3.12 确认后开具 / 3.3.15 状态 / 3.3.16 主动确认）、登录与实人认证（同步+异步二维码）、3.4.15 / 3.4.8 版式文件查询、3.4.7 交付重发、3.4.11/12/13 发票修复、3.3.17 可冲销校验、`ywlxdm` 回调分流、XML 法定原件 |
-| `baiwang` | 百旺票税云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
+| `baiwang` | 百望云 | SERVICE_API | **已核对（官方公开文档，BOPSDK）** | 专属适配器（见第 3.5 节）：蓝字开具、查单、快速红冲 + 红冲确认两段、交付重发、发票修复、文件下载、四类回调分流；数电专普票 / 增值税专普票 / 机动车 |
 | `kingdee` | 金蝶发票云 | SERVICE_API | **待核对** | 骨架，配置路径后启用 |
 | `nuonuo` | 诺诺网 | SERVICE_API | 开票/查单/回调**已核对（官方公开文档）** | 基于官方 SDK：蓝字开票、发票结果查询、开票结果回调解析；红冲/交付/授权/修复等未核对，未暴露 |
 
@@ -245,7 +246,56 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 - 不编造未纳入的接口：作废类（3.3.1 / 3.3.2 / 3.3.10 / 3.3.11）、税控红字信息表、
   商品管理、机动车/二手车、乐企跨区、订单码、打印、智能抬头等按口径留在骨架之外。
 
-百旺票税云、金蝶发票云仍为骨架，待按各自公开文档核对。
+金蝶发票云仍为骨架（继承通用适配器、未配接口路径），待按其公开文档核对；百望云已在第 3.5 节单独核对说明。
+
+### 3.5 百望云：官方 SDK 适配器（BOPSDK，`baiwang`）
+
+百望云（`BaiwangSpec.DISPLAY_NAME = 百望云`）是**完整实现的专属适配器**，与 3.1~3.4 节的百旺金穗云
+（`baiwangjs`）是两家不同平台、两套 SDK，**不要混淆**：
+
+| 渠道编码 | 平台 | SDK / 包名 | 网关 |
+|---|---|---|---|
+| `baiwangjs` | 百旺金穗云 | 自签名 + OkHttp（`BaiwangJsSigner`） | `api.baiwangjs.com` |
+| `baiwang` | 百望云 | 官方 BOPSDK（`com.baiwang.open`） | `openapi.baiwang.com/router/rest`（沙箱 `sandbox-openapi.baiwang.com/router/rest`） |
+
+`BaiwangChannelProvider` 直接实现 `InvoiceChannelProvider` 及 7 个能力接口（issuer / querier /
+fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、token、报文均由官方
+`BWRestClient` 封装，渠道侧不自行实现签名算法。
+
+**能力与官方方法对应**（均取自 BOPSDK 公开接口，已逐项核对并有 `BaiwangProviderTest` / `BaiwangCodecTest`
+/ `BaiwangCallbackParserTest` 覆盖）：
+
+| SPI 能力 | 官方 method | 说明 |
+|---|---|---|
+| 蓝字开票 | `baiwang.s.outputinvoice.invoice` | 异步受理，拿到票号才置 `SUCCEEDED` |
+| 查单 | `baiwang.s.outputinvoice.query` | 结果以查单 / 回调为准 |
+| 快速红冲 | `baiwang.s.outputinvoice.fastRed` | 支持「仅申请」「申请并开具」两种模式 |
+| 红冲确认两段 | `baiwang.s.redconfirm.operate` + `.query` | 接收方确认 / 拒绝 / 撤销，72h 有效期 |
+| 交付重发 | `baiwang.s.outputinvoice.push` | 交付重发 |
+| 发票修复 | `baiwang.s.outputinvoice.retry` | 异步修复，结果由查单获取 |
+| 文件下载 | 版式地址内联归档 | XML/PDF 地址从回调 data 归档 |
+| 回调 | `baiwang.s.callback.{invoice,redconfirm,redinfo,scan}` | 按 `method` 四类分流 |
+
+**状态映射**：`00` 处理中 → `PROCESSING`、`01` 成功 → `SUCCEEDED`、`02` 失败 → `FAILED`、
+`03` 已作废 → `CLOSED`、`04` 作废中 → `PROCESSING`。
+
+**配置项**（`conflux.invoice.apps.<appId>.baiwang.attrs`）：
+
+| 键 | 说明 |
+|---|---|
+| `appKey` / `clientId` / `gatewayKey` | 应用 Key（凭据别名见 `parseParams`） |
+| `appSecret` / `clientSecret` / `gatewaySecret` | 仅用于签名 |
+| `accessToken` / `token` | 业务令牌；可显式给，缺省由 `username` + `password` 登录获取并缓存 |
+| `username` / `password`（+ `userSalt` / `salt`） | 密码登录获取 token（token 过期自动重登一次） |
+| `sellerTaxNo` / `nsrsbh`、`invoiceTerminalCode` / `dlzh` | 销方税号、数字账号 |
+| `serverUrl` / `baseUrl` | 覆盖网关（缺省按 `sandbox` 选正式/沙箱） |
+| `callbackUrl` / `callBackUrl` / `notifyUrl` | 回调地址 |
+| `drawer` / `payee` / `checker` | 开票员 / 收款员 / 复核员 |
+
+**支持票种**：数电专票、数电普票、增值税专票、增值税普票、机动车销售统一发票。
+
+> 与所有渠道一致：以上取自官方公开文档与 BOPSDK 接口，**尚未真实联调**；首次接入须用沙箱核对
+> token 登录、回调地址可达性与异步回调字段。
 
 ## 4. 票通云：专属适配器（以《票通数电发票接口文档 3.2.0》为准）
 
@@ -407,7 +457,8 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 
 ## 6. 通用 REST 适配器的配置键
 
-> 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；百旺金穗云的配置键见 3.4 节；票通云见 4.5 节。
+> 本节仅适用于复用 `AbstractRestInvoiceChannel` 的渠道；专属适配器的配置键各自成节：
+> 百旺金穗云见 3.4 节、百望云见 3.5 节、票通云见 4.5 节、诺诺网见 4.1 节。
 
 渠道路径与票种编码全部可通过 `conflux.invoice.apps.<appId>.<channel>.attrs` 覆盖：
 

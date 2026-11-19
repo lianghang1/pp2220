@@ -3,8 +3,7 @@ package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 /**
  * 百旺金穗云「税务共享销项」接口规格常量。
  *
- * <p><b>文档依据</b>：语雀 {@code baiwangqiyuanyuan/swgx}（用户指定为准），
- * 与 {@code baiwangjs.apifox.cn} 为同一套「百旺金穗云-SaaS 标准化接口」规范的两个发布渠道。
+ * <p><b>文档依据</b>：百旺金穗云「SaaS 标准化接口」官方公开文档。
  * 接口路径、字段、状态码均取自公开文档，未核对的一律不编造。</p>
  *
  * <p><b>版本口径</b>：同一能力同时存在 V1 / V2 时默认走 V2，V1 保留完整实现，

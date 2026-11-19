@@ -32,7 +32,7 @@ conflux:
 
         # ------------------------------------------------------------------
         # 百旺金穗云（baiwangjs）专属适配器配置模板
-        # 以语雀官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
+        # 以官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
         # 整段默认注释：取消注释 + 填真实凭据 + enabled 改 true 即可启用；
         # 未启用时不影响上面 mock 渠道的零凭据启动。
         # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
@@ -90,6 +90,34 @@ conflux:
         #     # repairPath: "/cloud/v2/invoiceRepair"
         #     # repairResultPath: "/cloud/repairResult"
         #     # queryBatchPath: "/cloud/queryInvBatch"
+
+        # ------------------------------------------------------------------
+        # 百望云（baiwang）官方 SDK 适配器配置模板
+        # 基于官方 BOPSDK（com.baiwang.open）：签名/token/报文全由 SDK 完成。
+        # 完整能力（开票/查单/红冲两段/交付/修复/文件下载/回调）见第 3.5 节。
+        # 整段默认注释；取消注释 + 填真实凭据 + enabled 改 true 即可启用。
+        # ------------------------------------------------------------------
+        # baiwang:
+        #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（路由键与回调反查键）
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwang?accountKey=<APP_KEY>%2391310000XXXXXXXXXX"
+        #   sandbox: true
+        #   tier: SERVICE_API
+        #   priority: 20
+        #   enabled: false
+        #   attrs:
+        #     appKey: "<应用KEY，即 clientId/gatewayKey>"
+        #     appSecret: "<签名密钥，即 clientSecret/gatewaySecret>"
+        #     # 二选一：显式令牌，或用 username/password 登录获取（过期自动重登）
+        #     # accessToken: "<业务令牌>"
+        #     username: "<登录账号>"
+        #     password: "<登录密码>"
+        #     salt: "<密码登录加盐，可选>"
+        #     sellerTaxNo: "91310000XXXXXXXXXX"
+        #     sellerName: "某某科技有限公司"
+        #     invoiceTerminalCode: "<数字账号 dlzh>"
+        #     drawer: "开票员"
+        #     # serverUrl: "https://openapi.baiwang.com/router/rest"  # 沙箱自动用 sandbox-openapi.baiwang.com
+        #     # callbackUrl: "http://127.0.0.1:8080/api/invoices/callback/baiwang"
 
         # ------------------------------------------------------------------
         # 票通云（piaotong）专属适配器配置模板

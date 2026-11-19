@@ -56,7 +56,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 百旺金穗云「税务共享销项」渠道实现（按用户指定，以语雀官方公开文档为准）。
+ * 百旺金穗云「税务共享销项」渠道实现（以官方公开文档为准）。
  *
  * <p><b>与通用 REST 适配器的差异</b>：本渠道协议特殊，故不复用
  * {@code AbstractRestInvoiceChannel}，而是独立实现全部能力，把协议细节封闭在本包内：</p>

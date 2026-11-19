@@ -31,7 +31,7 @@ import java.util.Map;
 /**
  * 百旺金穗云报文编解码（纯函数，无网络依赖）。
  *
- * <p><b>传输约定</b>（语雀《1.接口概述》）：请求为 JSON 经 Base64(UTF-8) 转码后的字符串，
+ * <p><b>传输约定</b>（官方公开文档《1.接口概述》）：请求为 JSON 经 Base64(UTF-8) 转码后的字符串，
  * Content-Type 仍为 {@code application/json}；同步响应为明文 JSON；异步回调为
  * {@code text/plain} 且 body 是 Base64 明文。</p>
  *
