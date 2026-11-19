@@ -46,15 +46,6 @@ class SmsBlendRegistryTest {
     }
 
     @Test
-    void aliyunAliasShouldResolveToAlibaba() {
-        SmsBlendRegistry registry = new SmsBlendRegistry();
-        String configId = registry.register("alias-app", "aliyun", alibabaAttrs());
-        SmsBlend blend = SmsFactory.getSmsBlend(configId);
-        assertThat(blend).isNotNull();
-        assertThat(blend.getSupplier()).isEqualTo("alibaba");
-    }
-
-    @Test
     void differentAppsShouldIsolateConfigId() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
         String a = registry.register("appA", "alibaba", alibabaAttrs());

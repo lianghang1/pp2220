@@ -52,16 +52,9 @@ public final class SmsSupplierFactories {
         m.put(supplier, PREFIX + pkg + ".config." + factory);
     }
 
-    /** 按渠道标识取 Factory 全类名；未知返回 null。同时兼容阿里云别名 aliyun。 */
+    /** 按渠道标识取 Factory 全类名；未知返回 null。 */
     public static String factoryClassName(String supplier) {
-        if (supplier == null) {
-            return null;
-        }
-        String name = FACTORY_BY_SUPPLIER.get(supplier);
-        if (name == null && "aliyun".equals(supplier)) {
-            name = FACTORY_BY_SUPPLIER.get("alibaba");
-        }
-        return name;
+        return supplier == null ? null : FACTORY_BY_SUPPLIER.get(supplier);
     }
 
     /** 内置的渠道标识清单（不可变）。 */

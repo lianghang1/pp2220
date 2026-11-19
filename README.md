@@ -164,7 +164,7 @@ conflux:
   sms:
     apps:
       demo:
-        alibaba:                   # sms4j 供应商标识；aliyun 作为别名也识别
+        alibaba:                   # sms4j 供应商标识
           # 统一键（sms4j BaseConfig 公共字段，跨渠道同名同义）
           access-key-id: xxx
           access-key-secret: xxx
