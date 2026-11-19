@@ -4,6 +4,7 @@ import io.github.lianghang1.conflux.sms.channel.SmsChannelProvider;
 import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.engine.SmsGateway;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -39,11 +40,16 @@ public class SmsAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(SmsGateway.class)
-    public SmsGateway smsGateway(SmsConfigProvider configProvider, List<SmsChannelProvider> providers) {
-        SmsGateway.Builder builder = SmsGateway.builder().configProvider(configProvider);
+    public SmsGateway smsGateway(ObjectProvider<SmsConfigProvider> configProvider,
+                                 List<SmsChannelProvider> providers) {
+        SmsConfigProvider provider = configProvider.getIfAvailable();
+        if (provider == null) {
+            throw new IllegalStateException("未找到 SmsConfigProvider Bean");
+        }
+        SmsGateway.Builder builder = SmsGateway.builder().configProvider(provider);
         if (providers != null) {
-            for (SmsChannelProvider provider : providers) {
-                builder.channel(provider);
+            for (SmsChannelProvider channelProvider : providers) {
+                builder.channel(channelProvider);
             }
         }
         SmsGateway gateway = builder.build();

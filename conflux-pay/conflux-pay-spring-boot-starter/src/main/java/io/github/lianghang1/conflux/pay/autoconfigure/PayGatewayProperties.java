@@ -23,6 +23,17 @@ public class PayGatewayProperties {
     private Map<String, Map<String, ChannelProperties>> apps =
             new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
+    /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
+    private boolean mockEnabled = true;
+
+    public boolean isMockEnabled() {
+        return mockEnabled;
+    }
+
+    public void setMockEnabled(boolean mockEnabled) {
+        this.mockEnabled = mockEnabled;
+    }
+
     public Map<String, Map<String, ChannelProperties>> getApps() {
         return apps;
     }

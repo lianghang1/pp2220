@@ -9,9 +9,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+import java.time.Clock;
 import java.util.List;
 
 /**
@@ -29,6 +31,8 @@ public class PayGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(MockChannelProvider.class)
+    @ConditionalOnProperty(prefix = "conflux.pay", name = "mock-enabled",
+            havingValue = "true", matchIfMissing = true)
     public MockChannelProvider mockChannelProvider() {
         return new MockChannelProvider();
     }
@@ -75,9 +79,11 @@ public class PayGatewayAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(PaymentGateway.class)
     public PaymentGateway paymentGateway(PayGatewayProperties properties,
                                          List<ChannelProvider> providers,
-                                         ObjectProvider<ChannelConfigProvider> configProvider) {
+                                         ObjectProvider<ChannelConfigProvider> configProvider,
+                                         ObjectProvider<Clock> clock) {
         ChannelConfigProvider provider = configProvider.getIfAvailable();
         if (provider == null) {
             throw new IllegalStateException("未找到 ChannelConfigProvider Bean");
@@ -86,6 +92,10 @@ public class PayGatewayAutoConfiguration {
         PaymentGateway.Builder builder = PaymentGateway.builder().configProvider(provider);
         for (ChannelProvider channelProvider : providers) {
             builder.channel(channelProvider);
+        }
+        Clock customClock = clock.getIfAvailable();
+        if (customClock != null) {
+            builder.clock(customClock);
         }
 
         PaymentGateway gateway = builder.build();

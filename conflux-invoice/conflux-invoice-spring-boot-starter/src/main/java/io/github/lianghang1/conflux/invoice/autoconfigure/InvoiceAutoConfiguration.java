@@ -1,7 +1,6 @@
 package io.github.lianghang1.conflux.invoice.autoconfigure;
 
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelRegistry;
 import io.github.lianghang1.conflux.invoice.channels.baiwang.BaiwangChannelProvider;
 import io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsChannelProvider;
 import io.github.lianghang1.conflux.invoice.channels.mock.MockInvoiceChannelProvider;
@@ -68,16 +67,6 @@ public class InvoiceAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(InvoiceChannelRegistry.class)
-    public InvoiceChannelRegistry invoiceChannelRegistry(List<InvoiceChannelProvider> providers) {
-        InvoiceChannelRegistry registry = new InvoiceChannelRegistry();
-        for (InvoiceChannelProvider provider : providers) {
-            registry.register(provider);
-        }
-        return registry;
-    }
-
-    @Bean
     @ConditionalOnMissingBean(InvoiceConfigProvider.class)
     public InvoiceConfigProvider propertiesInvoiceConfigProvider(
             InvoiceProperties properties, List<InvoiceChannelProvider> providers) {
@@ -85,6 +74,7 @@ public class InvoiceAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(InvoiceGateway.class)
     public InvoiceGateway invoiceGateway(InvoiceProperties properties,
                                          List<InvoiceChannelProvider> providers,
                                          ObjectProvider<InvoiceConfigProvider> configProvider,

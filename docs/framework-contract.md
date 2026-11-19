@@ -68,17 +68,20 @@
 
 ### 1.6 starter 装配（自动装配层）
 
-| 契约 | 约束 |
-|---|---|
-| 装配类命名 | `XxxAutoConfiguration`（支付历史名 `PayGatewayAutoConfiguration` 保留） |
-| 配置源 Bean | `@ConditionalOnMissingBean(XxxConfigProvider.class)` 默认 Properties 实现，可被同类型 Bean 覆盖 |
-| 渠道收集 | `List<XxxChannelProvider>` 注入，逐个 `builder.channel(...)` |
-| 缺失配置源 | starter 内找不到 ConfigProvider Bean 时 fail-fast 抛异常 |
-| mock 渠道 | 有 mock 渠道的域用开关控制（当前发票 `mock-enabled`）；无 mock 概念的域（短信）不设开关 |
-| 门面装配 | 收集渠道 → 注入 configProvider → `build()`，日志打印 `registeredChannels()` |
+| 契约 | 支付 | 发票 | 短信 | 约束 |
+|---|---|---|---|---|
+| 装配类命名 | `PayGatewayAutoConfiguration` | `InvoiceAutoConfiguration` | `SmsAutoConfiguration` | 一律 `XxxAutoConfiguration`（支付历史名保留） |
+| 配置源 Bean | `@ConditionalOnMissingBean` 默认 Properties 实现 | 同 | 同 | 可被同类型 Bean 覆盖 |
+| 门面 Bean | `@ConditionalOnMissingBean(PaymentGateway)` | 同 | 同 | 可被同类型 Bean 覆盖 |
+| 配置源注入 | `ObjectProvider` + 缺失抛异常 | 同 | 同 | 三域统一 fail-fast |
+| 渠道收集 | `List<ChannelProvider>` 注入，逐个 `builder.channel(...)` | 同 | 同 | 统一收集姿势 |
+| mock 开关 | `conflux.pay.mock-enabled` | `conflux.invoice.mock-enabled` | 无 mock 概念 | 有 mock 的域统一用 `<域>.mock-enabled`（默认开） |
+| Clock | `ObjectProvider<Clock>` 可选注入 | 同 | 无时间窗口能力 | 提供 `Builder.clock()` 的域统一接容器 Clock |
+| 门面装配 | 收集渠道 → 注入 configProvider → `build()` → 打印 `registeredChannels()` | 同 | 同 | 装配流水线一致 |
+| Registry Bean | 不暴露（网关内部 new） | 不暴露（网关内部 new） | sms4j 全局 `ProviderFactoryHolder` | starter 不额外暴露 Registry Bean |
 
-> 备注：starter 自动装配细节（mock 开关、Clock 注入、Registry Bean 暴露等）当前三域尚有小幅形态差异，
-> 本轮统一范围为 jar 模式框架契约（章节 1.1–1.5）；starter 层的完全对齐列为后续独立事项，不在本契约强制项内。
+> 说明：starter 层已完全对齐（上表三域逐项一致）。短信"无渠道 Bean / 无自有 Registry / 无 Clock / 无 mock"
+> 源于渠道实现委托 sms4j 原始包，属能力差异（见第二章白名单），不是框架装配不统一。
 
 ---
 
@@ -92,6 +95,7 @@
 | 配置 SPI 其他方法 | `getByAccountKey` | `getByAccountKey` + `instances` | `allConfigs` | 回调反查 / 通道路由 / 启动预热是各域能力差异 |
 | Provider 形态 | interface + 多 handler | interface + 多 handler | final 类承载 sms4j Factory | 短信渠道实现全在 sms4j，Provider 只做声明 |
 | Builder 专属项 | `clock()` | `clock()` + `fileOptions()` | 无 | 版式文件、时间窗口是域专属能力 |
+| starter 渠道装配 | 渠道 Bean 按类路径激活 | 同 | 无渠道 Bean | 短信渠道实现全在 sms4j，配置驱动、无自有渠道 Bean/Registry/Clock/mock |
 | 业务方法名 | `createPayment` 等 | `issue` / `applyRed` 等 | `send` | 按域语义命名 |
 
 ---

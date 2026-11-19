@@ -6,12 +6,15 @@ import io.github.lianghang1.conflux.sms.engine.SmsGateway;
 import org.dromara.sms4j.api.SmsBlend;
 import org.dromara.sms4j.core.factory.SmsFactory;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static io.github.lianghang1.conflux.sms.config.SmsConfigKeys.ACCESS_KEY_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * 验证 conflux.sms.apps.<appId>.<channel> 配置被 starter 装载进 sms4j SmsFactory，
@@ -21,10 +24,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SmsAutoConfigurationTest {
 
+    @SuppressWarnings("unchecked")
     private SmsGateway gateway(SmsProperties props) {
         SmsAutoConfiguration auto = new SmsAutoConfiguration();
         SmsConfigProvider provider = auto.smsConfigProvider(props);
-        return auto.smsGateway(provider, java.util.Collections.<io.github.lianghang1.conflux.sms.channel.SmsChannelProvider>emptyList());
+        ObjectProvider<SmsConfigProvider> configProvider = mock(ObjectProvider.class);
+        when(configProvider.getIfAvailable()).thenReturn(provider);
+        return auto.smsGateway(configProvider,
+                java.util.Collections.<io.github.lianghang1.conflux.sms.channel.SmsChannelProvider>emptyList());
     }
 
     @Test
