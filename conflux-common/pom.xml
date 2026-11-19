@@ -9,7 +9,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>conflux-common</name>
-    <description>Conflux 公共基座：通用工具、异常骨架（ErrorCode 契约 + 1xxx 通用错误码）、
+    <description>Conflux 公共基座：通用工具、异常体系（ErrorCode 契约 + 1xxx 通用错误码）、
         OkHttp 传输层封装。编译到 JDK 8，零业务领域依赖，pay / invoice 两个能力域共用。</description>
 
     <properties>
