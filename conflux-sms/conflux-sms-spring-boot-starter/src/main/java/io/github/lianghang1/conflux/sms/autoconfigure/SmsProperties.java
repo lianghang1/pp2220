@@ -38,7 +38,7 @@ public class SmsProperties {
         private String signature;
         private String templateId;
 
-        /** 渠道个性键值包（厂商特有键名，如 sdkAppId/sender/signId，经 parseParams 解析）。 */
+        /** 渠道个性键值包（厂商特有键名，如 sdkAppId/sender/signId，装载时填入 sms4j Config）。 */
         private Map<String, String> attrs = new LinkedHashMap<String, String>();
 
         public String getAccessKeyId() {

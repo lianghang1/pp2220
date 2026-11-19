@@ -207,9 +207,9 @@ SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 | 运行环境 | 接入方式 | 引入模块 | 配置来源 |
 |---|---|---|---|
 | Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` / `conflux-sms-spring-boot-starter` | `application.yml` 或自实现配置源 |
-| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | `conflux-pay-core` + `conflux-pay-channels`（发票、短信同理） | 任意来源：内存 / DB / 配置中心 / properties |
+| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | 支付 `conflux-pay-core` + `conflux-pay-channels`、发票 `conflux-invoice-core` + `conflux-invoice-channels`、短信仅 `conflux-sms-core`（内部已含 sms4j） | 任意来源：内存 / DB / 配置中心 / properties |
 
-starter 依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot；MVC 项目请引入 core + channels，不要引入 starter。
+starter 依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot；MVC 项目按上表引入对应的 core（+ channels），不要引入 starter。
 
 > **"SPI"与"自动装配"不是一回事**：本项目的 SPI 指扩展点接口（`ChannelProvider` 自定义渠道、`ChannelConfigProvider` 自定义配置源），两个环境完全一致。Boot 的"自动装配"是 starter 经 `AutoConfiguration.imports` 让 Spring 自动发现配置类，只是省去手写 `@Bean`；传统 Spring MVC 用 `@Configuration` + `@Bean` 注册，纯 Java 用 `builder()` 手动 new。差别只在"谁来创建对象"，不在扩展能力。
 
