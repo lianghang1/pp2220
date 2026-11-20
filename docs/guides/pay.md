@@ -43,6 +43,19 @@ PaymentGateway gateway = PaymentGateway.builder()
 
 > 配置模型：公共字段（`configId` / `channelCode` / `notifyUrl` / `sandbox`）为一等字段，渠道个性参数（服务商模式 `subMchNo`、微信 `merchantId` 等）放 `attr`，由各渠道 `XxxParams.fromMap(attr)` 解析。JDK 8 用 `LinkedHashMap` 装配 `attr`，没有 `Map.of`。
 
+### 内置渠道能力矩阵
+
+框架内置 6 个支付渠道，各渠道能力边界如下（配置键见 [配置键对照表](../reference/config-keys.md)）：
+
+| 渠道 | 支付方式 | 退款 | 转账 | 分账 | 账单 | 回调验签 |
+|---|---|---|---|---|---|---|
+| wechat | JSAPI / 小程序 / Native / H5 / APP / 付款码，V2·V3 双协议 | ✓ | ✓ | ✓ | ✓ | V3 平台证书 / V2 MD5 |
+| alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓ | ✓ | ✓ | ✓ | RSA2 公钥 |
+| unionpay | 银联二维码·付款码 / 转接微信·支付宝 | ✓ | — | — | — | 平台公钥 |
+| paypal | Orders v2（批准→捕获） | ✓ | Payouts | — | — | Webhook 官方验签 |
+| chinaums | 微信/支付宝/云闪付 × APP/H5/小程序/公众号 + C扫B主扫 | ✓ | — | — | — | 回调触发主动查单 |
+| mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
+
 ## 2. 配置
 
 Spring Boot 配置路径 `conflux.pay.configs.<configId>.<channelCode>`，例：

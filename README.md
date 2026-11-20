@@ -13,18 +13,16 @@
 | 短信 `conflux-sms` | `SmsGateway` | 发送短信（内部委托 sms4j，22 家厂商开箱即用） | [guides/sms.md](docs/guides/sms.md) |
 | 文件 `conflux-file` | `FileGateway` | 上传/下载/删除/预签名（内部委托 x-file-storage，30+ 平台） | [guides/file.md](docs/guides/file.md) |
 
-## 支付渠道矩阵
+## 各域渠道与平台
 
-| 渠道 | 支付方式 | 退款 | 转账 | 分账 | 账单 | 回调验签 |
-|---|---|---|---|---|---|---|
-| wechat | JSAPI / 小程序 / Native / H5 / APP / 付款码，V2·V3 双协议 | ✓ | ✓ | ✓ | ✓ | V3 平台证书 / V2 MD5 |
-| alipay | 扫码 / WAP / 电脑网站 / APP / JSAPI / 付款码 | ✓ | ✓ | ✓ | ✓ | RSA2 公钥 |
-| unionpay | 银联二维码·付款码 / 转接微信·支付宝 | ✓ | — | — | — | 平台公钥 |
-| paypal | Orders v2（批准→捕获） | ✓ | Payouts | — | — | Webhook 官方验签 |
-| chinaums | 微信/支付宝/云闪付 × APP/H5/小程序/公众号 + C扫B主扫 | ✓ | — | — | — | 回调触发主动查单 |
-| mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
+四域均以 `channelCode` 路由，内置项在 `builder().build()` 时自动注册、用户零 `.channel()`。渠道/平台的来源与支持清单各域不同，明细下沉到对应文档：
 
-发票平台支持现状见 [reference/invoice-platforms.md](docs/reference/invoice-platforms.md)。
+| 能力域 | 渠道/平台来源 | 支持清单与能力边界 |
+|---|---|---|
+| 支付 | 框架自研适配，6 个内置渠道 | [guides/pay.md § 内置渠道能力矩阵](docs/guides/pay.md#内置渠道能力矩阵) |
+| 发票 | 框架自研适配，5 个内置平台 | [reference/invoice-platforms.md](docs/reference/invoice-platforms.md) |
+| 短信 | sms4j 官方厂商（22 家） | [guides/sms.md](docs/guides/sms.md) |
+| 文件 | x-file-storage 官方平台（30+） | [guides/file.md](docs/guides/file.md) |
 
 ## 五条核心约定
 
