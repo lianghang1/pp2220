@@ -18,9 +18,10 @@ import java.util.List;
 /**
  * 版式文件固化器：把渠道交付的两种形态（内联 Base64 / 下载地址）统一拉平为字节。
  *
- * <p><b>归档即固化</b>：渠道下载链接普遍有时效，归档那一刻最新鲜可靠，
- * 因此编排层在把单据置为成功前就地完成固化——XML 法定原件失败一律阻断置成功，
- * 展示文件（PDF/OFD/IMAGE）失败仅告警保留 url，可由 {@code fileBytes} 或修复补拉兜底。</p>
+ * <p><b>即时固化</b>：渠道下载链接普遍有时效，取到结果时趁链接有效就地拉平为字节、
+ * 回填 content/digest/size。固化是纯工具能力：成功则载体字节齐全、使用方无需关心渠道给的是
+ * url 还是 Base64；失败一律告警并保留 url，由 {@code fileBytes}/{@code repair} 补拉，
+ * <b>不影响渠道返回的单据状态</b>（渠道说成功即成功，框架不否决）。</p>
  *
  * <p>本类不做任何「文件再加工」（转图/A4 重组），那是门面按需开放的能力。</p>
  *
@@ -36,10 +37,10 @@ public class InvoiceFileMaterializer {
     }
 
     /**
-     * 就地固化文件列表。
+     * 就地固化文件列表。任何文件固化失败都只告警并保留 url，不抛异常、不影响单据状态。
      *
-     * @param strict true = 任何 XML 固化失败立即抛异常（编排层在置成功前调用）；
-     *               false = 全部失败仅告警（回调补充场景，绝不让回调失败）
+     * @param strict 兼容保留参数，已不影响行为（原用于控制 XML 失败是否阻断，现统一不阻断）；
+     *               是否即时下载由 {@code immediate-download} 配置决定。
      */
     public void materialize(List<InvoiceFile> files, boolean strict) {
         if (files == null || files.isEmpty()) {
@@ -54,13 +55,10 @@ public class InvoiceFileMaterializer {
                 continue;
             }
             try {
-                materializeOne(file, strict);
+                materializeOne(file);
             } catch (GatewayException e) {
-                // 两级失败策略：strict 仅对 XML 法定原件生效（失败阻断置成功）；
-                // PDF/OFD/IMAGE 展示文件下载失败一律只告警、保留 url 待 fileBytes/repair 补拉。
-                if (strict && file.getType() == InvoiceFileType.XML) {
-                    throw e;
-                }
+                // 固化是工具能力，失败一律告警、保留 url 待 fileBytes/repair 补拉；
+                // 渠道状态以渠道返回为准，框架不因拿不到版式文件而否决开票成功。
                 log.warn("版式文件固化失败（不阻断）: invoiceId={}, type={}, url={}, error={}",
                         file.getInvoiceId(), file.getType(), file.getUrl(), e.getMessage());
             }
@@ -124,16 +122,15 @@ public class InvoiceFileMaterializer {
         }
     }
 
-    private void materializeOne(InvoiceFile file, boolean strict) {
+    private void materializeOne(InvoiceFile file) {
         boolean urlOnly = file.getContent() == null || file.getContent().length() == 0;
         if (urlOnly) {
+            // 是否即时下载完全由配置决定，不对任何文件类型（含 XML）做特殊强制：
+            // 渠道给什么、何时给，以渠道接口为准；关闭时 url 原样保留待 fileBytes 补拉。
             if (!options.isImmediateDownload()) {
-                // 关闭即时固化：仅展示文件允许保留 url；XML 仍强制下载（法定底线）
-                if (file.getType() != InvoiceFileType.XML) {
-                    log.info("即时固化已关闭，url 型文件暂存链接: invoiceId={}, type={}",
-                            file.getInvoiceId(), file.getType());
-                    return;
-                }
+                log.info("即时固化已关闭，url 型文件暂存链接: invoiceId={}, type={}",
+                        file.getInvoiceId(), file.getType());
+                return;
             }
             download(file);
         } else {
@@ -166,13 +163,11 @@ public class InvoiceFileMaterializer {
     }
 
     private void throwFailure(InvoiceFile file, String detail) {
-        if (file.getType() == InvoiceFileType.XML) {
-            // 法定原件：任何失败都是阻断级（编排层在置成功前调用，异常阻止 SUCCEEDED）
-            throw new GatewayException(InvoiceErrorCode.XML_ORIGINAL_REQUIRED,
-                    "XML 法定原件固化失败（{}）: invoiceId={}", detail, file.getInvoiceId());
-        }
+        // 下载失败统一按失效语义抛出，引导走 fileBytes/repair 补拉；
+        // 由 materialize 调用时异常被就地告警捕获、不阻断单据状态。
         throw new GatewayException(InvoiceErrorCode.FILE_URL_EXPIRED,
-                "版式文件下载失效（{}）: fileId={}, url={}", detail, file.getFileId(), file.getUrl());
+                "版式文件下载失效（{}）: fileId={}, type={}, url={}",
+                detail, file.getFileId(), file.getType(), file.getUrl());
     }
 
     private void applyDigest(InvoiceFile file, byte[] bytes) {

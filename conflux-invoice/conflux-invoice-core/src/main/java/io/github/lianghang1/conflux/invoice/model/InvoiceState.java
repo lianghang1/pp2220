@@ -24,7 +24,7 @@ public enum InvoiceState {
     /** 渠道已受理，异步处理中（数电票常见 40s+ 未完成转异步）。 */
     PROCESSING(false, false),
     /**
-     * 蓝字发票开具成功（已归档法定 XML 原件）。
+     * 蓝字发票开具成功（渠道返回成功）。
      *
      * <p><b>不是终态</b>：数电票开具成功后仍可发起红冲，状态会继续迁移到
      * {@link #RED_APPLYING}；真正不可变的是 {@link #FAILED} / {@link #CLOSED} /

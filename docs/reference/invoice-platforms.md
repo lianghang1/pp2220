@@ -122,7 +122,8 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 平台把「开票结果」与「版式文件地址」拆成**两次独立回调**。SDK 只做验签 + 归一：
 `InvoiceOrchestrator` 对「补充型回调」只归一票面字段 / 文件载体、**不定义状态推进**，两类回调的字段合并、
 去重与最终态判定由使用方按自己的单据处理（SDK 无台账、无 CAS、无状态机）。
-法定 XML 原件约束体现在归一结果的判定辅助上，是否置为成功由使用方决定。
+版式文件的取得与固化不改变渠道返回的状态——拿到就固化进载体，拿不到就保留 url 待补拉，
+框架不设"必须有 XML 才置成功"的门禁。
 
 | `ywlxdm` | 含义 | 框架处理 |
 |---|---|---|
@@ -198,7 +199,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 - 上述路径、字段、状态码、签名规则均取自**公开文档**，**尚未与平台做真实联调**；
   首次接入须用沙箱 / 测试企业核对 `qyId`、`fplxdm` 字典、回调地址可达性与异步回调字段。
 - 版式文件以 3.4.15（按票号）/ 3.4.8（按 ddlsh）同步查询为主，`qdbswj` 回调 URL 为降级兜底；
-  编排层在置 `SUCCEEDED` 前仍强校验 XML 法定原件，缺则抛 `XML_ORIGINAL_REQUIRED`。
+  取到文件就固化进载体、取不到则保留 url 待补拉，框架不设"必须有 XML 才置成功"的门禁。
 - 3.4.11 修复是**异步**且文档明确「不支持结果回调」：申请只返回受理，结果由
   3.4.12（默认）或 3.4.13（`repairResultMode=BATCH`）查询；`code=-1` 视为「尚未修复到发票」，
   保持 `PROCESSING` 允许继续查询，不误判为终态失败。
@@ -300,7 +301,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 
 | code | 语义 | 框架归一 |
 |---|---|---|
-| 0000 | 开票成功 | SUCCEEDED（XML 法定原件由编排层随后调 2.15 补拉归档） |
+| 0000 | 开票成功 | SUCCEEDED（版式文件可按 2.15 另行查询补拉，是否归档由使用方决定） |
 | 6666 | 未开票 | PROCESSING 保持挂起 |
 | 7777 | 开票中 | PROCESSING |
 | 9999 | 开票失败 | FAILED |
@@ -384,21 +385,23 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 
 各平台的版式文件（XML/OFD/PDF/IMAGE）交付形态不一：有的在回调/查单响应里内联 Base64（如百旺票号回调、票通查单），
 有的只给一个有时效的下载地址（如百旺 `qdbswj` 版式回调的 `xmlurl`/`ofdurl`/`pdf`）。下载链接普遍 1~7 天过期，
-若只存 url 不取字节，过期后法定原件永久丢失。框架因此采用**归档即固化 + 按需加工**两层策略：
+框架在取到结果时采用**即时固化 + 按需加工**两层策略。**渠道给什么、何时给以对方接口为准，
+固化是纯工具能力，成功与否都不改变渠道返回的单据状态。**
 
-### 4.1 归档即固化（框架职责，使用方零感知）
+### 4.1 即时固化（工具能力，失败不阻断）
 
-- 编排层在把单据置为 `SUCCEEDED` 前，统一把 `content`（Base64/文本）与 `url` 两种形态拉平为**字节**：
-  content 直接解码、url 立即下载（经 `HttpTransport.getBinary` 读原始字节，不走会破坏字节的 UTF-8 String 解码），
-  回写 SHA-256 digest / size，可选落盘。
-- **两级失败策略**：XML 法定原件固化失败一律阻断置成功（错误码 `XML_ORIGINAL_REQUIRED`）；
-  PDF/OFD/IMAGE 展示文件失败仅告警、保留 url，由 `fileBytes`/`refresh`/`repair` 异步补拉，不阻断开票成功。
-- 固化结果就地回填到 `InvoiceFile`（content/digest/size），`InvoiceFile.isMaterialized()` 标识已固化；SDK 无 FileStore，载体由使用方保管。
+- 编排层把 `content`（Base64/文本）与 `url` 两种形态统一拉平为**字节**：content 直接解码、
+  url 按配置下载（经 `HttpTransport` 读原始字节，不走会破坏字节的 UTF-8 String 解码），
+  回写 SHA-256 digest / size，可选落盘——**所有文件类型一视同仁，无"XML 必须拿到"的门禁**。
+- **失败一律不阻断**：任何文件（含 XML）固化失败只告警、保留 url，由 `fileBytes`/`repair` 补拉；
+  单据状态完全以渠道返回为准，框架不因拿不到版式文件而否决开票成功。
+- 固化结果就地回填到 `InvoiceFile`（content/digest/size），`InvoiceFile.isMaterialized()` 标识已固化；
+  SDK 无 FileStore，载体由使用方保管、长期归档由使用方决定。
 - 配置项 `conflux.invoice.file.*`：
 
 | 键 | 默认值 | 说明 |
 |---|---|---|
-| `immediate-download` | `true` | 归档时对 url 型展示文件立即下载；XML 法定原件始终强制下载，不随开关变化 |
+| `immediate-download` | `true` | 是否对 url 型文件立即下载固化；关闭则 url 原样保留待补拉（所有类型同等待遇，无 XML 例外） |
 | `output-dir` | 空 | 本地落盘根目录；留空则字节仅在 `InvoiceFile` 载体中（SDK 无 FileStore，长期归档由使用方落对象存储） |
 | `download-timeout-millis` | `30000` | 固化下载超时 |
 
@@ -406,7 +409,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 
 | 门面方法 | 作用 |
 |---|---|
-| `materializeFiles(files, invoiceId, strict)` | 就地固化一批 `InvoiceFile`（url 型下载/Base64 解码后回填载体），strict 控制 XML 原件失败是否阻断 |
+| `materializeFiles(files, invoiceId, strict)` | 就地固化一批 `InvoiceFile`（url 型下载/Base64 解码后回填载体），失败仅告警不阻断；strict 为兼容保留参数 |
 | `fileBytes(file)` / `fileBytes(files, type)` | 统一字节出口：content 直接解码；仅 url 则下载并就地回填；文件由使用方随结果取得并保管 |
 | `pageImages(pdfBytes, config)` | 【按需】PDF 逐页转图（PNG，携带 DPI 元数据），供预览；转换时机与参数由使用方决定 |
 | `printAdaptedPdf(pdfBytes, paper, dpi)` | 【按需】PDF 逐页栅格化后重组指定纸型 PDF（真实场景：特殊字体 PDF 直接打印丢字 → 转图再排进 A4，文字固化为像素），输出仍是单一 PDF，打印接口零改动 |
@@ -441,4 +444,4 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 - `ErrorCode` 三段分层（1xxx / 2xxx / 3xxx）；
 - 无状态聚合：框架零台账、零状态机，判重/落库/状态推进全部交由使用方。
 
-挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲等发票域能力的说明，详见 [发票域使用指南](../guides/invoice.md)。
+挂起态语义、授权会话载体、通道分级、版式文件固化策略、两段红冲等发票域能力的说明，详见 [发票域使用指南](../guides/invoice.md)。

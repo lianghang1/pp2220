@@ -272,7 +272,7 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
     /**
      * 2.15 获取数电发票文件：同步接口，返回 Base64 文件内容。
      * 文档明确「此接口比较耗时，请调长超时时间」。请求不到时返回空列表，
-     * 由编排层的 XML 法定原件强约束兜底（SUCCEEDED 前必须归档 XML）。
+     * 由使用方按需调用 {@code repair}/{@code fileBytes} 补拉；渠道状态不受文件是否取到影响。
      */
     @Override
     public List<InvoiceFile> fetch(InvoiceContext ctx, Set<InvoiceFileType> types) {

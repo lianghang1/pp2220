@@ -243,9 +243,9 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
      * 版式文件：优先调用 3.4.15 电票版式文件查询（按票号）/ 3.4.8 电子发票下载地址查询（按 ddlsh），
      * 二者均为同步接口，字段名差异由 {@link BaiwangJsCodec#layoutFiles} 兼容。
      *
-     * <p>本方法会在编排层置 {@code SUCCEEDED} 前被调用，因此<b>渠道查询失败一律降级</b>到
-     * {@code qdbswj} 回调已记录在 attr 的 URL，绝不因辅助查询异常阻断主流程；
-     * 两者都拿不到时返回空列表，由编排层的 XML 法定原件强约束兜底。</p>
+     * <p><b>渠道查询失败一律降级</b>到 {@code qdbswj} 回调已记录在 attr 的 URL，
+     * 绝不因辅助查询异常阻断主流程；两者都拿不到时返回空列表。版式文件取不到不影响
+     * 渠道返回的单据状态，使用方可按需通过 {@code repair}/{@code fileBytes} 补拉。</p>
      */
     @Override
     public List<InvoiceFile> fetch(InvoiceContext ctx, Set<InvoiceFileType> types) {

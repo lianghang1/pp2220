@@ -3,9 +3,9 @@ package io.github.lianghang1.conflux.invoice.model;
 /**
  * 发票版式文件类型。
  *
- * <p><b>XML 是数电票的法定原件</b>，不是可选的展示附件：渠道回传开票成功时
- * 必须能取到 XML，否则框架拒绝把单据置为 {@code SUCCEEDED}
- * （{@code InvoiceErrorCode.XML_ORIGINAL_REQUIRED}）。这一约束在支付域不存在。</p>
+ * <p><b>XML 是数电票的法定原件</b>（OFD/PDF/IMAGE 为展示件），但渠道是否提供、何时提供
+ * 以对方接口为准：框架只做"能取到就固化进载体"的工具能力，<b>不把"是否拿到 XML"作为
+ * 开票成功的判定条件</b>——渠道返回成功即 {@code SUCCEEDED}，由使用方按业务与合规要求决定是否补拉原件。</p>
  *
  * @author lianghang
  */
@@ -32,7 +32,7 @@ public enum InvoiceFileType {
         return label;
     }
 
-    /** 是否为法定原件；开票成功必须归档至少一份。 */
+    /** 是否为法定原件（仅作类型标识，不构成开票成功的判定条件）。 */
     public boolean isLegalOriginal() {
         return legalOriginal;
     }

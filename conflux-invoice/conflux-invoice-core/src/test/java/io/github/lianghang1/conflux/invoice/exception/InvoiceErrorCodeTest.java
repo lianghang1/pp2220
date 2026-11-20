@@ -48,7 +48,7 @@ class InvoiceErrorCodeTest {
                 "授权会话应落在 32xx");
         assertTrue(InvoiceErrorCode.RED_CONFIRM_PENDING.getCode() / 100 == 33,
                 "红字确认单应落在 33xx");
-        assertTrue(InvoiceErrorCode.XML_ORIGINAL_REQUIRED.getCode() / 100 == 34,
+        assertTrue(InvoiceErrorCode.FILE_URL_EXPIRED.getCode() / 100 == 34,
                 "版式文件应落在 34xx");
     }
 

@@ -10,13 +10,14 @@ import java.io.IOException;
 /**
  * 发票版式文件固化选项。
  *
- * <p>各渠道交付形态不一（有的给下载地址、有的给 Base64），框架统一在归档时
- * 拉平为「内联字节 + 可选落盘」，使用方拿到的永远是已固化的文件，无需感知渠道差异：</p>
+ * <p>各渠道交付形态不一（有的给下载地址、有的给 Base64），框架在取到结果时
+ * 把能取到的文件拉平为「内联字节 + 可选落盘」，使用方无需感知渠道差异。
+ * 固化是纯工具能力：<b>失败一律告警、不影响渠道返回的单据状态</b>，
+ * 拿不到的文件保留 url，可由 {@code fileBytes}/{@code repair} 补拉。</p>
  *
  * <ul>
- *   <li>{@code immediateDownload}（默认 true）：归档时对只有 {@code url} 的文件立即下载
- *       转为内联字节。渠道链接普遍有时效（1~7 天），归档那一刻最新鲜可靠；
- *       XML 法定原件不随开关变化——下载失败一律阻断置成功</li>
+ *   <li>{@code immediateDownload}（默认 true）：对只有 {@code url} 的文件立即下载
+ *       转为内联字节（链接普遍 1~7 天过期，趁新鲜固化）；关闭则 url 原样保留。</li>
  *   <li>{@code outputDir}（可选）：配置后固化字节同步写盘
  *       {@code {outputDir}/{invoiceId}/{fileId}.{ext}}，并回填
  *       {@code InvoiceFile.filePath}；写盘失败仅告警不阻断（字节已内联在载体）</li>
@@ -29,7 +30,7 @@ import java.io.IOException;
  */
 public class InvoiceFileOptions {
 
-    /** 归档时是否对 url 型文件立即下载固化（XML 法定原件始终强制）。 */
+    /** 是否对 url 型文件立即下载固化；关闭则 url 原样保留待补拉。 */
     private boolean immediateDownload = true;
 
     /** 本地落盘根目录；null = 不落盘，字节仅内联在文件载体。 */

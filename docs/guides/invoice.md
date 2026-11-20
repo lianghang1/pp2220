@@ -123,7 +123,7 @@ public String callback(@PathVariable String channelCode, HttpServletRequest req)
 
 ## 5. 版式文件与交付
 
-- **XML 是法定原件**，无原件不置 `SUCCEEDED`；归档即固化由框架完成、使用方零感知。
+- **状态以渠道返回为准**：框架不设"必须有 XML 才置成功"的门禁——渠道说成功即 `SUCCEEDED`；版式文件（XML 法定原件 / OFD/PDF/IMAGE）取到就固化进返回载体，取不到就保留 url 待补拉，固化失败只告警、不阻断单据状态。是否归档、何时归档由使用方按业务与合规要求决定。
 - **统一字节出口**：`fileBytes(...)` 取原始字节；`pageImages(pdfBytes, config)` 逐页转图供预览；`printAdaptedPdf(pdfBytes, paper, dpi)` 栅格化重组指定纸型 PDF（解决特殊字体直接打印丢字）。转换时机与参数由使用方决定，框架不自动转换。
 - 交付重发 `resend(...)`、修复 `repair(...)` 见 [API 参考](../reference/api-reference.md)。
 

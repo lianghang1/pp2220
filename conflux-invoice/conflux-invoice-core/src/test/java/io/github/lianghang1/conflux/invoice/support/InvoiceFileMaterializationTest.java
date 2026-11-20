@@ -23,12 +23,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 版式文件固化回归：Base64/url 两种渠道形态统一拉平为字节，
- * digest/size 核算、可选落盘、XML 法定原件 strict 阻断、就地回填。
+ * digest/size 核算、可选落盘、失败不阻断（含 XML）、就地回填。
  */
 class InvoiceFileMaterializationTest {
 
@@ -101,26 +100,26 @@ class InvoiceFileMaterializationTest {
     }
 
     @Test
-    void expiredUrlBlocksSuccessForLegalXml() {
+    void expiredUrlNeverBlocksSuccessEvenForLegalXml() {
         InvoiceFileMaterializer m = InvoiceFileMaterializer.detached(new InvoiceFileOptions());
         InvoiceFile xml = new InvoiceFile().setFileId("F-XML").setInvoiceId("I-1")
                 .setType(InvoiceFileType.XML).setUrl(base + "/expired.pdf");
-        GatewayException ex = assertThrows(GatewayException.class,
-                () -> m.materialize(single(xml), true));
-        assertThat(ex).hasMessageContaining("XML");
-        assertThat(ex.getErrorCode()).isEqualTo(InvoiceErrorCode.XML_ORIGINAL_REQUIRED);
+        // 固化失败只告警、不抛异常，url 保留待补拉；渠道状态不受影响。
+        m.materialize(single(xml), true);
+        assertThat(xml.isMaterialized()).isFalse();
+        assertThat(xml.getUrl()).endsWith("/expired.pdf");
     }
 
     @Test
     void expiredUrlIsNonBlockingForDisplayFiles() {
         InvoiceFileMaterializer m = InvoiceFileMaterializer.detached(new InvoiceFileOptions());
         InvoiceFile pdf = pdfWithUrl("/expired.pdf");
-        // 非严格（回调补充场景）：失败仅告警，url 保留待补拉
+        // 失败仅告警，url 保留待补拉
         m.materialize(single(pdf), false);
         assertThat(pdf.isMaterialized()).isFalse();
         assertThat(pdf.getUrl()).endsWith("/expired.pdf");
 
-        // 两级策略：strict 仅对 XML 阻断，PDF 展示文件即使 strict 也只告警不阻断
+        // strict 为兼容参数，不影响阻断行为：失败同样只告警
         InvoiceFile pdfStrict = pdfWithUrl("/expired.pdf");
         m.materialize(single(pdfStrict), true);
         assertThat(pdfStrict.isMaterialized()).isFalse();
@@ -132,22 +131,21 @@ class InvoiceFileMaterializationTest {
     }
 
     @Test
-    void immediateDownloadDisabledKeepsUrlButStillForcesXml() {
+    void immediateDownloadDisabledKeepsUrlForAllTypesIncludingXml() {
         InvoiceFileOptions options = new InvoiceFileOptions().setImmediateDownload(false);
         InvoiceFileMaterializer m = InvoiceFileMaterializer.detached(options);
         InvoiceFile pdf = pdfWithUrl("/ok.pdf");
         m.materialize(single(pdf), true);
-        // 展示文件：关闭即时固化后保留 url，不下载
+        // 关闭即时固化后 url 原样保留，不下载
         assertThat(hits.get()).isEqualTo(0);
         assertThat(pdf.isMaterialized()).isFalse();
 
-        // XML 不受开关影响：法定底线始终强制下载
+        // XML 与展示文件一视同仁：同样遵循开关，不强制下载。
         InvoiceFile xml = new InvoiceFile().setFileId("F-XML").setInvoiceId("I-1")
                 .setType(InvoiceFileType.XML).setUrl(base + "/ok.pdf");
         m.materialize(single(xml), true);
-        assertThat(xml.isMaterialized()).isTrue();
-        assertThat(new String(InvoiceFileMaterializer.decode(xml), StandardCharsets.UTF_8))
-                .startsWith("%PDF");
+        assertThat(xml.isMaterialized()).isFalse();
+        assertThat(xml.getUrl()).endsWith("/ok.pdf");
     }
 
     @Test

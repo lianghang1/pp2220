@@ -31,7 +31,6 @@ import io.github.lianghang1.conflux.invoice.model.AuthSessionState;
 import io.github.lianghang1.conflux.invoice.model.AuthType;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
-import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.InvoiceItem;
 import io.github.lianghang1.conflux.invoice.model.InvoiceState;
 import io.github.lianghang1.conflux.invoice.model.RedApply;
@@ -439,8 +438,9 @@ class InvoiceOrchestrator {
             }
             case SUCCEEDED: {
                 assertAmountMatch(invoice, outcome);
+                // 版式文件固化是纯工具能力：失败仅告警、不影响渠道返回的状态。
+                // 渠道说成功即成功，框架不因拿不到 XML/PDF 而否决开票结果。
                 List<InvoiceFile> files = materializeFiles(outcome.getFiles(), invoice.getInvoiceId(), true);
-                assertLegalXml(files);
                 if (outcome.getInvoiceNo() != null) {
                     invoice.setInvoiceNo(outcome.getInvoiceNo());
                 }
@@ -518,16 +518,6 @@ class InvoiceOrchestrator {
                 .setExpireTime(challenge.getExpireTime() == null ? session.getExpireTime() : challenge.getExpireTime())
                 .setPayload(challenge.getExtra() == null ? session.getPayload() : challenge.getExtra())
                 .setState(AuthSessionState.PENDING);
-    }
-
-    private void assertLegalXml(List<InvoiceFile> files) {
-        for (InvoiceFile file : files) {
-            if (file.getType() == InvoiceFileType.XML && file.hasPayload()) {
-                return;
-            }
-        }
-        throw new GatewayException(InvoiceErrorCode.XML_ORIGINAL_REQUIRED,
-                "渠道回传开票成功但未取得数电票 XML 法定原件");
     }
 
     private void assertAmountMatch(Invoice invoice, InvoiceResult outcome) {

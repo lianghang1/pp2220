@@ -10,7 +10,8 @@ import io.github.lianghang1.conflux.common.exception.ErrorCode;
  * {@link #CHANNEL_CALL_FAILED} 并携带渠道原始错误信息。</p>
  *
  * <p>发票相较支付多出三类语义：授权会话（32xx，扫脸/短信/扫码会过期）、
- * 红字确认单（33xx，两段长事务）、版式文件法定原件（34xx，XML 必须归档）。</p>
+ * 红字确认单（33xx，两段长事务）、版式文件（34xx，固化失败/链接失效等；文件以渠道返回为准，
+ * 框架不设"必须有 XML 才成功"的门禁）。</p>
  *
  * @author lianghang
  */
@@ -53,7 +54,6 @@ public enum InvoiceErrorCode implements ErrorCode {
 
     // ---- 版式文件 34xx ----
     FILE_NOT_FOUND(3401, "发票版式文件不存在", 404),
-    XML_ORIGINAL_REQUIRED(3402, "缺少法定 XML 原件，禁止置为开票成功", 500),
     FILE_ARCHIVE_FAILED(3406, "版式文件归档失败", 500),
     FILE_URL_EXPIRED(3407, "版式文件下载地址已失效，请走修复补拉", 502),
     FILE_MATERIALIZE_FAILED(3408, "版式文件固化失败（下载/解码）", 500),
