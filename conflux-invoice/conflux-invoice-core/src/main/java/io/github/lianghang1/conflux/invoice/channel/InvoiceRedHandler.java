@@ -3,7 +3,6 @@ package io.github.lianghang1.conflux.invoice.channel;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
-import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 
 /**
@@ -32,16 +31,6 @@ public interface InvoiceRedHandler {
      * 快捷红冲：渠道一次调用完成红冲，返回红票受理结果或待确认状态。
      */
     QuickRedOutcome quickRed(InvoiceContext ctx);
-
-    /**
-     * 红冲前置校验：查询原票可冲销明细 / 可红冲金额。
-     *
-     * <p><b>可选能力</b>：默认返回 null，编排层跳过校验。渠道不支持时不应阻断红冲，
-     * 避免把「未提供该接口」误判为「不可红冲」。</p>
-     */
-    default RedAvailableResult checkRedAvailable(InvoiceContext ctx) {
-        return null;
-    }
 
     /**
      * 主动确认或拒绝红字确认单（与 {@link #queryRed} 的「查状态」分开）。

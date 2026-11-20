@@ -475,25 +475,6 @@ public final class BaiwangJsCodec {
         return body;
     }
 
-    // ---- 3.3.17 可冲销明细查询（异步，回调 hzcx） ----
-    public static Map<String, Object> redAvailableBody(BaiwangJsParams params, String ddlsh,
-                                                       Invoice original, String invoiceDate,
-                                                       String bizCode, String sourceCode) {
-        Map<String, Object> body = baseBody(params, ddlsh);
-        put(body, "xsfnsrsbh", original == null ? params.getSellerTaxNo()
-                : original.getSellerTaxNo());
-        put(body, "gmfnsrsbh", original == null ? null : original.getBuyerTaxNo());
-        put(body, "dlzh", params.getDlzh());
-        put(body, "gjbq", "1");
-        put(body, "lzfpdm", original == null ? null : original.getInvoiceCode());
-        put(body, "lzfphm", original == null ? null : original.getInvoiceNo());
-        put(body, "lzfpqdhm", original == null ? null : original.getInvoiceNo());
-        put(body, "lzkprq", invoiceDate);
-        put(body, "ywdjDm", bizCode);
-        put(body, "fplyDm", sourceCode == null ? "2" : sourceCode);
-        return body;
-    }
-
     // ---- 3.4.7 发票短信邮箱重发（同步） ----
     public static Map<String, Object> deliveryBody(BaiwangJsParams params, String invoiceCode,
                                                    String invoiceNo, String phone, String email) {

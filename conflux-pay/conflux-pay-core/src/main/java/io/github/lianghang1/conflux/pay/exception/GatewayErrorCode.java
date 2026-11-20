@@ -15,10 +15,7 @@ public enum GatewayErrorCode implements ErrorCode {
     // 1xxx 通用段已下沉至 common.CommonErrorCode；本枚举只承载 2xxx 支付段
 
     // ---- 订单 2xxx ----
-    ORDER_NOT_FOUND(2001, "订单不存在", 404),
     STATE_ILLEGAL(2003, "订单当前状态不允许该操作", 409),
-    AMOUNT_MISMATCH(2004, "回调金额与订单金额不一致", 409),
-    PAYEE_REQUIRED(2006, "缺少收款方信息", 400),
 
     // ---- 渠道 21xx ----
     CHANNEL_NOT_FOUND(2101, "渠道未注册或未激活", 500),
@@ -27,8 +24,7 @@ public enum GatewayErrorCode implements ErrorCode {
     CONFIG_MISSING(2104, "渠道配置缺失", 500),
     CHANNEL_CALL_FAILED(2105, "渠道调用失败", 500),
     SIGN_INVALID(2106, "回调验签失败", 400),
-    CALLBACK_PARSE_FAILED(2107, "回调报文解析失败", 400),
-    CONFIG_CONFLICT(2108, "渠道配置冲突，无法唯一定位配置", 500);
+    CALLBACK_PARSE_FAILED(2107, "回调报文解析失败", 400);
 
     private final int code;
     private final String message;

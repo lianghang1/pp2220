@@ -188,23 +188,6 @@ class BaiwangJsAuxiliaryCodecTest {
                 .get("qrlx"));
     }
 
-    // ---- 3.3.17 可冲销明细查询 ----
-
-    @Test
-    void redAvailableBody_carriesOriginalAndDefaults() {
-        Invoice original = new Invoice().setSellerTaxNo(TAX)
-                .setBuyerTaxNo("91310000BUYER00001")
-                .setInvoiceNo(FPHM).setInvoiceCode(FPDM);
-        Map<String, Object> body = BaiwangJsCodec.redAvailableBody(params(), "HZCX-1",
-                original, "2026-01-15", null, "2");
-        assertEquals("2", body.get("fplyDm"));
-        assertEquals("1", body.get("gjbq"));
-        assertEquals(FPHM, body.get("lzfphm"));
-        assertEquals(FPDM, body.get("lzfpdm"));
-        assertEquals("91310000BUYER00001", body.get("gmfnsrsbh"));
-        assertEquals("2026-01-15", body.get("lzkprq"));
-    }
-
     // ---- 版式文件 / data 节点 ----
 
     @Test

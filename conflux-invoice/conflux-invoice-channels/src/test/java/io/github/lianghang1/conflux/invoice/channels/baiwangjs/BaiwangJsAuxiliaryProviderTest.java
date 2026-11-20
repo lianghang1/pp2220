@@ -3,13 +3,10 @@ package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.invoice.api.DeliveryRequest;
 import io.github.lianghang1.conflux.invoice.api.DeliveryResult;
-import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackEvent;
-import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
-import io.github.lianghang1.conflux.invoice.channels.baiwangjs.support.BaiwangJsCallbackParser;
 import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
 import io.github.lianghang1.conflux.invoice.model.Invoice;
 import io.github.lianghang1.conflux.invoice.model.InvoiceFile;
@@ -17,8 +14,6 @@ import io.github.lianghang1.conflux.invoice.model.InvoiceFileType;
 import io.github.lianghang1.conflux.invoice.model.InvoiceType;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,14 +21,13 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 百旺金穗云 A+B 档 Provider / 回调单测：只覆盖不发网络请求的分支
- * （能力暴露、配置解析、参数校验、凭据 fail-fast、辅助查询降级、hzcx 回调分流）。
+ * （能力暴露、配置解析、参数校验、凭据 fail-fast、辅助查询降级）。
  *
  * <p>真实 HTTP 调用属于渠道联调范畴，按项目口径不在无网络单测内模拟。</p>
  *
@@ -111,17 +105,6 @@ class BaiwangJsAuxiliaryProviderTest {
         assertEquals("REPAIR_PARAM_REQUIRED", r.getErrorCode());
     }
 
-    @Test
-    void checkRedAvailable_requiresCredentials() {
-        ChannelConfig empty = new BaiwangJsParams()
-                .setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE);
-        Invoice original = new Invoice().setBizOrderNo("ORDER-1").setSellerTaxNo(TAX);
-        InvoiceContext ctx = InvoiceContext.of(empty, null, original);
-        GatewayException ex = assertThrows(GatewayException.class,
-                () -> new BaiwangJsChannelProvider().checkRedAvailable(ctx));
-        assertSame(InvoiceErrorCode.CONFIG_MISSING, ex.getErrorCode());
-    }
-
     /** A 档 BW-43/52 关键语义：辅助查询失败一律降级到回调已记录的版式地址，绝不阻断主流程。 */
     @Test
     void fetch_withoutCredentials_fallsBackToCallbackAttr() {
@@ -139,24 +122,6 @@ class BaiwangJsAuxiliaryProviderTest {
         assertEquals(1, files.size());
         assertSame(InvoiceFileType.XML, files.get(0).getType());
         assertEquals("https://cdn/x.xml", files.get(0).getUrl());
-    }
-
-    /** 3.3.17 hzcx 回调是补充型，绝不能被当成 fpkj 开票结果推进状态机。 */
-    @Test
-    void hzcxCallback_isSupplementOnlyAndNeverAdvancesState() {
-        String json = "{\"ywlxdm\":\"hzcx\",\"ddlsh\":\"HZCX-1\",\"status\":\"1\","
-                + "\"hzcxje\":\"100.00\",\"hzcxse\":\"6.00\",\"jshj\":\"106.00\"}";
-        InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
-                .setChannelCode(BaiwangJsSpec.CODE)
-                .setBody(Base64.getEncoder().encodeToString(
-                        json.getBytes(StandardCharsets.UTF_8)));
-        ChannelConfig config = new ChannelConfig()
-                .setAttr(new LinkedHashMap<String, String>());
-        InvoiceCallbackEvent event = BaiwangJsCallbackParser.parse(raw, config);
-        assertNull(event.getState(), "可冲销明细回调不迁移单据状态");
-        assertEquals("100.00", event.getAttr().get("hzcxje"));
-        assertEquals("6.00", event.getAttr().get("hzcxse"));
-        assertTrue(event.getAttr().get("channelResult").startsWith("HZCX:"));
     }
 
     // ---- 夹具 ----

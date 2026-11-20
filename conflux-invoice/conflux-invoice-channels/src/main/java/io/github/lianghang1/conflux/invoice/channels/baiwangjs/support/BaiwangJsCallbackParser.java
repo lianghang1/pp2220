@@ -86,10 +86,6 @@ public final class BaiwangJsCallbackParser {
         } else if (BaiwangJsSpec.YW_EWMRZ.equalsIgnoreCase(ywlxdm)
                 || BaiwangJsSpec.YW_CXNSRFX.equalsIgnoreCase(ywlxdm)) {
             parseAuth(root, event, attr);
-        } else if (BaiwangJsSpec.YW_HZCX.equalsIgnoreCase(ywlxdm)) {
-            // 3.3.17 可冲销明细查询的异步结果：只携带金额/明细摘要，不置开票状态，
-            // 否则会被误当成 fpkj 开票结果回调。
-            parseRedAvailable(root, event, attr);
         } else {
             // fpkj（蓝字开票结果 / 红字开具结果）及未知类型统一按开票结果处理
             parseIssue(root, event, attr);
@@ -98,17 +94,7 @@ public final class BaiwangJsCallbackParser {
         return event;
     }
 
-    /** hzcx：可冲销明细查询结果，登记到 attr 供排障/后续对账，不改状态。 */
-    private static void parseRedAvailable(JsonNode root, InvoiceCallbackEvent event,
-                                          Map<String, String> attr) {
-        put(attr, "hzcxje", str(root, "hzcxje"));
-        put(attr, "hzcxse", str(root, "hzcxse"));
-        put(attr, "jshj", str(root, "jshj"));
-        put(attr, "channelResult", "HZCX:" + nullTo(str(root, "status"), ""));
-        event.setErrorMsg(str(root, "ycyy"));
-    }
-
-    /** fpkj：票号、日期、金额、状态。成功不直接置 SUCCEEDED，等待 qdbswj 补法定原件。 */
+    /** fpkj：票号、日期、金额、状态，按渠道回调状态归一。 */
     private static void parseIssue(JsonNode root, InvoiceCallbackEvent event,
                                    Map<String, String> attr) {
         String status = str(root, "status");

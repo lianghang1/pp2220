@@ -13,7 +13,6 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.api.QuickRedOutcome;
 import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
-import io.github.lianghang1.conflux.invoice.api.RedAvailableResult;
 import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
@@ -455,38 +454,6 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
         } else {
             result.setState(RedApplyState.WAITING_CONFIRM)
                     .setConfirmDeadline(LocalDateTime.now().plusHours(RED_CONFIRM_HOURS));
-        }
-        return result;
-    }
-
-    /**
-     * 3.3.17 可冲销明细查询（异步，回调 ywlxdm=hzcx）。
-     * 同步响应只表示受理，因此返回 asyncAccepted=true，编排层不据此阻断红冲。
-     */
-    @Override
-    public RedAvailableResult checkRedAvailable(InvoiceContext ctx) {
-        Invoice original = ctx.getInvoice();
-        BaiwangJsParams params = params(ctx);
-        requireCredentials(params);
-        String ddlsh = firstNonBlank(original == null ? null : original.getChannelOrderNo(),
-                original == null ? "HZCX-" + System.currentTimeMillis()
-                        : BaiwangJsCodec.ddlsh(original));
-        String invoiceDate = original == null || original.getInvoiceDate() == null
-                ? null : original.getInvoiceDate().toString();
-        Map<String, Object> body = BaiwangJsCodec.redAvailableBody(params, ddlsh,
-                original, invoiceDate, null, "2");
-        BaiwangJsResponse response = gateway(params).call("redAvailablePath",
-                BaiwangJsSpec.RED_AVAILABLE_QUERY, null, body);
-        RedAvailableResult result = new RedAvailableResult()
-                .setAvailable(true)
-                .setAsyncAccepted(response.isAccepted())
-                .setChannelOrderNo(ddlsh)
-                .setRawPayload(response.getRawBody());
-        if (!response.isAccepted()) {
-            // 查询失败不阻断红冲（渠道可能不支持该场景），仅登记错误供排障
-            result.setErrorCode(nullTo(response.getCode(), "RED_AVAILABLE_FAILED"))
-                    .setErrorMsg(response.getReason() == null
-                            ? response.getMessage() : response.getReason());
         }
         return result;
     }

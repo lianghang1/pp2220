@@ -53,8 +53,6 @@ public final class BaiwangJsSpec {
     public static final String RED_STATUS_QUERY = "/cloud/queryHzqrdzt";
     /** 3.3.16 红字确认单确认或拒绝（qrlx=Y 同意 / N 拒绝）。 */
     public static final String RED_CONFIRM = "/cloud/updateHzqrdState";
-    /** 3.3.17 可冲销明细查询（异步，回调 ywlxdm=hzcx）。 */
-    public static final String RED_AVAILABLE_QUERY = "/cloud/hzcxmx";
 
     /** 3.4.4 电子税务局登录（两步短信）。 */
     public static final String LOGIN = "/cloud/dzswjLogin";
@@ -92,8 +90,6 @@ public final class BaiwangJsSpec {
     public static final String YW_EWMRZ = "ewmrz";
     /** 认证结果/风险信息。 */
     public static final String YW_CXNSRFX = "cxnsrfx";
-    /** 可冲销明细查询结果（3.3.17）。 */
-    public static final String YW_HZCX = "hzcx";
 
     // ---- 回调 status（与查询接口语义不同，严禁混用！）----
     // 回调（fpkj/qdbswj/qdhzsq/ewmrz，见 3.2.6 / 3.3.3 / 3.4.5 文档）：

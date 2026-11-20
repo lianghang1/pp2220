@@ -12,7 +12,7 @@
 | 渠道编码 | 平台 | 通道级别 | 文档核对 | 当前可用能力 |
 |---|---|---|---|---|
 | `mock` | 内置模拟 | SERVICE_API | 不适用 | 全部（蓝字、授权、异步查单、XML 原件、红字两段、回调） |
-| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（官方公开文档）** | 专属适配器（见第 2 节）：蓝字 V2/V1、查单、红字两段、登录与实人认证、版式文件查询、交付重发、发票修复、可冲销校验、`ywlxdm` 回调分流、XML 法定原件 |
+| `baiwangjs` | 百旺金穗云 | SERVICE_API | **已核对（官方公开文档）** | 专属适配器（见第 2 节）：蓝字 V2/V1、查单、红字两段、登录与实人认证、版式文件查询、交付重发、发票修复、`ywlxdm` 回调分流、XML 法定原件 |
 | `baiwang` | 百望云 | SERVICE_API | **已核对（官方公开文档，BOPSDK）** | 专属适配器（见第 2.6 节）：蓝字开具、查单、快速红冲 + 红冲确认两段、交付重发、发票修复、文件下载、四类回调分流；数电专普票 / 增值税专普票 / 机动车 |
 | `piaotong` | 票通云 | SERVICE_API | **已核对（官方公开文档）** | 专属适配器（见第 3 节）：蓝字开具、查单、红字两段、登录认证、文件下载、加密回调 |
 | `nuonuo` | 诺诺网 | SERVICE_API | 开票/查单/回调**已核对（官方公开文档）** | 官方 SDK（见第 3.6 节）：蓝字开票、发票结果查询、开票结果回调解析；红冲/交付/授权/修复等未暴露 |
@@ -71,7 +71,6 @@ x-htjs-ua: {UserAgent}
 | **数电红冲开具 3.3.12** | `redIssuePath` | `/cloud/doElecRedInvoice` | 确认单 CONFIRMED 后真调 |
 | **红字确认单状态查询 3.3.15** | `redStatusPath` | `/cloud/queryHzqrdzt` | 同步，优先数据源 |
 | **红字确认单确认或拒绝 3.3.16** | `redConfirmPath` | `/cloud/updateHzqrdState` | `qrlx=Y/N` |
-| **可冲销明细查询 3.3.17** | `redAvailablePath` | `/cloud/hzcxmx` | 异步，回调 `hzcx` |
 | 电子税务局登录 3.4.4 | `authStartPath` / `authSubmitPath` | `/cloud/dzswjLogin` | 两步短信 |
 | 实人认证二维码（同步）3.4.6 | `qrCodePath` | `/elecEwm/queryEwmrzSnyc` | 默认 |
 | **实人认证二维码（异步）3.4.5** | `qrCodeAsyncPath` | `/elecEwm/queryEwmrz` | `attr.qrMode=ASYNC` |
@@ -132,7 +131,6 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | `qdhzsq` | 红字确认单申请结果 | `WAITING_CONFIRM` / `FAILED`，携带 `hzfpxxqrdbh` |
 | `ewmrz` | 实人认证二维码 | 登记 `rzid` / `ewm` 到 attr，不改状态 |
 | `cxnsrfx` | 认证结果 / 风险信息 | 登记 `sfsl` / `sxlb` / `yjjb` 到 attr，不改状态 |
-| **`hzcx`** | 可冲销明细查询结果（3.3.17） | 登记 `hzcxje` / `hzcxse` / `jshj` 到 attr，**绝不迁移状态**，避免被误当成 `fpkj` |
 | `1004` / `1003` | 需要登录 / 需要实人认证 | 映射 `WAITING_AUTH` 挂起态并触发授权会话 |
 
 回调应答固定 `{"code":"0","message":"成功"}`；失败也返回 `code=1` 的 JSON，避免平台收不到应答。
@@ -184,12 +182,11 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 3.3.12 红冲开具 `issueRed()`、3.3.15 / 3.3.4 红冲查询 `queryRed()`、3.3.16 主动确认/拒绝 `confirm()`、
 3.4.5 异步认证二维码（`attr.qrMode=ASYNC`）、3.4.8 / 3.4.15 版式文件 `fetch()`、
 3.4.14 认证结果查询、3.4.13 按票号查单（`InvoiceQueryRequest.invoiceNo/invoiceCode`）、
-3.4.7 交付重发 `resend()`、3.4.11/12 发票修复 `repair()` / `queryRepair()`、3.3.17 可冲销校验。
+3.4.7 交付重发 `resend()`、3.4.11/12 发票修复 `repair()` / `queryRepair()`。
 版式文件查询失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程。
 
 门面/编排层提供 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
-渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`；
-`hzcx` 回调只归一 attr、不涉及状态推进（SDK 无状态机）。
+渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`。
 
 商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等平台专属接口不纳入；
 **数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` 状态语义不因此改动。

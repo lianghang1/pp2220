@@ -83,7 +83,6 @@ conflux:
         #     # redIssuePath: "/cloud/doElecRedInvoice"
         #     # redStatusPath: "/cloud/queryHzqrdzt"
         #     # redConfirmPath: "/cloud/updateHzqrdState"
-        #     # redAvailablePath: "/cloud/hzcxmx"
         #     # qrCodeAsyncPath: "/elecEwm/queryEwmrz"
         #     # deliveryPath: "/cloud/fpReSend"
         #     # downloadPath: "/cloud/invoiceDownload"
