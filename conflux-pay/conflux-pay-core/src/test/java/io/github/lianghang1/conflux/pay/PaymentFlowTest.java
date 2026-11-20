@@ -25,7 +25,7 @@ class PaymentFlowTest {
 
     private PaymentRequest request(String bizOrderNo) {
         return new PaymentRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizOrderNo(bizOrderNo)
                 .setMethod(TestChannelProvider.METHOD_PAY)
                 .setAmount(10000L)
@@ -34,7 +34,7 @@ class PaymentFlowTest {
 
     private PaymentQueryRequest locate(String bizOrderNo) {
         return new PaymentQueryRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizOrderNo(bizOrderNo)
                 .setChannelCode(TestChannelProvider.CODE);
     }
@@ -69,7 +69,7 @@ class PaymentFlowTest {
     @Test
     void missingChannelCodeShouldBeRejectedOnQuery() {
         assertThatThrownBy(() -> harness.gateway.queryPayment(
-                new PaymentQueryRequest().setAppId(GatewayTestHarness.APP_ID).setBizOrderNo("NO-X")))
+                new PaymentQueryRequest().setConfigId(GatewayTestHarness.APP_ID).setBizOrderNo("NO-X")))
                 .isInstanceOf(GatewayException.class);
     }
 

@@ -81,33 +81,32 @@ public final class PiaoTongCallbackParser {
         }
         String serialNo = text(business, "invoiceReqSerialNo");
         InvoiceCallbackEvent event = new InvoiceCallbackEvent()
-                .setAccountKey(accountKey(raw))
                 .setChannelOrderNo(serialNo)
                 .setBizOrderNo(text(business, "tradeNo"))
                 .setRawPayload(response.getRawBody());
 
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        put(attrs, "taxpayerNum", text(business, "taxpayerNum"));
-        put(attrs, "invoiceKind", text(business, "invoiceKind"));
-        put(attrs, "definedData", text(business, "definedData"));
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        put(attr, "taxpayerNum", text(business, "taxpayerNum"));
+        put(attr, "invoiceKind", text(business, "invoiceKind"));
+        put(attr, "definedData", text(business, "definedData"));
         String code = text(business, "code");
         String invoiceType = text(business, "invoiceType");
-        attrs.put("channelResult", nullTo(code, ""));
+        attr.put("channelResult", nullTo(code, ""));
 
         event.setInvoiceNo(text(business, "invoiceNo"));
         event.setInvoiceCode(text(business, "invoiceCode"));
-        put(attrs, "electronicInvoiceNo", text(business, "electronicInvoiceNo"));
+        put(attr, "electronicInvoiceNo", text(business, "electronicInvoiceNo"));
         event.setInvoiceDate(parseDate(text(business, "invoiceDate")));
         event.setAmount(dec(business, "amountWithTax", "noTaxAmount"));
         event.setTaxAmount(dec(business, "taxAmount"));
         event.setErrorMsg(text(business, "msg"));
-        put(attrs, "authId", text(business, "authId"));
-        put(attrs, "authenticationQrcode", text(business, "authenticationQrcode"));
+        put(attr, "authId", text(business, "authId"));
+        put(attr, "authenticationQrcode", text(business, "authenticationQrcode"));
 
         boolean red = "2".equals(invoiceType);
         if (red) {
             // 红票推送：登记红票标记；确认单状态由 2.29/2.34 查询推进
-            attrs.put("redInvoice", "true");
+            attr.put("redInvoice", "true");
         }
 
         if (PiaoTongSpec.ST_SUCCESS.equals(code)) {
@@ -117,13 +116,13 @@ public final class PiaoTongCallbackParser {
             event.setErrorCode(firstNonBlank(code, "PT_ISSUE_FAILED"));
         } else if (PiaoTongSpec.ST_NEED_AUTH.equals(code)) {
             event.setState(InvoiceState.WAITING_AUTH);
-            attrs.put("authType", "FACE");
-            attrs.put("challengeText", "开票触发风控，请完成扫码或短信认证（状态 3999）");
+            attr.put("authType", "FACE");
+            attr.put("challengeText", "开票触发风控，请完成扫码或短信认证（状态 3999）");
         } else {
             // 6666/7777/4999/5999 及未知：保持挂起
             event.setState(InvoiceState.PROCESSING);
         }
-        event.setAttrs(attrs);
+        event.setAttr(attr);
         return event;
     }
 
@@ -152,18 +151,11 @@ public final class PiaoTongCallbackParser {
     // ==================== 内部 ====================
 
     private static PiaoTongParams paramsOf(ChannelConfig config) {
-        if (config != null && config.getParams() instanceof PiaoTongParams) {
-            return (PiaoTongParams) config.getParams();
+        if (config != null && config instanceof PiaoTongParams) {
+            return (PiaoTongParams) config;
         }
         throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
                 "票通回调配置缺失或参数类型不匹配");
-    }
-
-    private static String accountKey(InvoiceCallbackRequest raw) {
-        if (raw == null || raw.getQueryParams() == null) {
-            return null;
-        }
-        return raw.getQueryParams().get("accountKey");
     }
 
     private static LocalDate parseDate(String text) {
@@ -207,9 +199,9 @@ public final class PiaoTongCallbackParser {
         return PiaoTongEnvelope.text(root, name);
     }
 
-    private static void put(Map<String, String> attrs, String key, String value) {
+    private static void put(Map<String, String> attr, String key, String value) {
         if (StringUtils.isNotBlank(value)) {
-            attrs.put(key, value);
+            attr.put(key, value);
         }
     }
 

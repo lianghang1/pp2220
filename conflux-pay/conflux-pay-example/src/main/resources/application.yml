@@ -15,13 +15,12 @@ spring:
     open-in-view: false
 
 conflux.pay:
-  apps:
+  configs:
     demo:
       mock:
-        # 普通商户账户键 = appKey；服务商模式追加 subMchNo 组成 appKey#subMchNo，
-        # 回调地址改为 ?accountKey=<appKey>%23<subMchNo>；账户键冲突会在启动期直接报错
+        # 回调配置由业务按订单查库得到 configId 后显式传入 parseCallback(configId, request)
         notifyUrl: http://127.0.0.1:8088/callback/mock
         sandbox: false
-        attrs:
+        attr:
           appKey: demo-app-key
           payOutcome: paying

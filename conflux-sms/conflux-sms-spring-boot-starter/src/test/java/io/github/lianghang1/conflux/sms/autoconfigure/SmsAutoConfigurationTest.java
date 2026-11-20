@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 验证 conflux.sms.apps.<appId>.<channel> 配置被 starter 装载进 sms4j SmsFactory，
+ * 验证 conflux.sms.configs.<configId>.<channelCode> 配置被 starter 装载进 sms4j SmsFactory，
  * 即「配置规则是我们的、渠道能力来自 sms4j」。不触发真实发送。
  *
  * @author lianghang
@@ -42,11 +42,11 @@ class SmsAutoConfigurationTest {
         channel.setAccessKeySecret("testSecret");
         channel.setSignature("签名");
         channel.setTemplateId("SMS_123456");
-        channel.getAttrs().put("templateName", "code");
-        channel.getAttrs().put("regionId", "cn-hangzhou");
+        channel.getAttr().put("templateName", "code");
+        channel.getAttr().put("regionId", "cn-hangzhou");
         Map<String, SmsProperties.ChannelProperties> channels = new LinkedHashMap<String, SmsProperties.ChannelProperties>();
         channels.put("alibaba", channel);
-        props.getApps().put("demo-boot", channels);
+        props.getConfigs().put("demo-boot", channels);
 
         SmsGateway gw = gateway(props);
 
@@ -57,24 +57,25 @@ class SmsAutoConfigurationTest {
     }
 
     @Test
-    void unifiedKeyShouldOverrideSameKeyInAttrs() {
+    void unifiedKeyShouldOverrideSameKeyInAttr() {
         SmsProperties props = new SmsProperties();
         SmsProperties.ChannelProperties channel = new SmsProperties.ChannelProperties();
-        channel.getAttrs().put(ACCESS_KEY_ID, "attrs-old-key");
+        channel.getAttr().put(ACCESS_KEY_ID, "attr-old-key");
         channel.setAccessKeyId("unified-new-key");
         channel.setAccessKeySecret("testSecret");
         channel.setSignature("签名");
         channel.setTemplateId("SMS_123456");
         Map<String, SmsProperties.ChannelProperties> channels = new LinkedHashMap<String, SmsProperties.ChannelProperties>();
         channels.put("alibaba", channel);
-        props.getApps().put("override-app", channels);
+        props.getConfigs().put("override-app", channels);
 
         SmsGateway gw = gateway(props);
         assertThat(gw.registeredChannels()).contains("alibaba");
         // 统一键优先：直接查 provider 的合并结果
         SmsConfigProvider provider = new PropertiesSmsConfigProvider(props);
         SmsChannelConfig cfg = provider.getConfig("override-app", "alibaba");
-        assertThat(cfg.getAttrs()).containsEntry(ACCESS_KEY_ID, "unified-new-key");
+        assertThat(cfg.getAccessKeyId()).isEqualTo("unified-new-key");
+        assertThat(cfg.mergedAttr()).containsEntry(ACCESS_KEY_ID, "unified-new-key");
     }
 
     @Test

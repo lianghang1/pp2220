@@ -36,6 +36,8 @@
         <nuonuo-sdk.version>1.0.6.1</nuonuo-sdk.version>
         <!-- sms4j 短信聚合 SDK：作为短信渠道底层 SDK 引入，版本单源管控 -->
         <sms4j.version>3.3.5</sms4j.version>
+        <!-- x-file-storage 文件聚合 SDK：core 原始包（非 starter），版本单源管控 -->
+        <x-file-storage.version>2.3.0</x-file-storage.version>
     </properties>
 
     <dependencyManagement>
@@ -97,6 +99,12 @@
                 <groupId>org.dromara.sms4j</groupId>
                 <artifactId>sms4j-provider</artifactId>
                 <version>${sms4j.version}</version>
+            </dependency>
+            <!-- x-file-storage 文件聚合原始包（非 starter）：平台实现与 FileStorageService 构建全部由它提供 -->
+            <dependency>
+                <groupId>org.dromara.x-file-storage</groupId>
+                <artifactId>x-file-storage-core</artifactId>
+                <version>${x-file-storage.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

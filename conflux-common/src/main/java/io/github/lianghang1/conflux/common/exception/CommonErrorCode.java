@@ -17,7 +17,7 @@ public enum CommonErrorCode implements ErrorCode {
     CONFLICT(1409, "请求冲突或重复提交", 409),
     SYSTEM_ERROR(1500, "系统繁忙，请稍后再试", 500),
     HTTP_TRANSPORT_ERROR(1501, "HTTP 传输失败", 502),
-    CONFIG_CONFLICT(1502, "配置键冲突，无法唯一确定账户", 500);
+    CONFIG_CONFLICT(1502, "配置键冲突，无法唯一确定配置", 500);
 
     private final int code;
     private final String message;

@@ -22,7 +22,7 @@ public class ProfitShareResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务分账单号 */
     private String bizShareNo;
     /** 分账总金额（分） */
@@ -43,7 +43,7 @@ public class ProfitShareResult implements Serializable {
     /** 由分账单记录构建结果。 */
     public static ProfitShareResult of(ProfitShare share) {
         return new ProfitShareResult()
-                .setAppId(share.getAppId())
+                .setConfigId(share.getConfigId())
                 .setBizShareNo(share.getBizShareNo())
                 .setAmount(share.getAmount())
                 .setReceivers(share.getReceivers())

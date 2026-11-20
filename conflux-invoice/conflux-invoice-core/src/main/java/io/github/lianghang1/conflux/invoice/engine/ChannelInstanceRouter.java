@@ -33,7 +33,7 @@ public class ChannelInstanceRouter {
      * @param preferredChannelCode 指定渠道编码（可空）
      * @return 择优后的可用实例
      */
-    public ChannelInstance route(String appId, String sellerTaxNo, InvoiceType type,
+    public ChannelInstance route(String configId, String sellerTaxNo, InvoiceType type,
                                  String preferredChannelCode) {
         if (preferredChannelCode != null && preferredChannelCode.length() > 0) {
             // 显式指定但渠道未注册时给出明确错误，不要退化成「无可用实例」
@@ -42,7 +42,7 @@ public class ChannelInstanceRouter {
         }
 
         List<ChannelInstance> candidates = new ArrayList<ChannelInstance>();
-        List<ChannelInstance> all = rt.configProvider.instances(appId, sellerTaxNo);
+        List<ChannelInstance> all = rt.configProvider.instances(configId, sellerTaxNo);
         if (all != null) {
             for (ChannelInstance instance : all) {
                 if (instance == null || !instance.isEnabled()) {
@@ -66,8 +66,8 @@ public class ChannelInstanceRouter {
         }
         if (candidates.isEmpty()) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_INSTANCE_NOT_FOUND,
-                    "未找到可用发票渠道实例: appId={}, sellerTaxNo={}, type={}, preferredChannel={}",
-                    appId, sellerTaxNo, type, preferredChannelCode);
+                    "未找到可用发票渠道实例: configId={}, sellerTaxNo={}, type={}, preferredChannel={}",
+                    configId, sellerTaxNo, type, preferredChannelCode);
         }
         Collections.sort(candidates, new Comparator<ChannelInstance>() {
             @Override
@@ -76,8 +76,8 @@ public class ChannelInstanceRouter {
             }
         });
         ChannelInstance chosen = candidates.get(0);
-        log.debug("发票渠道路由: appId={}, taxNo={}, type={}, channel={}, instance={}, score={}",
-                appId, sellerTaxNo, type, chosen.getChannelCode(),
+        log.debug("发票渠道路由: configId={}, taxNo={}, type={}, channel={}, instance={}, score={}",
+                configId, sellerTaxNo, type, chosen.getChannelCode(),
                 chosen.getInstanceId(), chosen.routingScore());
         return chosen;
     }

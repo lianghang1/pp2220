@@ -21,7 +21,7 @@ public class Refund implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务退款单号（渠道商户单号，渠道侧幂等键；查重由使用方负责） */
     private String bizRefundNo;
     /** 关联的使用方业务单号（冗余，便于查询） */
@@ -34,6 +34,8 @@ public class Refund implements Serializable {
     private String currency;
     /** 退款原因 */
     private String reason;
+    /** 异步通知地址（按单覆盖渠道配置）；请求优先、配置兜底，由渠道 handler 读取 */
+    private String notifyUrl;
     /** 退款单状态 */
     private RefundState state;
     /** 渠道侧退款单号 */

@@ -21,13 +21,13 @@ public class RedApplyQueryRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 使用方保管的红字确认单载体（必填，含 redConfirmNo/channelOrderNo） */
     private RedApply redApply;
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(redApply != null, "redApply 确认单载体不能为空");
     }
 }

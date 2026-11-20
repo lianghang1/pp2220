@@ -33,7 +33,7 @@ public interface InvoiceChannelProvider {
      * 把配置键值对解析为渠道参数对象；不支持声明式配置的渠道返回 null
      * （此时使用方必须自行实现 {@code InvoiceConfigProvider}）。
      */
-    default InvoiceChannelParams parseParams(Map<String, String> properties) {
+    default ChannelConfig parseParams(Map<String, String> properties) {
         return null;
     }
 

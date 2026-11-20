@@ -17,10 +17,10 @@ import java.util.Map;
 public class PayGatewayProperties {
 
     /**
-     * 应用 → 渠道配置：第一层 key 为使用方应用标识 appId，
+     * 应用 → 渠道配置：第一层 key 为使用方应用标识 configId，
      * 第二层 key 为渠道编码，值为该渠道配置。
      */
-    private Map<String, Map<String, ChannelProperties>> apps =
+    private Map<String, Map<String, ChannelProperties>> configs =
             new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
     /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
@@ -34,16 +34,16 @@ public class PayGatewayProperties {
         this.mockEnabled = mockEnabled;
     }
 
-    public Map<String, Map<String, ChannelProperties>> getApps() {
-        return apps;
+    public Map<String, Map<String, ChannelProperties>> getConfigs() {
+        return configs;
     }
 
-    public void setApps(Map<String, Map<String, ChannelProperties>> apps) {
-        this.apps = apps;
+    public void setConfigs(Map<String, Map<String, ChannelProperties>> configs) {
+        this.configs = configs;
     }
 
     /**
-     * 单渠道配置：统一基础键 + attrs 渠道个性键值包。
+     * 单渠道配置：统一基础键 + attr 渠道个性键值包。
      */
     public static class ChannelProperties {
 
@@ -54,7 +54,7 @@ public class PayGatewayProperties {
         /** 服务商模式特约商户号（统一键，微信/云闪付等子商户场景） */
         private String subMchNo;
         /** 渠道个性键值包（键名由各渠道定义，经 ChannelProvider.parseParams 解析为渠道参数对象） */
-        private Map<String, String> attrs = new LinkedHashMap<String, String>();
+        private Map<String, String> attr = new LinkedHashMap<String, String>();
 
         public String getNotifyUrl() {
             return notifyUrl;
@@ -80,12 +80,12 @@ public class PayGatewayProperties {
             this.subMchNo = subMchNo;
         }
 
-        public Map<String, String> getAttrs() {
-            return attrs;
+        public Map<String, String> getAttr() {
+            return attr;
         }
 
-        public void setAttrs(Map<String, String> attrs) {
-            this.attrs = attrs;
+        public void setAttr(Map<String, String> attr) {
+            this.attr = attr;
         }
     }
 

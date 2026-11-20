@@ -24,9 +24,8 @@ public class AuthSession implements Serializable {
 
     private String sessionId;
     private String invoiceId;
-    private String appId;
+    private String configId;
     private String channelCode;
-    private String accountKey;
     private AuthType authType;
     private AuthSessionState state;
     /** 扫码/扫脸跳转地址。 */

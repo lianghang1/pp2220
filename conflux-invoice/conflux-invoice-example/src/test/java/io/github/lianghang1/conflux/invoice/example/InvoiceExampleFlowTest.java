@@ -35,7 +35,7 @@ class InvoiceExampleFlowTest {
     @Test
     void endToEndBlueAndRedInvoiceFlow() {
         InvoiceRequest request = new InvoiceRequest()
-                .setAppId("demo").setBizOrderNo("EX-1")
+                .setConfigId("demo").setBizOrderNo("EX-1")
                 .setSellerTaxNo(TAX).setBuyerTitle("示例购方企业")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setItems(Collections.singletonList(new InvoiceItem()
@@ -47,7 +47,7 @@ class InvoiceExampleFlowTest {
         assertNotNull(first.getAuthChallenge());
 
         InvoiceResult issued = gateway.submitAuth(new AuthSubmission()
-                .setAppId("demo")
+                .setConfigId("demo")
                 .setSession(first.getAuthSession())
                 .setInvoice(first.getInvoice())
                 .setCaptcha("6666"));
@@ -57,15 +57,15 @@ class InvoiceExampleFlowTest {
 
         // 两段红冲：载体往返
         RedApply apply = gateway.applyRed(new RedApplyRequest()
-                .setAppId("demo").setBizRedNo("EX-R1")
+                .setConfigId("demo").setBizRedNo("EX-R1")
                 .setOriginalInvoice(issued.getInvoice()).setReason("抬头填错"));
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
         RedApply confirmed = gateway.queryRedApply(new RedApplyQueryRequest()
-                .setAppId("demo").setRedApply(apply));
+                .setConfigId("demo").setRedApply(apply));
         assertSame(RedApplyState.CONFIRMED, confirmed.getState());
 
         InvoiceResult red = gateway.issueRed(new RedIssueRequest()
-                .setAppId("demo").setRedApply(confirmed).setOriginalInvoice(issued.getInvoice()));
+                .setConfigId("demo").setRedApply(confirmed).setOriginalInvoice(issued.getInvoice()));
         assertSame(InvoiceState.SUCCEEDED, red.getState());
         assertTrue(red.hasLegalXml());
     }

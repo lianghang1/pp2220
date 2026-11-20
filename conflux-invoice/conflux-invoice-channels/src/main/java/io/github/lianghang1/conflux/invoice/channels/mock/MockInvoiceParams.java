@@ -1,10 +1,9 @@
 package io.github.lianghang1.conflux.invoice.channels.mock;
 
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
+import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import java.io.Serializable;
 
 /**
  * mock 渠道参数：用配置控制渠道行为，便于在单测/example 里覆盖各条链路，
@@ -14,12 +13,9 @@ import java.io.Serializable;
  */
 @Data
 @Accessors(chain = true)
-public class MockInvoiceParams implements InvoiceChannelParams, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class MockInvoiceParams extends ChannelConfig {
 
     private String channelAppId = "mock-app";
-    private String sellerTaxNo;
     private String appSecret = "mock-secret";
 
     /**
@@ -31,13 +27,11 @@ public class MockInvoiceParams implements InvoiceChannelParams, Serializable {
     /** 红字确认单查询结果：CONFIRMED / WAITING_CONFIRM / REJECTED。 */
     private String redConfirmOutcome = "CONFIRMED";
 
-    @Override
     public String channelAppId() {
         return channelAppId;
     }
 
-    @Override
     public String sellerTaxNo() {
-        return sellerTaxNo;
+        return getSellerTaxNo();
     }
 }

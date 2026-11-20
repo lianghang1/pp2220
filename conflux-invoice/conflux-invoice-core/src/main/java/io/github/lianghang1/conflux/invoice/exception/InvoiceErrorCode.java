@@ -30,7 +30,7 @@ public enum InvoiceErrorCode implements ErrorCode {
     CHANNEL_INSTANCE_NOT_FOUND(3103, "未找到可用的渠道实例", 500),
     INVOICE_TYPE_NOT_SUPPORTED(3104, "渠道不支持该发票类型", 400),
     CONFIG_MISSING(3105, "发票渠道配置缺失", 500),
-    CONFIG_CONFLICT(3106, "发票渠道账户键冲突，无法唯一定位回调配置", 500),
+    CONFIG_CONFLICT(3106, "发票渠道配置冲突，无法唯一定位配置", 500),
     CHANNEL_CALL_FAILED(3107, "发票渠道调用失败", 500),
     CALLBACK_PARSE_FAILED(3108, "发票回调报文解析失败", 400),
     SIGN_INVALID(3109, "发票回调验签失败", 400),

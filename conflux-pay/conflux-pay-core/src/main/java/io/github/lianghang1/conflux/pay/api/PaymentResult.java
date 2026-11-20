@@ -24,7 +24,7 @@ public class PaymentResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务单号 */
     private String bizOrderNo;
     /** 支付方式编码 */
@@ -47,7 +47,7 @@ public class PaymentResult implements Serializable {
     /** 由支付单记录构建结果。 */
     public static PaymentResult of(Payment payment) {
         return new PaymentResult()
-                .setAppId(payment.getAppId())
+                .setConfigId(payment.getConfigId())
                 .setBizOrderNo(payment.getBizOrderNo())
                 .setMethod(payment.getMethod())
                 .setChannelCode(payment.getChannelCode())

@@ -8,7 +8,7 @@ import lombok.experimental.Accessors;
 import java.io.Serializable;
 
 /**
- * 渠道转账查单定位参数：{@code appId + bizTransferNo + channelCode}。
+ * 渠道转账查单定位参数：{@code configId + bizTransferNo + channelCode}。
  *
  * @author lianghang
  */
@@ -19,7 +19,7 @@ public class TransferQueryRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 使用方业务转账单号（必填，即渠道商户转账单号） */
     private String bizTransferNo;
     /** 渠道编码（必填） */
@@ -29,7 +29,7 @@ public class TransferQueryRequest implements Serializable {
 
     /** 参数校验：不满足抛 {@link CommonErrorCode#BAD_REQUEST}。 */
     public void check() {
-        GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
+        GatewayAssert.notBlank(configId, CommonErrorCode.BAD_REQUEST, "configId 不能为空");
         GatewayAssert.notBlank(bizTransferNo, CommonErrorCode.BAD_REQUEST, "bizTransferNo 不能为空");
         GatewayAssert.notBlank(channelCode, CommonErrorCode.BAD_REQUEST, "channelCode 不能为空");
     }

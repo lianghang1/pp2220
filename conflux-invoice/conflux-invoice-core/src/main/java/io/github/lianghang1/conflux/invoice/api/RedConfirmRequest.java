@@ -23,7 +23,7 @@ public class RedConfirmRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** true=同意，false=拒绝 */
     private boolean accept;
     /** 拒绝原因（拒绝时建议填写） */
@@ -35,7 +35,7 @@ public class RedConfirmRequest implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(redApply != null, "redApply 确认单载体不能为空");
     }
 }

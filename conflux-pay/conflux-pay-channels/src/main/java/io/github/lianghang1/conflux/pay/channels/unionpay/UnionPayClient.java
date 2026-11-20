@@ -73,10 +73,10 @@ public class UnionPayClient {
     }
 
     public static UnionPayParams paramsOf(ChannelConfig config) {
-        if (config.getParams() instanceof UnionPayParams) {
-            return (UnionPayParams) config.getParams();
+        if (config instanceof UnionPayParams) {
+            return (UnionPayParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                "云闪付渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                "云闪付渠道参数类型不匹配: {}", config == null ? "null" : config.getClass().getName());
     }
 }

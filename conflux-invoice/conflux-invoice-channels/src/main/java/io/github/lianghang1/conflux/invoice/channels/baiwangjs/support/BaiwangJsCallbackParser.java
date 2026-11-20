@@ -37,9 +37,9 @@ import lombok.extern.slf4j.Slf4j;
  * </ul>
  *
  * <p><b>验签</b>：平台公开文档未定义回调签名头/参数，故不伪造验签规则；
- * 账户定位依赖回调 URL 上的 {@code accountKey}（由框架反查配置），
+ * 回调验签后归一为框架事件，
  * 生产环境应通过网络层白名单 / 网关侧校验保障。若宿主另行约定了签名，可通过
- * {@code attrs.callbackSignKey} + 查询参数 {@code sign} 启用 HMAC 校验。</p>
+ * {@code attr.callbackSignKey} + 查询参数 {@code sign} 启用 HMAC 校验。</p>
  *
  * @author lianghang
  */
@@ -70,52 +70,51 @@ public final class BaiwangJsCallbackParser {
         String ywlxdm = str(root, "ywlxdm");
         String ddlsh = str(root, "ddlsh");
         InvoiceCallbackEvent event = new InvoiceCallbackEvent()
-                .setAccountKey(accountKey(raw))
                 .setChannelOrderNo(ddlsh)
                 .setBizOrderNo(ddlsh)
                 .setRawPayload(json);
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
+        Map<String, String> attr = new LinkedHashMap<String, String>();
         if (StringUtils.isNotBlank(ywlxdm)) {
-            attrs.put("ywlxdm", ywlxdm);
+            attr.put("ywlxdm", ywlxdm);
         }
 
         if (BaiwangJsSpec.YW_QDBSWJ.equalsIgnoreCase(ywlxdm)) {
-            parseLayout(root, event, attrs);
+            parseLayout(root, event, attr);
         } else if (BaiwangJsSpec.YW_QDHZSQ.equalsIgnoreCase(ywlxdm)) {
-            parseRedApply(root, event, attrs);
+            parseRedApply(root, event, attr);
         } else if (BaiwangJsSpec.YW_EWMRZ.equalsIgnoreCase(ywlxdm)
                 || BaiwangJsSpec.YW_CXNSRFX.equalsIgnoreCase(ywlxdm)) {
-            parseAuth(root, event, attrs);
+            parseAuth(root, event, attr);
         } else if (BaiwangJsSpec.YW_HZCX.equalsIgnoreCase(ywlxdm)) {
             // 3.3.17 可冲销明细查询的异步结果：只携带金额/明细摘要，不置开票状态，
             // 否则会被误当成 fpkj 开票结果回调。
-            parseRedAvailable(root, event, attrs);
+            parseRedAvailable(root, event, attr);
         } else {
             // fpkj（蓝字开票结果 / 红字开具结果）及未知类型统一按开票结果处理
-            parseIssue(root, event, attrs);
+            parseIssue(root, event, attr);
         }
-        event.setAttrs(attrs);
+        event.setAttr(attr);
         return event;
     }
 
-    /** hzcx：可冲销明细查询结果，登记到 attrs 供排障/后续对账，不改状态。 */
+    /** hzcx：可冲销明细查询结果，登记到 attr 供排障/后续对账，不改状态。 */
     private static void parseRedAvailable(JsonNode root, InvoiceCallbackEvent event,
-                                          Map<String, String> attrs) {
-        put(attrs, "hzcxje", str(root, "hzcxje"));
-        put(attrs, "hzcxse", str(root, "hzcxse"));
-        put(attrs, "jshj", str(root, "jshj"));
-        put(attrs, "channelResult", "HZCX:" + nullTo(str(root, "status"), ""));
+                                          Map<String, String> attr) {
+        put(attr, "hzcxje", str(root, "hzcxje"));
+        put(attr, "hzcxse", str(root, "hzcxse"));
+        put(attr, "jshj", str(root, "jshj"));
+        put(attr, "channelResult", "HZCX:" + nullTo(str(root, "status"), ""));
         event.setErrorMsg(str(root, "ycyy"));
     }
 
     /** fpkj：票号、日期、金额、状态。成功不直接置 SUCCEEDED，等待 qdbswj 补法定原件。 */
     private static void parseIssue(JsonNode root, InvoiceCallbackEvent event,
-                                   Map<String, String> attrs) {
+                                   Map<String, String> attr) {
         String status = str(root, "status");
         String originalNo = str(root, "yqdfphm");
         if (StringUtils.isNotBlank(originalNo)) {
-            attrs.put("originalInvoiceNo", originalNo);
-            attrs.put("redInvoice", "true");
+            attr.put("originalInvoiceNo", originalNo);
+            attr.put("redInvoice", "true");
         }
 
         event.setInvoiceNo(firstNonBlank(str(root, "qdfphm"), str(root, "fphm")));
@@ -129,29 +128,29 @@ public final class BaiwangJsCallbackParser {
         if (BaiwangJsSpec.ST_SUCCESS.equals(status)) {
             // 只补票面字段，状态由 qdbswj（版式回调）推进到 SUCCEEDED
             event.setState(null);
-            attrs.put("faceFieldsOnly", "true");
-            attrs.put("channelResult", "SUCCESS");
+            attr.put("faceFieldsOnly", "true");
+            attr.put("channelResult", "SUCCESS");
         } else if (BaiwangJsSpec.ST_FAILED.equals(status)) {
             event.setState(InvoiceState.FAILED);
             event.setErrorCode(firstNonBlank(str(root, "code"), "FPKJ_FAILED"));
         } else if (BaiwangJsSpec.ST_NO_PDF.equals(status)) {
             event.setState(InvoiceState.PROCESSING);
-            attrs.put("channelResult", "NO_PDF");
+            attr.put("channelResult", "NO_PDF");
         } else if (BaiwangJsSpec.ST_DELETED.equals(status)) {
             event.setState(InvoiceState.CLOSED);
         } else if (BaiwangJsSpec.ST_NEED_LOGIN.equals(status)) {
-            waitingAuth(event, attrs, "LOGIN", "需要登录电子税务局后继续开票");
+            waitingAuth(event, attr, "LOGIN", "需要登录电子税务局后继续开票");
         } else if (BaiwangJsSpec.ST_NEED_AUTH.equals(status)) {
-            waitingAuth(event, attrs, "FACE", "需要完成实人认证（扫脸）后继续开票");
+            waitingAuth(event, attr, "FACE", "需要完成实人认证（扫脸）后继续开票");
         } else {
             event.setState(InvoiceState.PROCESSING);
-            attrs.put("channelResult", "UNKNOWN_STATUS:" + nullTo(status, ""));
+            attr.put("channelResult", "UNKNOWN_STATUS:" + nullTo(status, ""));
         }
     }
 
     /** qdbswj：版式文件地址（XML 是法定原件）。status=1 时推进 SUCCEEDED。 */
     private static void parseLayout(JsonNode root, InvoiceCallbackEvent event,
-                                    Map<String, String> attrs) {
+                                    Map<String, String> attr) {
         String status = str(root, "status");
         event.setErrorMsg(str(root, "ycyy"));
         List<InvoiceFile> files = new ArrayList<InvoiceFile>();
@@ -162,31 +161,31 @@ public final class BaiwangJsCallbackParser {
 
         String delivery = str(root, "jfdz");
         if (StringUtils.isNotBlank(delivery)) {
-            attrs.put("jfdz", delivery);
+            attr.put("jfdz", delivery);
         }
         if (BaiwangJsSpec.ST_SUCCESS.equals(status) || StringUtils.isBlank(status)) {
             // 版式就绪：携带法定原件地址，由编排层归档并置成功
             event.setState(InvoiceState.SUCCEEDED);
-            attrs.put("layoutReady", "true");
+            attr.put("layoutReady", "true");
         } else {
             // 版式生成失败/需要认证：不推进成功，仅登记
             event.setState(null);
-            attrs.put("layoutStatus", status);
+            attr.put("layoutStatus", status);
             if (BaiwangJsSpec.ST_NEED_LOGIN.equals(status)) {
-                waitingAuth(event, attrs, "LOGIN", "需要登录电子税务局后重新生成版式文件");
+                waitingAuth(event, attr, "LOGIN", "需要登录电子税务局后重新生成版式文件");
             } else if (BaiwangJsSpec.ST_NEED_AUTH.equals(status)) {
-                waitingAuth(event, attrs, "FACE", "需要实人认证后重新生成版式文件");
+                waitingAuth(event, attr, "FACE", "需要实人认证后重新生成版式文件");
             }
         }
     }
 
     /** qdhzsq：红字申请单结果。 */
     private static void parseRedApply(JsonNode root, InvoiceCallbackEvent event,
-                                      Map<String, String> attrs) {
+                                      Map<String, String> attr) {
         String status = str(root, "status");
         event.setRedConfirmNo(str(root, "hzfpxxqrdbh"));
         event.setErrorMsg(str(root, "ycyy"));
-        attrs.put("redApplyUuid", nullTo(str(root, "uuid"), ""));
+        attr.put("redApplyUuid", nullTo(str(root, "uuid"), ""));
         if (BaiwangJsSpec.ST_SUCCESS.equals(status)) {
             event.setRedState(RedApplyState.WAITING_CONFIRM);
         } else if (BaiwangJsSpec.ST_FAILED.equals(status)) {
@@ -195,20 +194,20 @@ public final class BaiwangJsCallbackParser {
         } else if (BaiwangJsSpec.ST_NEED_LOGIN.equals(status)
                 || BaiwangJsSpec.ST_NEED_AUTH.equals(status)) {
             event.setRedState(RedApplyState.WAITING_CONFIRM);
-            attrs.put("authRequired", status);
+            attr.put("authRequired", status);
         } else {
             event.setRedState(RedApplyState.WAITING_CONFIRM);
         }
     }
 
-    /** ewmrz / cxnsrfx：授权与认证信息，登记到 attrs，不直接改单据状态。 */
+    /** ewmrz / cxnsrfx：授权与认证信息，登记到 attr，不直接改单据状态。 */
     private static void parseAuth(JsonNode root, InvoiceCallbackEvent event,
-                                  Map<String, String> attrs) {
-        put(attrs, "rzid", str(root, "rzid"));
-        put(attrs, "ewm", str(root, "ewm"));
-        put(attrs, "sfsl", str(root, "sfsl"));
-        put(attrs, "sxlb", str(root, "sxlb"));
-        put(attrs, "yjjb", str(root, "yjjb"));
+                                  Map<String, String> attr) {
+        put(attr, "rzid", str(root, "rzid"));
+        put(attr, "ewm", str(root, "ewm"));
+        put(attr, "sfsl", str(root, "sfsl"));
+        put(attr, "sxlb", str(root, "sxlb"));
+        put(attr, "yjjb", str(root, "yjjb"));
         event.setErrorMsg(str(root, "ycyy"));
         String status = str(root, "status");
         if (BaiwangJsSpec.ST_FAILED.equals(String.valueOf(status))) {
@@ -216,11 +215,11 @@ public final class BaiwangJsCallbackParser {
         }
     }
 
-    private static void waitingAuth(InvoiceCallbackEvent event, Map<String, String> attrs,
+    private static void waitingAuth(InvoiceCallbackEvent event, Map<String, String> attr,
                                     String authType, String text) {
         event.setState(InvoiceState.WAITING_AUTH);
-        attrs.put("authType", authType);
-        attrs.put("challengeText", text);
+        attr.put("authType", authType);
+        attr.put("challengeText", text);
     }
 
     /** 回调应答：平台要求 {@code {"code":"0","message":"成功"}}，失败也需返回 JSON。 */
@@ -236,10 +235,10 @@ public final class BaiwangJsCallbackParser {
     private static void assertCallbackSign(InvoiceCallbackRequest raw, ChannelConfig config,
                                            String json) {
         if (raw == null || raw.getQueryParams() == null || config == null
-                || config.getAttrs() == null) {
+                || config.getAttr() == null) {
             return;
         }
-        String key = config.getAttrs().get("callbackSignKey");
+        String key = config.getAttr().get("callbackSignKey");
         String sign = raw.getQueryParams().get("sign");
         if (StringUtils.isBlank(key) || StringUtils.isBlank(sign)) {
             return;
@@ -250,13 +249,6 @@ public final class BaiwangJsCallbackParser {
             throw new GatewayException(InvoiceErrorCode.SIGN_INVALID,
                     "百旺金穗云回调验签失败");
         }
-    }
-
-    private static String accountKey(InvoiceCallbackRequest raw) {
-        if (raw == null || raw.getQueryParams() == null) {
-            return null;
-        }
-        return raw.getQueryParams().get(BaiwangJsSpec.ACCOUNT_KEY_PARAM);
     }
 
     private static void addUrl(List<InvoiceFile> files, JsonNode root, InvoiceFileType type,
@@ -288,9 +280,9 @@ public final class BaiwangJsCallbackParser {
         return BaiwangJsCodec.decimalValue(root, names);
     }
 
-    private static void put(Map<String, String> attrs, String key, String value) {
+    private static void put(Map<String, String> attr, String key, String value) {
         if (StringUtils.isNotBlank(value)) {
-            attrs.put(key, value);
+            attr.put(key, value);
         }
     }
 

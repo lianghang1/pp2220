@@ -19,7 +19,7 @@ public class BillSheet implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 渠道编码 */
     private String channelCode;
     /** 账单日期 */

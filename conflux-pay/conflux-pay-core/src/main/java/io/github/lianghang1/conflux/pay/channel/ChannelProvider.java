@@ -23,11 +23,11 @@ public interface ChannelProvider {
     Set<String> supportedMethods();
 
     /**
-     * 将配置键值对解析为渠道参数对象（starter 默认配置实现按本方法构建 ChannelParams）。
+     * 将配置键值对解析为渠道参数对象（starter 默认配置实现按本方法构建渠道强类型 config）。
      * 键名约定由渠道包自行定义并在文档中说明；不支持声明式配置的渠道返回 null
      * （此时使用方必须自行实现 ChannelConfigProvider）。
      */
-    default ChannelParams parseParams(java.util.Map<String, String> properties) {
+    default ChannelConfig parseParams(java.util.Map<String, String> properties) {
         return null;
     }
 

@@ -71,8 +71,8 @@ class SmsGatewayTest {
                 return channel;
             }
         };
-        SmsConfigProvider cp = (appId, ch) ->
-                new SmsChannelConfig(appId, ch, Collections.<String, String>emptyMap());
+        SmsConfigProvider cp = (configId, ch) ->
+                new SmsChannelConfig().setConfigId(configId).setChannelCode(ch);
         return SmsGateway.builder()
                 .configProvider(cp)
                 .channel(SmsChannelProvider.of(factory))
@@ -92,7 +92,7 @@ class SmsGatewayTest {
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getBizId()).isEqualTo("BIZ-1");
         assertThat(result.getChannel()).isEqualTo("mockgw");
-        assertThat(result.getAppId()).isEqualTo("gw");
+        assertThat(result.getConfigId()).isEqualTo("gw");
         assertThat(result.getRaw()).isEqualTo("REQ-OK");
         assertThat(result.getError()).isNull();
     }
@@ -128,7 +128,7 @@ class SmsGatewayTest {
     @Test
     void missingConfigShouldFailFast() {
         // 配置源返回 null → ensureLoaded 抛 CONFIG_MISSING，与支付/发票 build 必填语义对齐
-        SmsGateway gateway = SmsGateway.builder().configProvider((appId, ch) -> null).build();
+        SmsGateway gateway = SmsGateway.builder().configProvider((configId, ch) -> null).build();
         assertThatThrownBy(() -> gateway.send("none", "alibaba",
                 new SmsSendRequest().setPhone("18888888888").setContent("hi")))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
@@ -146,7 +146,7 @@ class SmsGatewayTest {
     @Test
     void badRequestShouldFailFast() {
         SmsGateway gateway = SmsGateway.builder()
-                .configProvider((appId, ch) -> new SmsChannelConfig(appId, ch, Collections.<String, String>emptyMap()))
+                .configProvider((configId, ch) -> new SmsChannelConfig().setConfigId(configId).setChannelCode(ch))
                 .build();
         assertThatThrownBy(() -> gateway.send("", "alibaba",
                 new SmsSendRequest().setPhone("18888888888")))

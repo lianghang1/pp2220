@@ -61,9 +61,6 @@ public final class NuonuoSpec {
     /** 开票结果通知 action。 */
     public static final String NOTICE_ACTION = "nuonuo_billing_new_notice";
 
-    /** 回调地址上用于反查账户配置的查询参数名（框架统一约定）。 */
-    public static final String ACCOUNT_KEY_PARAM = "accountKey";
-
     /** 回调成功应答（文档示例：返回其他内容会触发重推）。 */
     public static final String REPLY_SUCCESS = "success";
 

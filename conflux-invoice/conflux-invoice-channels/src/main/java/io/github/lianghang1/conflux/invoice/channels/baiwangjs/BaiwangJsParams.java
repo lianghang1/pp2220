@@ -1,40 +1,35 @@
 package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
 
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
+import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.model.InvoiceType;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 百旺金穗云渠道参数：从 {@code conflux.invoice.apps.<appId>.baiwangjs.attrs} 解析。
+ * 百旺金穗云渠道参数：从 {@code conflux.invoice.configs.<configId>.baiwangjs.attr} 解析。
  *
  * <p><b>凭据</b>：网关 KEY / SECRET 用于 HMAC-SHA256 签名（非业务 appKey/appSecret）；
  * {@code qyId} 为企业唯一标识，通过 3.1.1 接口查询一次即可，也可直接配置；
  * {@code dlzh} 是开票员的电子税务局登录账号（一般为手机号）。</p>
  *
  * <p><b>版本</b>：{@link #apiVersion} 默认 {@link BaiwangJsApiVersion#V2}；
- * 置为 V1 时开票/查单走 V1 路径并使用 V1 合并字段报文。所有路径均允许 attrs 覆盖。</p>
+ * 置为 V1 时开票/查单走 V1 路径并使用 V1 合并字段报文。所有路径均允许 attr 覆盖。</p>
  *
  * @author lianghang
  */
 @Data
 @Accessors(chain = true)
-public class BaiwangJsParams implements InvoiceChannelParams, Serializable {
+public class BaiwangJsParams extends ChannelConfig {
 
-    private static final long serialVersionUID = 1L;
-
-    /** 网关 KEY（Authorization 的 username，也是账户键第一段）。 */
+    /** 网关 KEY（Authorization 的 username）。 */
     private String gatewayKey;
     /** 网关 SECRET（HMAC-SHA256 密钥）。 */
     private String gatewaySecret;
     /** 企业唯一标识（3.1.1 查询获得，必需）。 */
     private String qyId;
-    /** 销方纳税人识别号（企业准入标识，账户键第二段）。 */
-    private String sellerTaxNo;
     /** 电子税务局登录账号（开票员手机号，数电票必填）。 */
     private String dlzh;
     /** 开票人。 */
@@ -55,24 +50,19 @@ public class BaiwangJsParams implements InvoiceChannelParams, Serializable {
     private String host = BaiwangJsSpec.DEFAULT_HOST;
     private String userAgent = BaiwangJsSpec.DEFAULT_UA;
     private long timeoutMillis = 30000L;
-    private boolean sandbox;
 
     /** 接口版本：V2 优先，V1 保留实现。 */
     private BaiwangJsApiVersion apiVersion = BaiwangJsApiVersion.V2;
 
-    /** 原始配置（路径覆盖从这里读取）。 */
-    private Map<String, String> attrs = new LinkedHashMap<String, String>();
     /** 票种 → fplxdm 编码映射（键为 InvoiceType.name()）。 */
     private Map<String, String> invoiceTypeCodes = new LinkedHashMap<String, String>();
 
-    @Override
     public String channelAppId() {
         return channelAppId;
     }
 
-    @Override
     public String sellerTaxNo() {
-        return sellerTaxNo;
+        return getSellerTaxNo();
     }
 
     /** 是否使用 V1 报文与路径。 */
@@ -80,9 +70,10 @@ public class BaiwangJsParams implements InvoiceChannelParams, Serializable {
         return apiVersion == BaiwangJsApiVersion.V1;
     }
 
-    /** 取能力路径：attrs 覆盖优先于版本默认值。 */
+    /** 取能力路径：attr 覆盖优先于版本默认值。 */
     public String path(String key, String v2Path, String v1Path) {
-        String override = attrs == null ? null : attrs.get(key);
+        Map<String, String> rawAttr = getAttr();
+        String override = rawAttr == null ? null : rawAttr.get(key);
         if (override != null && override.trim().length() > 0) {
             return override.trim();
         }
@@ -119,7 +110,7 @@ public class BaiwangJsParams implements InvoiceChannelParams, Serializable {
         return fullUrl.substring(start, end);
     }
 
-    /** 票种编码：attrs 的 {@code fplxdm.<InvoiceType>} 优先，其次文档默认映射。 */
+    /** 票种编码：attr 的 {@code fplxdm.<InvoiceType>} 优先，其次文档默认映射。 */
     public String invoiceTypeCode(InvoiceType type) {
         if (type == null) {
             return null;

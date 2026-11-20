@@ -144,9 +144,9 @@ class BaiwangJsCodecTest {
     @Test
     void path_attrOverrideWins() {
         BaiwangJsParams params = params(false);
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        attrs.put("issuePath", "/custom/apply");
-        params.setAttrs(attrs);
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        attr.put("issuePath", "/custom/apply");
+        params.setAttr(attr);
         assertEquals("/custom/apply",
                 params.path("issuePath", BaiwangJsSpec.ISSUE_V2, BaiwangJsSpec.ISSUE_V1));
     }
@@ -214,14 +214,16 @@ class BaiwangJsCodecTest {
     // ---- 夹具 ----
 
     private BaiwangJsParams params(boolean v1) {
-        return new BaiwangJsParams()
+        BaiwangJsParams p = new BaiwangJsParams()
                 .setGatewayKey("my-key").setGatewaySecret("my-secret")
-                .setQyId("Q1").setSellerTaxNo("91310000TEST000001")
+                .setQyId("Q1")
                 .setDlzh("13800000000").setKpr("开票员").setSqr("申请人")
                 .setSellerName("测试销方").setSellerAddress("SplitAddr")
                 .setSellerPhone("021-8888").setSellerBank("Bank")
                 .setSellerBankAccount("6222")
                 .setApiVersion(v1 ? BaiwangJsApiVersion.V1 : BaiwangJsApiVersion.V2);
+        p.setSellerTaxNo("91310000TEST000001");
+        return p;
     }
 
     private InvoiceContext context(boolean v1) {
@@ -234,7 +236,7 @@ class BaiwangJsCodecTest {
                 .setQuantity(BigDecimal.ONE)
                 .setUnitPrice(new BigDecimal("113.00"));
         Invoice invoice = new Invoice()
-                .setInvoiceId("INV-1").setAppId("demo")
+                .setInvoiceId("INV-1").setConfigId("demo")
                 .setBizOrderNo("ORDER-1")
                 .setSellerTaxNo("91310000TEST000001").setSellerName("测试销方")
                 .setBuyerTitle("测试购方").setBuyerTaxNo("91310000BUYER00001")
@@ -247,16 +249,10 @@ class BaiwangJsCodecTest {
                 .setInvoiceNo("24312000000000000001")
                 .setInvoiceCode("144031609110")
                 .setState(InvoiceState.PROCESSING);
-        ChannelConfig config = new ChannelConfig()
-                .setAppId("demo").setChannelCode(BaiwangJsSpec.CODE)
+        BaiwangJsParams config = params(v1);
+        config.setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE)
                 .setSellerTaxNo(invoice.getSellerTaxNo())
-                .setParams(params(v1))
-                .setAttrs(Collections.<String, String>emptyMap());
-        InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
-        if (v1) {
-            // V1 与 V2 使用同一份参数，仅版本标记不同
-            ((BaiwangJsParams) config.getParams()).setApiVersion(BaiwangJsApiVersion.V1);
-        }
-        return ctx;
+                .setAttr(Collections.<String, String>emptyMap());
+        return InvoiceContext.of(config, null, invoice);
     }
 }

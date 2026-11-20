@@ -22,7 +22,7 @@ public class Payment implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务单号（渠道商户单号；查重由使用方负责） */
     private String bizOrderNo;
     /** 支付方式编码（PayMethod.code） */
@@ -39,6 +39,8 @@ public class Payment implements Serializable {
     private String body;
     /** 下单客户端 IP */
     private String clientIp;
+    /** 异步通知地址（按单覆盖渠道配置）；请求优先、配置兜底，由渠道 handler 读取 */
+    private String notifyUrl;
     /** 支付单状态 */
     private PaymentState state;
     /** 支付唤起参数（PayPayload 的 JSON，可空） */

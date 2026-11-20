@@ -1,16 +1,19 @@
 # API 参考
 
-统一入口是三个门面类，三域对外契约同构，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。全部请求/结果类位于 `*.api` 包，状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）。
+统一入口是四个门面类，四域对外契约同构，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。支付/发票的请求/结果类位于 `*.api` 包、状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）；文件域门面直接返回 x-file-storage 官方原始类型。
+
+四域配置的框架定位键统一为 `configId`（发票另需 `sellerTaxNo`），渠道统一用 `channelCode`，渠道个性配置统一放 `attr`。回调验签仍在框架，但配置定位由使用方按自己的订单查库得到 `configId` 后显式传入，框架不再从报文隐式反查账户键。
 
 | 门面 | 全限定名 | 获取方式 |
 |---|---|---|
 | 支付 | `io.github.lianghang1.conflux.pay.engine.PaymentGateway` | Spring 注入，或 `PaymentGateway.builder()....build()` |
 | 发票 | `io.github.lianghang1.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
 | 短信 | `io.github.lianghang1.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
+| 文件 | `io.github.lianghang1.conflux.file.engine.FileGateway` | Spring 注入，或 `FileGateway.builder()....build()` |
 
 金额单位：支付 = 分（`Long`），发票 = 元（`BigDecimal`）。
 
-三域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（支付 `ChannelConfigProvider` / 发票 `InvoiceConfigProvider` / 短信 `SmsConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。差异仅在支付/发票有自有 `ChannelProvider` SPI，短信渠道实现全在 sms4j、无该 SPI。
+四域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（`ChannelConfigProvider` / `InvoiceConfigProvider` / `SmsConfigProvider` / `FileConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载自定义渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。**内置渠道由 `build()` 自动全量注册，用户零 `.channel()`；`.channel(...)` 仅作自定义渠道扩展口，同编码覆盖内置。** 差异仅在支付/发票有自有 `ChannelProvider` SPI，短信/文件渠道实现全在第三方原始包（sms4j / x-file-storage）。
 
 ## 一、支付 API（PaymentGateway）
 
@@ -27,10 +30,10 @@
 | `queryTransfer` | `TransferQueryRequest` | `TransferResult` | 转账查单 |
 | `createProfitShare` | `ProfitShareRequest` | `ProfitShareResult` | 发起分账（须带原支付单渠道单号） |
 | `queryProfitShare` | `ProfitShareQueryRequest` | `ProfitShareResult` | 分账查单 |
-| `parseCallback` | `ChannelCallbackRequest` | `CallbackEvent` | 验签并归一回调事件 |
+| `parseCallback` | `String configId, ChannelCallbackRequest` | `CallbackEvent` | 按 configId 取配置验签并归一回调事件（configId 由使用方查库显式传入） |
 | `callbackSuccessReply` | `String channelCode` | `String` | 处理成功应答报文 |
 | `callbackFailureReply` | `String channelCode` | `String` | 处理失败应答报文（触发渠道重推） |
-| `fetchBill` | `String channelCode, String appId, LocalDate billDate` | `BillSheet` | 拉取渠道账单，对账比对由使用方完成 |
+| `fetchBill` | `String channelCode, String configId, LocalDate billDate` | `BillSheet` | 拉取渠道账单，对账比对由使用方完成 |
 | `registerChannel` | `ChannelProvider` | `void` | 启动期注册渠道提供者 |
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
@@ -51,26 +54,28 @@
 
 | 类 | 字段 |
 |---|---|
-| `PaymentRequest` | `appId` `bizOrderNo` `method` `channelCode` `amount` `currency` `subject` `body` `clientIp` `channelExtras` |
-| `PaymentQueryRequest` | `appId` `bizOrderNo` `channelCode` `channelOrderNo` |
-| `RefundRequest` | `appId` `bizRefundNo` `channelCode` `bizOrderNo` `channelOrderNo` `totalAmount` `amount` `currency` `reason` `channelExtras` |
-| `RefundQueryRequest` | `appId` `bizRefundNo` `channelCode` `channelRefundNo` `bizOrderNo` |
-| `TransferRequest` | `appId` `bizTransferNo` `method` `payeeAccount` `payeeName` `amount` `currency` `remark` `channelExtras` |
-| `TransferQueryRequest` | `appId` `bizTransferNo` `channelCode` `channelTransferNo` |
-| `ProfitShareRequest` | `appId` `bizShareNo` `channelCode` `bizOrderNo` `channelOrderNo` `receivers`（`List<ProfitShareReceiver>`）`channelExtras` |
-| `ProfitShareQueryRequest` | `appId` `bizShareNo` `channelCode` `channelShareNo` |
+| `PaymentRequest` | `configId` `bizOrderNo` `method` `channelCode` `amount` `currency` `subject` `body` `clientIp` `notifyUrl` `channelExtras` |
+| `PaymentQueryRequest` | `configId` `bizOrderNo` `channelCode` `channelOrderNo` |
+| `RefundRequest` | `configId` `bizRefundNo` `channelCode` `bizOrderNo` `channelOrderNo` `totalAmount` `amount` `currency` `reason` `notifyUrl` `channelExtras` |
+| `RefundQueryRequest` | `configId` `bizRefundNo` `channelCode` `channelRefundNo` `bizOrderNo` |
+| `TransferRequest` | `configId` `bizTransferNo` `method` `payeeAccount` `payeeName` `amount` `currency` `remark` `notifyUrl` `channelExtras` |
+| `TransferQueryRequest` | `configId` `bizTransferNo` `channelCode` `channelTransferNo` |
+| `ProfitShareRequest` | `configId` `bizShareNo` `channelCode` `bizOrderNo` `channelOrderNo` `receivers`（`List<ProfitShareReceiver>`）`channelExtras` |
+| `ProfitShareQueryRequest` | `configId` `bizShareNo` `channelCode` `channelShareNo` |
 | `ChannelCallbackRequest` | `channelCode` `headers` `queryParams` `formParams`（均 `Map<String,String>`）`body` |
+
+> **异步通知地址（notifyUrl）**：支付下单 / 退款 / 转账的请求均可选传 `notifyUrl`，作为一等字段随 `Payment`/`Refund`/`Transfer` 载体透传给渠道 handler；handler 按「请求非空优先、否则回退渠道配置的 `notifyUrl`」取值。同一渠道可按单指定不同回调地址，不传则完全沿用配置。
 
 ### 1.3 结果对象字段
 
 | 类 | 字段 |
 |---|---|
-| `PaymentResult` | `appId` `bizOrderNo` `method` `channelCode` `channelOrderNo` `state` `payPayload` `errorCode` `errorMsg` `succeedTime` |
-| `RefundResult` | `appId` `bizRefundNo` `amount` `currency` `state` `channelRefundNo` `errorCode` `errorMsg` `succeedTime` |
-| `TransferResult` | `appId` `bizTransferNo` `method` `channelCode` `state` `channelTransferNo` `errorCode` `errorMsg` `succeedTime` |
-| `ProfitShareResult` | `appId` `bizShareNo` `amount` `receivers` `state` `channelShareNo` `errorCode` `errorMsg` `finishTime` |
-| `CallbackEvent` | `type`（`BizOrderType`）`appId` `bizOrderNo` `channelOrderNo` `success` `amount` `occurTime` `raw` |
-| `BillSheet` | `appId` `channelCode` `billDate` `entries`（`List<BillEntry>`） |
+| `PaymentResult` | `configId` `bizOrderNo` `method` `channelCode` `channelOrderNo` `state` `payPayload` `errorCode` `errorMsg` `succeedTime` |
+| `RefundResult` | `configId` `bizRefundNo` `amount` `currency` `state` `channelRefundNo` `errorCode` `errorMsg` `succeedTime` |
+| `TransferResult` | `configId` `bizTransferNo` `method` `channelCode` `state` `channelTransferNo` `errorCode` `errorMsg` `succeedTime` |
+| `ProfitShareResult` | `configId` `bizShareNo` `amount` `receivers` `state` `channelShareNo` `errorCode` `errorMsg` `finishTime` |
+| `CallbackEvent` | `type`（`BizOrderType`）`configId` `bizOrderNo` `channelOrderNo` `success` `amount` `occurTime` `raw` |
+| `BillSheet` | `configId` `channelCode` `billDate` `entries`（`List<BillEntry>`） |
 
 > `PaymentResult.payPayload` 的结构与使用方式见 [§1.5 支付唤起参数](#15-支付唤起参数paypayload)。
 
@@ -146,7 +151,7 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `resend` | `DeliveryRequest` | `DeliveryResult` | 重新交付（短信/邮箱重发），不改状态 |
 | `repair` | `RepairRequest` | `RepairResult` | 提交发票修复申请，不改状态 |
 | `queryRepair` | `RepairRequest` | `RepairResult` | 查修复结果 |
-| `parseCallback` | `InvoiceCallbackRequest` | `InvoiceCallbackEvent` | 验签并归一回调事件 |
+| `parseCallback` | `String configId, String sellerTaxNo, InvoiceCallbackRequest` | `InvoiceCallbackEvent` | 按 configId + 销方税号取配置验签并归一回调事件（由使用方查库显式传入） |
 | `callbackReply` | `String channelCode, boolean success, String message` | `InvoiceCallbackReply` | 生成应答报文 |
 | `materializeFiles` | `List<InvoiceFile> files, String invoiceId, boolean strict` | `List<InvoiceFile>` | 就地固化版式文件（下载/解码回填） |
 | `fileBytes` | `InvoiceFile file` / `List<InvoiceFile> files, InvoiceFileType type` | `byte[]` | 取文件字节（内联解码；仅 url 时下载） |
@@ -160,15 +165,15 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 | 类 | 字段 |
 |---|---|
-| `InvoiceRequest` | `appId` `bizOrderNo` `channelCode` `sellerTaxNo` `sellerName` `buyerTaxNo` `buyerTitle` `buyerAddress` `buyerBank` `buyerPhone` `buyerMobile` `buyerEmail` `invoiceType` `items`（`List<InvoiceItem>`）`amount` `taxAmount` `remark` `drawer` `tspz` `zsfs` `jzfwTdys` `bdcTdysList` `notifyUrl` `sandbox` `attrs` |
-| `InvoiceQueryRequest` | `appId` `channelCode` `bizOrderNo` `channelOrderNo` `invoiceNo` `invoiceCode` `invoice` |
-| `AuthSubmission` | `appId` `captcha` `token` `extra` `session`（`AuthSession`）`invoice` |
-| `RedApplyRequest` | `appId` `bizRedNo` `reason` `chyydm` `amount` `channelCode` `notifyUrl` `originalInvoice` |
-| `RedApplyQueryRequest` | `appId` `redApply` |
-| `RedConfirmRequest` | `appId` `accept` `reason` `extra` `redApply` |
-| `RedIssueRequest` | `appId` `channelCode` `notifyUrl` `redApply` `originalInvoice` |
-| `DeliveryRequest` | `appId` `phone` `email` `extra` `invoice` |
-| `RepairRequest` | `appId` `channelCode` `sellerTaxNo` `invoiceId` `invoiceCode` `invoiceNo` `startDate` `endDate` `invoiceTypeCode` `channelOrderNo` `extra` |
+| `InvoiceRequest` | `configId` `bizOrderNo` `channelCode` `sellerTaxNo` `sellerName` `buyerTaxNo` `buyerTitle` `buyerAddress` `buyerBank` `buyerPhone` `buyerMobile` `buyerEmail` `invoiceType` `items`（`List<InvoiceItem>`）`amount` `taxAmount` `remark` `drawer` `tspz` `zsfs` `jzfwTdys` `bdcTdysList` `notifyUrl` `sandbox` `attr` |
+| `InvoiceQueryRequest` | `configId` `channelCode` `bizOrderNo` `channelOrderNo` `invoiceNo` `invoiceCode` `invoice` |
+| `AuthSubmission` | `configId` `captcha` `token` `extra` `session`（`AuthSession`）`invoice` |
+| `RedApplyRequest` | `configId` `bizRedNo` `reason` `chyydm` `amount` `channelCode` `notifyUrl` `originalInvoice` |
+| `RedApplyQueryRequest` | `configId` `redApply` |
+| `RedConfirmRequest` | `configId` `accept` `reason` `extra` `redApply` |
+| `RedIssueRequest` | `configId` `channelCode` `notifyUrl` `redApply` `originalInvoice` |
+| `DeliveryRequest` | `configId` `phone` `email` `extra` `invoice` |
+| `RepairRequest` | `configId` `channelCode` `sellerTaxNo` `invoiceId` `invoiceCode` `invoiceNo` `startDate` `endDate` `invoiceTypeCode` `channelOrderNo` `extra` |
 | `InvoiceCallbackRequest` | `channelCode` `queryParams` `formParams` `headers`（均 `Map<String,String>`）`body` |
 
 ### 2.3 结果对象字段
@@ -177,11 +182,11 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 |---|---|
 | `InvoiceResult` | `invoiceId` `bizOrderNo` `state` `channelCode` `channelInstanceId` `channelOrderNo` `invoiceNo` `invoiceCode` `invoiceDate` `invoiceTime` `amount` `taxAmount` `files` `authChallenge` `asyncAccepted` `errorCode` `errorMsg` `rawPayload` `invoice` `authSession` |
 | `QuickRedResult` | `outcome`（`ACCEPTED` / `WAITING_CONFIRM`）`redApply` `redInvoice` |
-| `RedApply` | `redApplyId` `appId` `bizRedNo` `originalInvoiceId/No/Code` `reason` `chyydm` `amount` `channelCode` `channelInstanceId` `accountKey` `channelOrderNo` `redConfirmNo` `state` `confirmDeadline` `confirmedTime` `redInvoiceId` `notifyUrl` `errorCode` `errorMsg` |
+| `RedApply` | `redApplyId` `configId` `bizRedNo` `originalInvoiceId/No/Code` `reason` `chyydm` `amount` `channelCode` `channelInstanceId` `channelOrderNo` `redConfirmNo` `state` `confirmDeadline` `confirmedTime` `redInvoiceId` `notifyUrl` `errorCode` `errorMsg` |
 | `DeliveryResult` | `accepted` `asyncAccepted` `channelOrderNo` `errorCode` `errorMsg` `rawPayload` |
 | `RepairResult` | `channelOrderNo` `files` `invoiceNo` `invoiceCode` `errorCode` `errorMsg` `rawPayload` |
-| `AuthSession` | `sessionId` `invoiceId` `appId` `channelCode` `accountKey` `authType` `state` `challengeUrl` `challengeText` `expireTime` `submittedTime` `payload` |
-| `InvoiceCallbackEvent` | `accountKey` `invoiceId` `redApplyId` `channelOrderNo` `bizOrderNo` `state` `invoiceNo` `invoiceCode` `invoiceDate` `amount` `taxAmount` `files` `redState` `redConfirmNo` `errorCode` `errorMsg` `rawPayload` `attrs` |
+| `AuthSession` | `sessionId` `invoiceId` `configId` `channelCode` `authType` `state` `challengeUrl` `challengeText` `expireTime` `submittedTime` `payload` |
+| `InvoiceCallbackEvent` | `invoiceId` `redApplyId` `channelOrderNo` `bizOrderNo` `state` `invoiceNo` `invoiceCode` `invoiceDate` `amount` `taxAmount` `files` `redState` `redConfirmNo` `errorCode` `errorMsg` `rawPayload` `attr` |
 | `InvoiceCallbackReply` | `success` `contentType` `body` `message` |
 
 ### 2.4 票据载体与枚举
@@ -200,44 +205,77 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 ## 三、短信 API（SmsGateway）
 
-短信渠道实现全量委托 sms4j 原始包（api/core/provider），门面只做配置装载与出口归一。`channel` 直接用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码可用。
+短信渠道实现全量委托 sms4j 原始包（api/core/provider），门面只做配置装载与出口归一。`channelCode` 直接用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码自动发现。
 
 ### 3.1 方法清单
 
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
-| `send` | `String appId, String channel, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `SmsChannelProvider` | `void` | 声明渠道（与支付/发票同构），把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder` |
+| `send` | `String configId, String channelCode, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
+| `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义渠道（与支付/发票同构），把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder` |
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（声明渠道，可多次调用）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
+`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（仅声明自定义渠道，可多次调用；内置渠道由 sms4j 自动发现，无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
 
-`SmsChannelProvider.of(channelCode)` 声明内置 sms4j 渠道；`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
+`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
 
 ### 3.2 请求/结果与配置
 
 | 类型 | 字段 |
 |---|---|
 | `SmsSendRequest` | `bizId` `phone` `content` `params`（模板变量，非空时走 Map 重载，否则走文本重载） |
-| `SmsSendResult` | `success` `bizId` `channel` `appId` `raw`（sms4j 原始返回） `error` |
-| `SmsChannelConfig` | `appId` `channel` `attrs`（键名对齐 sms4j Config 字段） |
+| `SmsSendResult` | `success` `bizId` `configId` `channel`（sms4j supplier 标识） `raw`（sms4j 原始返回） `error` |
+| `SmsChannelConfig` | `configId` `channelCode` `accessKeyId` `accessKeySecret` `signature` `templateId` `attr`（厂商特有键，键名对齐 sms4j Config 字段） |
 
-配置源 SPI：`SmsConfigProvider.getConfig(appId, channel)` 返回 `SmsChannelConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemorySmsConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesSmsConfigProvider`（读 `conflux.sms.apps.*`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
+`SmsChannelConfig` 是短信域自有配置对象，**不暴露 sms4j 官方配置类**：公共凭证四件套（accessKeyId/accessKeySecret/signature/templateId）为一等字段，厂商特有键放 `attr`，装载期由 `mergedAttr()` 合并（公共字段优先）后交给 sms4j 官方 Factory 构建厂商 Config。
 
-## 四、构建器（纯 jar 场景）
+配置源 SPI：`SmsConfigProvider.getConfig(configId, channelCode)` 返回 `SmsChannelConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemorySmsConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesSmsConfigProvider`（读 `conflux.sms.configs.<configId>.<channelCode>`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
 
-| 门面 Builder 方法 | 支付 | 发票 | 短信 | 说明 |
-|---|---|---|---|---|
-| `.channel(Provider)` | ✓ | ✓ | ✓ | 声明/注册渠道，可多次调用；短信传 `SmsChannelProvider`（只声明编码+Factory，实现在 sms4j） |
-| `.configProvider(...)` | ✓ 必填 | ✓ 必填 | ✓ 必填 | 配置提供者，必填、每次调用读取 |
-| `.clock(Clock)` | ✓ | ✓ | — | 注入时钟（测试用） |
-| `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | 版式文件固化选项 |
-| `.build()` | ✓ | ✓ | ✓ | 构建网关 |
+## 四、文件 API（FileGateway）
 
-## 五、相关文档
+文件域平台实现与 `FileStorageService` 构建全量委托 x-file-storage 原始包（`x-file-storage-core`，非其 starter），门面只做配置装载 + 出口委托，返回官方原始类型，不另造结果对象、不重做对方能力。`<channelCode>` 对外统一命名，内部映射为 x-file-storage 的平台实例标识（`platform`）。
 
-- **三域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](framework-contract.md) —— 新增能力或渠道必须严格执行
-- 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）、README「能力域三：短信」（短信）
+### 4.1 方法清单
+
+| 方法 | 参数 | 返回 | 说明 |
+|---|---|---|---|
+| `upload` | `String configId, String channelCode, Object source` | `FileInfo` | 上传，委托 `service.of(source).setPlatform(channelCode).upload()` |
+| `upload` | `String configId, String channelCode, Object source, String name` | `FileInfo` | 指定原始文件名的上传（byte[]/InputStream/URL 等） |
+| `download` | `String configId, String channelCode, FileInfo fileInfo` | `Downloader` | 下载，返回官方 Downloader（`bytes()`/`file()`/`outputStream()`） |
+| `delete` | `String configId, String channelCode, FileInfo fileInfo` | `boolean` | 删除 |
+| `exists` | `String configId, String channelCode, FileInfo fileInfo` | `boolean` | 存在性判断 |
+| `generatePresignedUrl` | `String configId, String channelCode, FileInfo fileInfo, Date expiration` | `String` | 生成预签名 URL（放开 B） |
+| `copy` | `String configId, String channelCode, FileInfo fileInfo` | `CopyPretreatment` | 复制，返回官方预处理器供链式（放开 C） |
+| `move` | `String configId, String channelCode, FileInfo fileInfo` | `MovePretreatment` | 移动，返回官方预处理器供链式（放开 C） |
+| `nativeService` | `String configId, String channelCode` | `FileStorageService` | 原生出口：分片/ACL/元数据/列举/图片处理等进阶能力直接用官方 API |
+| `registerChannel` | `FileChannelProvider` | `void` | 增补自定义平台声明 |
+| `registeredChannels` | — | `Set<String>` | 已声明渠道编码集合 |
+
+`FileGateway.Builder` 方法：`.configProvider(FileConfigProvider)`（**必填**，与其他域一致；业务链路每次读配置）、`.channel(FileChannelProvider)`（仅声明自定义平台，可多次调用；内置平台由配置驱动构建）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`，并按 configId 聚合全部配置预热装载）。
+
+### 4.2 配置与 FileRecorder 边界
+
+| 类型 | 说明 |
+|---|---|
+| `FileChannelConfig` | `configId` `channelCode` `properties`（官方 `FileStorageProperties`，含各平台 List 段） |
+| 配置源 SPI | `FileConfigProvider.getConfig(configId, channelCode)`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemoryFileConfigProvider`（纯 Java/测试）、starter 的 `PropertiesFileConfigProvider`（读 `conflux.file.configs.<configId>.<channelCode>`） |
+
+平台配置 value 直接是官方 `FileStorageProperties`，各平台段由 Spring Boot 原生绑定，内核整体交给官方 builder，**不逐平台解析字段**。文件域**不实现、不托管** `FileRecorder`、不落库：门面一律以 `FileInfo` 为入参/返回，不暴露 `getFileInfoByUrl` 及一切 `url → 元信息` 反查方法（这些方法依赖 DB 记录，官方默认 `DefaultFileRecorder` 下抛明确异常）。需要按 url 查询请自实现 `FileRecorder`，再走 `nativeService()` 原生能力。
+
+## 五、构建器（纯 jar 场景）
+
+| 门面 Builder 方法 | 支付 | 发票 | 短信 | 文件 | 说明 |
+|---|---|---|---|---|---|
+| `.channel(Provider)` | ✓ | ✓ | ✓ | ✓ | **仅自定义渠道扩展口**，可多次调用，同编码覆盖内置；内置渠道由 `build()` 自动注册、用户零调用；短信传 `SmsChannelProvider`、文件传 `FileChannelProvider`（承载第三方原生实例，实现在 sms4j / x-file-storage） |
+| `.configProvider(...)` | ✓ 必填 | ✓ 必填 | ✓ 必填 | ✓ 必填 | 配置提供者，必填、每次调用读取 |
+| `.clock(Clock)` | ✓ | ✓ | — | — | 注入时钟（测试用） |
+| `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | — | 版式文件固化选项 |
+| `.build()` | ✓ | ✓ | ✓ | ✓ | 构建网关 |
+
+## 六、相关文档
+
+- **四域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](framework-contract.md) —— 新增能力或渠道必须严格执行
+- 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）、README「能力域三：短信 / 能力域四：文件」（短信/文件）
 - 接入流程：[pay-integration.md](pay-integration.md)
 - 平台核对与协议细节：[invoice-platforms.md](invoice-platforms.md)

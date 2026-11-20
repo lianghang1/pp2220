@@ -6,8 +6,7 @@
 
 1. 本地起 example（或使用方工程）：`mvn spring-boot:run`，默认 8088 端口
 2. 回调地址需要公网可达——本地开发用内网穿透（ngrok/花生壳）暴露 8088，
-   回调 URL = `https://<穿透域名>/callback/{渠道编码}?<定位参数>`（微信 appId / 云闪付 merId / PayPal clientId）；
-   服务商模式改用 `?accountKey=<应用标识>%23<特约商户号>`，规则见 docs/config-keys.md
+   回调 URL = `https://<穿透域名>/callback/{渠道编码}`。验签仍在框架，但配置定位由使用方在回调里按渠道单号查自己库得到 `configId`（发票再加 `sellerTaxNo`）后显式传入 `parseCallback`，URL 无需携带账户定位参数，规则见 docs/config-keys.md
 3. 无公网时的替代验证：下单后用沙箱买家付款，调 `POST /api/pay/query`
    （内部触发渠道查单补单确认终态）——可验证下单/查单协议，验证不了验签
 
@@ -20,11 +19,11 @@
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       alipay:
         notifyUrl: https://<穿透域名>/callback/alipay
-        attrs:
+        attr:
           appId: 沙箱AppID（2021xxx）
           privateKey: 应用私钥
           alipayPublicKey: 支付宝公钥
@@ -52,11 +51,11 @@ conflux.pay:
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       paypal:
         sandbox: true
-        attrs:
+        attr:
           clientId: 沙箱clientId
           clientSecret: 沙箱clientSecret
           webhookId: Webhook订阅ID
@@ -81,11 +80,11 @@ API 安全中心申请 API 证书（拿证书序列号与私钥）+ 设置 APIv3
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       wechat:
         notifyUrl: https://<域名>/callback/wechat
-        attrs:
+        attr:
           wxApiVersion: v3
           merchantId: 商户号
           appId: 公众号/小程序AppID
@@ -109,11 +108,11 @@ Native 扫码；退款（V3 回调）；商家转账；分账（需开通分账�
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       unionpay:
         notifyUrl: https://<穿透域名>/callback/unionpay
-        attrs:
+        attr:
           merchantId: 商户号
           serProvId: 服务商标识（直连可空）
           p12CertPath: /cert/unionpay.p12
@@ -129,7 +128,7 @@ conflux.pay:
 | 现象 | 排查点 |
 |---|---|
 | 验签失败 | 微信：V3 头（Wechatpay-Serial 等）是否被网关改写；支付宝：表单参数是否被二次编码 |
-| 回调 404 / 配置缺失 | 回调 URL 查询参数（appId/merId/clientId）是否携带；服务商模式是否带 `accountKey`（`#` 需转义为 `%23`） |
-| 启动报 `CONFIG_CONFLICT` | 同一渠道下两个配置生成了相同账户键，为各特约商户配置不同的 `subMchNo` |
+| 回调 404 / 配置缺失 | 回调端点能否公网可达；使用方是否按渠道单号查库得到正确的 `configId`（发票加 `sellerTaxNo`）并显式传入 `parseCallback` |
+| 回调验签失败 | 传入的 `configId` 是否对应下单时的渠道凭据；微信 V3 头是否被网关改写、支付宝表单是否被二次编码 |
 | 查单一直 PAYING | 商户号/证书与下单环境是否一致（沙箱 vs 生产） |
 | 回调重复到达 | 渠道可能重发同一事件，判重由使用方按业务单号处理（SDK 不判重） |

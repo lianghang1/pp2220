@@ -105,7 +105,7 @@ class BaiwangCodecTest {
         assertThat(BaiwangCodec.invoiceTypeCode(params,
                 io.github.lianghang1.conflux.invoice.model.InvoiceType.DIGITAL_VAT_SPECIAL))
                 .isEqualTo("01");
-        params.setAttrs(java.util.Collections.singletonMap(
+        params.setAttr(java.util.Collections.singletonMap(
                 "fplxdm.DIGITAL_VAT_SPECIAL", "099"));
         assertThat(BaiwangCodec.invoiceTypeCode(params,
                 io.github.lianghang1.conflux.invoice.model.InvoiceType.DIGITAL_VAT_SPECIAL))

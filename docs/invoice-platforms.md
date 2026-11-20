@@ -25,7 +25,7 @@
 | `SERVICE_API` | 服务商开放 API，公开文档、可自动化，能力受平台封装限制 | 200 |
 | `WEB_PORTAL` | 电局网页 / 模拟 RPA，依赖登录态、扫脸、短信，作为兜底 | 100 |
 
-同一 `appId + sellerTaxNo` 下可注册多个实例，路由按 `ChannelTier.priority × 1000 + ChannelInstance.priority`
+同一 `configId + sellerTaxNo` 下可注册多个实例，路由按 `ChannelTier.priority × 1000 + ChannelInstance.priority`
 择优；显式指定 `channelCode` 时只在该渠道内选择（灰度 / 降级用）。
 
 ## 2. 百旺金穗云：专属适配器（以官方公开文档为准）
@@ -55,13 +55,13 @@ x-htjs-ua: {UserAgent}
 ```
 
 网关前缀 `/swgx-saas/agentinvoiceservice-cloudservice-cloudservice/agentiscloud`，
-默认网关 `https://api.baiwangjs.com`。私有化部署改 `attrs.baseUrl` 即可，`Host` 头与签名 host 会取同一个值。
+默认网关 `https://api.baiwangjs.com`。私有化部署改 `attr.baseUrl` 即可，`Host` 头与签名 host 会取同一个值。
 ### 2.2 接口路径清单（同一能力 V2 优先、V1 保留实现）
 
 下表为按官方公开文档《3.接口定义》核对后**已落地**的路径；加粗项为常用能力。
-所有路径都可用 `attrs` 中的覆盖键改写，便于平台升级或私有化部署，无需改代码。
+所有路径都可用 `attr` 中的覆盖键改写，便于平台升级或私有化部署，无需改代码。
 
-| 能力（文档编号） | attrs 覆盖键 | 默认路径 | 版本 / 触发 |
+| 能力（文档编号） | attr 覆盖键 | 默认路径 | 版本 / 触发 |
 |---|---|---|---|
 | 蓝字开具申请 3.2.6 | `issuePath` | `/cloud/v2/applyInvoice` | V2；V1 = `/cloud/applyInvoice` |
 | 按订单流水号查询 3.2.7 | `queryPath` | `/cloud/v2/queryOrder` | V2；V1 = `/cloud/queryOrder` |
@@ -74,7 +74,7 @@ x-htjs-ua: {UserAgent}
 | **可冲销明细查询 3.3.17** | `redAvailablePath` | `/cloud/hzcxmx` | 异步，回调 `hzcx` |
 | 电子税务局登录 3.4.4 | `authStartPath` / `authSubmitPath` | `/cloud/dzswjLogin` | 两步短信 |
 | 实人认证二维码（同步）3.4.6 | `qrCodePath` | `/elecEwm/queryEwmrzSnyc` | 默认 |
-| **实人认证二维码（异步）3.4.5** | `qrCodeAsyncPath` | `/elecEwm/queryEwmrz` | `attrs.qrMode=ASYNC` |
+| **实人认证二维码（异步）3.4.5** | `qrCodeAsyncPath` | `/elecEwm/queryEwmrz` | `attr.qrMode=ASYNC` |
 | **认证结果 / 风险查询 3.4.14** | `riskInfoPath` | `/elecEwm/queryRiskInfo` | 异步，回调 `cxnsrfx` |
 | **发票短信邮箱重发 3.4.7** | `deliveryPath` | `/cloud/fpReSend` | 同步 |
 | **电子发票下载地址查询 3.4.8** | `downloadPath` | `/cloud/invoiceDownload` | 同步（按 ddlsh） |
@@ -93,9 +93,9 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | 购方银行 / 账号 | `gmfYhzh` | `gmfYh` + `gmfZh` |
 | 明细序号 | 带 `xh` | 不带 `xh` |
 
-`attrs.apiVersion=V1` 时开票、查单与发票修复**同时**切到 V1 路径，开票报文同时切到 V1 合并字段；
+`attr.apiVersion=V1` 时开票、查单与发票修复**同时**切到 V1 路径，开票报文同时切到 V1 合并字段；
 空值 / 未知值回落 V2，不会因拼写错误静默切到老接口。其余接口文档只有单一版本，
-同一能力的同步/异步两种模式走 `attrs` 切换，不为版本或模式各开一个 SPI 方法。
+同一能力的同步/异步两种模式走 `attr` 切换，不为版本或模式各开一个 SPI 方法。
 
 ### 2.2.1 特殊票种（tspz）与特定业务要素（已按生产实现与文档双向核对）
 
@@ -129,9 +129,9 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 | `fpkj` | 开票结果（含红字开具结果，红字带 `yqdfphm` 原票号） | `status=1` 只补票号/日期/金额，**不置 SUCCEEDED**，等版式回调；`2`→FAILED、`3`→PROCESSING、`6`→CLOSED |
 | `qdbswj` | 版式文件地址（`xmlurl` / `ofdurl` / `pdf` / `jfdz`） | `status=1` 归档 XML/OFD/PDF 并置 `SUCCEEDED`；失败不推进成功 |
 | `qdhzsq` | 红字确认单申请结果 | `WAITING_CONFIRM` / `FAILED`，携带 `hzfpxxqrdbh` |
-| `ewmrz` | 实人认证二维码 | 登记 `rzid` / `ewm` 到 attrs，不改状态 |
-| `cxnsrfx` | 认证结果 / 风险信息 | 登记 `sfsl` / `sxlb` / `yjjb` 到 attrs，不改状态 |
-| **`hzcx`** | 可冲销明细查询结果（3.3.17） | 登记 `hzcxje` / `hzcxse` / `jshj` 到 attrs，**绝不迁移状态**，避免被误当成 `fpkj` |
+| `ewmrz` | 实人认证二维码 | 登记 `rzid` / `ewm` 到 attr，不改状态 |
+| `cxnsrfx` | 认证结果 / 风险信息 | 登记 `sfsl` / `sxlb` / `yjjb` 到 attr，不改状态 |
+| **`hzcx`** | 可冲销明细查询结果（3.3.17） | 登记 `hzcxje` / `hzcxse` / `jshj` 到 attr，**绝不迁移状态**，避免被误当成 `fpkj` |
 | `1004` / `1003` | 需要登录 / 需要实人认证 | 映射 `WAITING_AUTH` 挂起态并触发授权会话 |
 
 回调应答固定 `{"code":"0","message":"成功"}`；失败也返回 `code=1` 的 JSON，避免平台收不到应答。
@@ -147,28 +147,28 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 代码中回调用 `BaiwangJsSpec.ST_*` 常量，查单用 `QRY_*` 常量（`BaiwangJsCodec.queryInvoiceResult`）。
 
-**验签**：平台公开文档未定义回调签名头 / 参数，故**不伪造验签规则**；账户定位依赖回调 URL 上的 `?accountKey=...`。
-生产环境应通过网络层白名单 / 网关侧校验保障；若宿主另行约定了签名，可配 `attrs.callbackSignKey` + 查询参数 `sign` 启用 HMAC 校验。
+**验签**：平台公开文档未定义回调签名头 / 参数，故**不伪造验签规则**；配置定位由使用方按业务单号查自己库得到 `configId` + `sellerTaxNo`，显式传入 `parseCallback(configId, sellerTaxNo, request)`，回调 URL 无需携带账户定位参数。
+生产环境应通过网络层白名单 / 网关侧校验保障；若宿主另行约定了签名，可配 `attr.callbackSignKey` + 查询参数 `sign` 启用 HMAC 校验。
 
-### 2.4 配置项（`conflux.invoice.apps.<appId>.baiwangjs`）
+### 2.4 配置项（`conflux.invoice.configs.<configId>.baiwangjs`）
 
 | 键 | 位置 | 说明 |
 |---|---|---|
-| `seller-tax-no` | 顶层 | 销方税号，路由键与账户键第二段 |
-| `notify-url` | 顶层 | 回调地址，须带 `?accountKey=<channelAppId>#<sellerTaxNo>`（`#` 转义为 `%23`） |
+| `seller-tax-no` | 顶层 | 销方税号，多实例路由键的一段 |
+| `notify-url` | 顶层 | 回调地址；配置由使用方按订单查库得到 `configId` + `sellerTaxNo` 后显式传入 `parseCallback` |
 | `tier` / `priority` / `enabled` | 顶层 | 通道分级与路由权重 |
-| `gatewayKey` / `gatewaySecret` | attrs | 网关 KEY / SECRET，HMAC 签名用（**不是**业务 appKey） |
-| `qyId` | attrs | 企业唯一标识，由 3.1.1 查询一次后配置，必填 |
-| `sellerTaxNo` / `nsrsbh` | attrs | 写入报文的销方税号 |
-| `dlzh` / `kpr` / `sqr` | attrs | 电局登录账号（开票员手机号）/ 开票人 / 申请人 |
-| `sellerName`、`sellerAddress`、`sellerPhone`、`sellerBank`、`sellerBankAccount` | attrs | 销方票面信息；V1 合并、V2 拆分 |
-| `apiVersion` | attrs | `V2`（默认）/ `V1` |
-| `baseUrl` / `userAgent` / `timeoutMillis` | attrs | 网关地址（私有化部署）、UA、超时 |
-| `qrMode` | attrs | `ASYNC` 时实人认证二维码走 3.4.5 异步路径（默认 3.4.6 同步） |
-| `repairResultMode` | attrs | `BATCH` 时修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12） |
-| 3.2 表各路径键 | attrs | 见 3.2 表；逐接口覆盖默认路径 |
-| `fplxdm.<InvoiceType>` | attrs | 票种编码覆盖（内置数电专票 `01` / 普票 `02` 等默认值） |
-| `callbackSignKey` | attrs | 可选，启用回调 HMAC 验签 |
+| `gatewayKey` / `gatewaySecret` | attr | 网关 KEY / SECRET，HMAC 签名用（**不是**业务 appKey） |
+| `qyId` | attr | 企业唯一标识，由 3.1.1 查询一次后配置，必填 |
+| `sellerTaxNo` / `nsrsbh` | attr | 写入报文的销方税号 |
+| `dlzh` / `kpr` / `sqr` | attr | 电局登录账号（开票员手机号）/ 开票人 / 申请人 |
+| `sellerName`、`sellerAddress`、`sellerPhone`、`sellerBank`、`sellerBankAccount` | attr | 销方票面信息；V1 合并、V2 拆分 |
+| `apiVersion` | attr | `V2`（默认）/ `V1` |
+| `baseUrl` / `userAgent` / `timeoutMillis` | attr | 网关地址（私有化部署）、UA、超时 |
+| `qrMode` | attr | `ASYNC` 时实人认证二维码走 3.4.5 异步路径（默认 3.4.6 同步） |
+| `repairResultMode` | attr | `BATCH` 时修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12） |
+| 3.2 表各路径键 | attr | 见 3.2 表；逐接口覆盖默认路径 |
+| `fplxdm.<InvoiceType>` | attr | 票种编码覆盖（内置数电专票 `01` / 普票 `02` 等默认值） |
+| `callbackSignKey` | attr | 可选，启用回调 HMAC 验签 |
 
 请求级 `extra` 也可覆盖：`queryMode=BATCH`（单次修复结果查询走 3.4.13）、
 `elecBz`（数电票标志，默认 `1`）、`pageNo` / `pageSize`（批量查询分页）、
@@ -181,14 +181,14 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 
 百旺适配器覆盖的能力（括号内为官方接口编号）：3.1.1 企业唯一标识查询 `queryUniqueSign()`（配置期工具）、
 3.3.12 红冲开具 `issueRed()`、3.3.15 / 3.3.4 红冲查询 `queryRed()`、3.3.16 主动确认/拒绝 `confirm()`、
-3.4.5 异步认证二维码（`attrs.qrMode=ASYNC`）、3.4.8 / 3.4.15 版式文件 `fetch()`、
+3.4.5 异步认证二维码（`attr.qrMode=ASYNC`）、3.4.8 / 3.4.15 版式文件 `fetch()`、
 3.4.14 认证结果查询、3.4.13 按票号查单（`InvoiceQueryRequest.invoiceNo/invoiceCode`）、
 3.4.7 交付重发 `resend()`、3.4.11/12 发票修复 `repair()` / `queryRepair()`、3.3.17 可冲销校验。
 版式文件查询失败一律降级到 `qdbswj` 回调已记录的 URL，绝不阻断主流程。
 
 门面/编排层提供 `resend()` / `repair()` / `queryRepair()` / `confirmRed(RedConfirmRequest)`；
 渠道未实现的可选能力由 `Registry` 统一抛 `CHANNEL_CAPABILITY_NOT_SUPPORTED`；
-`hzcx` 回调只归一 attrs、不涉及状态推进（SDK 无状态机）。
+`hzcx` 回调只归一 attr、不涉及状态推进（SDK 无状态机）。
 
 商品管理、机动车/二手车、乐企跨区、订单码、打印、税控红字信息表等平台专属接口不纳入；
 **数电票没有作废、只有红冲**：作废类接口全部不纳入，`InvoiceState` 状态语义不因此改动。
@@ -202,7 +202,7 @@ V1/V2 **不只是路径不同，报文结构也不同**（`BaiwangJsCodec`）：
 - 3.4.11 修复是**异步**且文档明确「不支持结果回调」：申请只返回受理，结果由
   3.4.12（默认）或 3.4.13（`repairResultMode=BATCH`）查询；`code=-1` 视为「尚未修复到发票」，
   保持 `PROCESSING` 允许继续查询，不误判为终态失败。
-- 3.1.1 查询 `qyId` 由使用方在配置期调用一次后写入 `attrs.qyId`，框架**不在启动期**自动发起外部请求。
+- 3.1.1 查询 `qyId` 由使用方在配置期调用一次后写入 `attr.qyId`，框架**不在启动期**自动发起外部请求。
 - 不编造未纳入的接口：作废类（3.3.1 / 3.3.2 / 3.3.10 / 3.3.11）、税控红字信息表、
   商品管理、机动车/二手车、乐企跨区、订单码、打印、智能抬头等不纳入本框架实现范围。
 
@@ -239,7 +239,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 **状态映射**：`00` 处理中 → `PROCESSING`、`01` 成功 → `SUCCEEDED`、`02` 失败 → `FAILED`、
 `03` 已作废 → `CLOSED`、`04` 作废中 → `PROCESSING`。
 
-**配置项**（`conflux.invoice.apps.<appId>.baiwang.attrs`）：
+**配置项**（`conflux.invoice.configs.<configId>.baiwang.attr`）：
 
 | 键 | 说明 |
 |---|---|
@@ -287,7 +287,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 | 2.13/2.14 | 推送主要/全票面（回调） | 第三方提供 | `InvoiceCallbackHandler` |
 | 2.15 | 获取数电发票文件 | `/getAllEleInvFile.pt` | `InvoiceFileFetcher.fetch`（XML/PDF/OFD Base64 内容） |
 | 2.19 | 重新发送邮件或短信 | `/resendEmailOrSMS.pt` | `InvoiceDeliverer.resend` |
-| 2.38 | 红字确认单申请（新版） | `/redInvConfirmationApply.pt` | `RedHandler.apply`（`attrs.redApplyMode=OLD` 切 2.28 旧版） |
+| 2.38 | 红字确认单申请（新版） | `/redInvConfirmationApply.pt` | `RedHandler.apply`（`attr.redApplyMode=OLD` 切 2.28 旧版） |
 | 2.29 | 查看红字确认单 | `/querySpecialInvoiceRedInfo.pt` | `RedHandler.queryRed` |
 | 2.30 | 开具红字数电发票 | `/issueRedSpecialInvoice.pt` | `RedHandler.issueRed` |
 | 2.31 | 红字确认单审核 | `/confirmRedInvConfirmation.pt` | `RedHandler.confirm`（confirmType 0/1） |
@@ -320,21 +320,21 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 （ThreadLocal 桥接，解析异常即清理），拿不到时退化为业务明文 JSON——
 宿主如需强制完整信封应答，可在回调 Controller 内直接用 Provider + ChannelConfig 构建。
 
-### 3.5 配置项（`conflux.invoice.apps.<appId>.piaotong`）
+### 3.5 配置项（`conflux.invoice.configs.<configId>.piaotong`）
 
 | 键 | 说明 |
 |---|---|
-| `attrs.platformCode` | 票通分配的第三方平台编码（8 位） |
-| `attrs.aliasName` | 平台简称（4 位，拼流水号） |
-| `attrs.password` | 3DES 密钥（加密/解密共用） |
-| `attrs.privateKey` | 我方 RSA 私钥（PKCS8，请求签名） |
-| `attrs.publicKey` | 票通平台公钥（X509，验签） |
-| `attrs.sellerTaxNo` | 销方税号（报文 `taxpayerNum`） |
-| `attrs.account` | 电子税局登录账号（认证链路） |
-| `attrs.redApplyMode` | `OLD` 用 2.28 旧版红字申请（默认 2.38 新版） |
-| `attrs.qrcodeType` | 2.6 二维码类型（1 税务 APP / 2 个税 APP，默认 1） |
-| `attrs.blueInvoiceDate` / `attrs.applySource` / `attrs.redReason` | 红字申请覆盖项（购方申请时按需） |
-| `attrs.goodsTransportList` 等 | 货运/旅客/不动产销售特定信息 JSON 原样透传 |
+| `attr.platformCode` | 票通分配的第三方平台编码（8 位） |
+| `attr.aliasName` | 平台简称（4 位，拼流水号） |
+| `attr.password` | 3DES 密钥（加密/解密共用） |
+| `attr.privateKey` | 我方 RSA 私钥（PKCS8，请求签名） |
+| `attr.publicKey` | 票通平台公钥（X509，验签） |
+| `attr.sellerTaxNo` | 销方税号（报文 `taxpayerNum`） |
+| `attr.account` | 电子税局登录账号（认证链路） |
+| `attr.redApplyMode` | `OLD` 用 2.28 旧版红字申请（默认 2.38 新版） |
+| `attr.qrcodeType` | 2.6 二维码类型（1 税务 APP / 2 个税 APP，默认 1） |
+| `attr.blueInvoiceDate` / `attr.applySource` / `attr.redReason` | 红字申请覆盖项（购方申请时按需） |
+| `attr.goodsTransportList` 等 | 货运/旅客/不动产销售特定信息 JSON 原样透传 |
 
 **未纳入**（与百旺口径一致）：作废类、快捷冲红（2.10/2.37）、索单撤销（2.32）、
 企业注册（2.2）、二维码开票（2.16~2.18）、统计类、机动车（2.39~2.42）、
@@ -357,7 +357,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
   成功应答字符串 `success`（返回其他内容会触发重推）。PDF 地址在 `invoice_down_url`，
   解析后归档到回调事件。
 
-**配置项**（`conflux.invoice.apps.<appId>.nuonuo.attrs`）：
+**配置项**（`conflux.invoice.configs.<configId>.nuonuo.attr`）：
 
 | 键 | 说明 |
 |---|---|
@@ -369,7 +369,7 @@ fileFetcher / redHandler / callbackHandler / deliverer / repairer），签名、
 | `sandbox` | 是否沙箱 |
 | `callbackUrl` / `notifyUrl` | 回调地址覆盖 |
 | `drawer` / `clerk` | 开票员 |
-| `attrs.invoiceLine` / `attrs.pushMode` / `attrs.withTaxFlag` / `attrs.invoiceType` | 开票要素覆盖项 |
+| `attr.invoiceLine` / `attr.pushMode` / `attr.withTaxFlag` / `attr.invoiceType` | 开票要素覆盖项 |
 
 **两个易踩的坑**：
 1. 官方文档示例的包名 `com.nuonuo.open.NNOpenSDK` 是错的，jar 内真实包名为
@@ -435,8 +435,8 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 
 发票域与支付域共用同一套底座约定：
 
-- `ChannelProvider` SPI + `ChannelRegistry` 按能力查找、缺失报明确异常；
-- `AccountKey` 复合键与配置装载期 `putIfAbsent` + `CONFIG_CONFLICT` fail-fast；
+- `ChannelProvider` SPI + `ChannelRegistry` 按能力查找、缺失报明确异常；内置渠道 `build()` 自动注册、自定义渠道按同编码覆盖；
+- 配置按 `configId`（发票 + `sellerTaxNo`）定位，回调由使用方显式传入，框架不隐式反查账户键；
 - `HttpTransport`（common）统一传输层，渠道不直接依赖具体 HTTP 客户端；
 - `ErrorCode` 三段分层（1xxx / 2xxx / 3xxx）；
 - 无状态聚合：框架零台账、零状态机，判重/落库/状态推进全部交由使用方。

@@ -50,7 +50,7 @@ public class AlipayBillHandler implements BillHandler {
     }
 
     @Override
-    public BillSheet fetchBill(String appId, LocalDate billDate, ChannelConfig config) {
+    public BillSheet fetchBill(String configId, LocalDate billDate, ChannelConfig config) {
         AlipayDataDataserviceBillDownloadurlQueryRequest request =
                 new AlipayDataDataserviceBillDownloadurlQueryRequest();
         AlipayDataDataserviceBillDownloadurlQueryModel model =
@@ -68,7 +68,7 @@ public class AlipayBillHandler implements BillHandler {
         String csv = downloadCsv(response.getBillDownloadUrl());
         List<BillEntry> entries = parseCsv(csv, billDate);
         return new BillSheet()
-                .setAppId(appId)
+                .setConfigId(configId)
                 .setChannelCode("alipay")
                 .setBillDate(billDate)
                 .setEntries(entries);

@@ -1,10 +1,9 @@
 package io.github.lianghang1.conflux.invoice.channels.piaotong;
 
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
+import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -25,9 +24,7 @@ import java.util.Map;
  */
 @Data
 @Accessors(chain = true)
-public class PiaoTongParams implements InvoiceChannelParams, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class PiaoTongParams extends ChannelConfig {
 
     /** 第三方平台编码（8 位，票通分配）。 */
     private String platformCode;
@@ -39,8 +36,6 @@ public class PiaoTongParams implements InvoiceChannelParams, Serializable {
     private String privateKey;
     /** 票通平台 RSA 公钥（X509 Base64，响应/回调验签）。 */
     private String publicKey;
-    /** 销方税号（报文 taxpayerNum）。 */
-    private String sellerTaxNo;
     /** 电子税局登录账号（手机号/身份证号，认证链路）。 */
     private String account;
     /** 销方名称（部分报文可带）。 */
@@ -49,19 +44,15 @@ public class PiaoTongParams implements InvoiceChannelParams, Serializable {
     private String baseUrl;
     /** HTTP 超时毫秒。 */
     private long timeoutMillis = 30000L;
-    /** 渠道实例标识（回调账户键拼装）。 */
+    /** 渠道侧应用标识（多销方路由用）。 */
     private String channelAppIdValue;
-    /** 原样保留全部配置键，供 attrs 路径切换使用。 */
-    private Map<String, String> attrs;
 
-    @Override
     public String channelAppId() {
         return channelAppIdValue;
     }
 
-    @Override
     public String sellerTaxNo() {
-        return sellerTaxNo;
+        return getSellerTaxNo();
     }
 
     public String url(String path) {
@@ -77,7 +68,7 @@ public class PiaoTongParams implements InvoiceChannelParams, Serializable {
     public boolean hasCredentials() {
         return isNotBlank(platformCode) && isNotBlank(aliasName)
                 && isNotBlank(password) && isNotBlank(privateKey)
-                && isNotBlank(publicKey) && isNotBlank(sellerTaxNo);
+                && isNotBlank(publicKey) && isNotBlank(getSellerTaxNo());
     }
 
     private static boolean isNotBlank(String v) {

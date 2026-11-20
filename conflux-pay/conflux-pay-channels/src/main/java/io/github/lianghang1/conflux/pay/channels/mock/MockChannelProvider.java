@@ -6,12 +6,10 @@ import io.github.lianghang1.conflux.pay.api.ChannelCallbackReply;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
 import io.github.lianghang1.conflux.pay.api.PayPayload;
 import io.github.lianghang1.conflux.pay.channel.BillHandler;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
 import io.github.lianghang1.conflux.pay.channel.ChannelCode;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
 import io.github.lianghang1.conflux.pay.channel.PaymentHandler;
 import io.github.lianghang1.conflux.pay.channel.PaymentInvocation;
@@ -78,7 +76,7 @@ public class MockChannelProvider implements ChannelProvider {
     }
 
     @Override
-    public ChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         return MockParams.fromMap(properties);
     }
 
@@ -187,10 +185,10 @@ public class MockChannelProvider implements ChannelProvider {
     public BillHandler billHandler() {
         return new BillHandler() {
             @Override
-            public BillSheet fetchBill(String appId, LocalDate billDate, ChannelConfig config) {
+            public BillSheet fetchBill(String configId, LocalDate billDate, ChannelConfig config) {
                 // 模拟渠道不产出真实账单；对账演示时使用方以内存账单替换本实现
                 return new BillSheet()
-                        .setAppId(appId)
+                        .setConfigId(configId)
                         .setChannelCode(ChannelCode.MOCK)
                         .setBillDate(billDate)
                         .setEntries(new ArrayList<io.github.lianghang1.conflux.pay.api.BillEntry>());
@@ -202,10 +200,8 @@ public class MockChannelProvider implements ChannelProvider {
     public ChannelCallbackHandler callbackHandler() {
         return new ChannelCallbackHandler() {
             @Override
-            public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+            public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
                 String sign = raw.getHeaders() == null ? null : raw.getHeaders().get(SIGN_HEADER);
-                ChannelConfig config = configLookup.byAccountKey(
-                        ChannelAccountKey.resolve(raw, appKeyOf(raw)));
                 MockParams params = params(config);
                 if (StringUtils.isBlank(sign) || !sign.equals(params.getAppKey())) {
                     throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "模拟渠道验签失败");
@@ -213,7 +209,7 @@ public class MockChannelProvider implements ChannelProvider {
                 Map<String, Object> body = JsonUtils.toMap(raw.getBody());
                 CallbackEvent event = new CallbackEvent()
                         .setType(BizOrderType.valueOf((String) body.get("type")))
-                        .setAppId(config.getAppId())
+                        .setConfigId(config.getConfigId())
                         .setBizOrderNo((String) body.get("bizOrderNo"))
                         .setChannelOrderNo((String) body.get("channelOrderNo"))
                         .setSuccess(Boolean.TRUE.equals(body.get("success")))
@@ -238,21 +234,11 @@ public class MockChannelProvider implements ChannelProvider {
         };
     }
 
-    /**
-     * 从回调请求中提取渠道侧应用标识：优先取报文 {@code appKey} 字段，
-     * 缺省回落到默认 appKey（单应用场景足够）。
-     */
-    private String appKeyOf(ChannelCallbackRequest raw) {
-        Map<String, Object> body = JsonUtils.toMap(raw.getBody());
-        Object appKey = body.get("appKey");
-        return appKey == null ? new MockParams().getAppKey() : String.valueOf(appKey);
-    }
-
     private MockParams params(ChannelConfig config) {
-        if (config.getParams() instanceof MockParams) {
-            return (MockParams) config.getParams();
+        if (config instanceof MockParams) {
+            return (MockParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                "模拟渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                "模拟渠道参数类型不匹配: {}", config == null ? "null" : config.getClass().getName());
     }
 }

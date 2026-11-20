@@ -1,15 +1,12 @@
 package io.github.lianghang1.conflux.pay.autoconfigure;
 
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
-import io.github.lianghang1.conflux.pay.channels.mock.MockChannelProvider;
 import io.github.lianghang1.conflux.pay.config.ChannelConfigProvider;
 import io.github.lianghang1.conflux.pay.engine.PaymentGateway;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
@@ -17,10 +14,12 @@ import java.time.Clock;
 import java.util.List;
 
 /**
- * 网关自动装配：渠道提供者收集、默认配置提供者与网关门面。
+ * 支付网关自动装配：配置提供者 + 网关门面。
  *
- * <p>SDK 为无状态渠道聚合层，无需使用方注册存储 Bean；
- * 渠道按类路径与 Bean 存在性激活，全部可被使用方同类型 Bean 覆盖。</p>
+ * <p>内置渠道实现由 core 的 {@code builder().build()} 经 SPI 全量自动注册
+ * （引入 channels 依赖即生效，optional SDK 缺失的渠道自动跳过），starter 不再逐个声明
+ * 内置渠道 Bean、也不循环注册。使用方仅需声明自定义渠道 Bean（框架未内置的实现），
+ * 它们由 {@code List<ChannelProvider>} 收集后交给配置提供者和门面。</p>
  *
  * @author lianghang
  */
@@ -28,48 +27,6 @@ import java.util.List;
 @AutoConfiguration
 @EnableConfigurationProperties(PayGatewayProperties.class)
 public class PayGatewayAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean(MockChannelProvider.class)
-    @ConditionalOnProperty(prefix = "conflux.pay", name = "mock-enabled",
-            havingValue = "true", matchIfMissing = true)
-    public MockChannelProvider mockChannelProvider() {
-        return new MockChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.wechat.WechatChannelProvider.class)
-    @ConditionalOnClass(name = "com.github.binarywang.wxpay.service.WxPayService")
-    public io.github.lianghang1.conflux.pay.channels.wechat.WechatChannelProvider wechatChannelProvider() {
-        return new io.github.lianghang1.conflux.pay.channels.wechat.WechatChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.alipay.AlipayChannelProvider.class)
-    @ConditionalOnClass(name = "com.alipay.api.AlipayClient")
-    public io.github.lianghang1.conflux.pay.channels.alipay.AlipayChannelProvider alipayChannelProvider() {
-        return new io.github.lianghang1.conflux.pay.channels.alipay.AlipayChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.unionpay.UnionPayChannelProvider.class)
-    public io.github.lianghang1.conflux.pay.channels.unionpay.UnionPayChannelProvider unionPayChannelProvider() {
-        return new io.github.lianghang1.conflux.pay.channels.unionpay.UnionPayChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.paypal.PayPalChannelProvider.class)
-    public io.github.lianghang1.conflux.pay.channels.paypal.PayPalChannelProvider payPalChannelProvider() {
-        return new io.github.lianghang1.conflux.pay.channels.paypal.PayPalChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider.class)
-    public io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider chinaumsChannelProvider() {
-        return new io.github.lianghang1.conflux.pay.channels.chinaums.ChinaumsChannelProvider();
-    }
-
-    // 其余渠道在各自 SDK 依赖就位后按同样姿势补充条件装配
 
     @Bean
     @ConditionalOnMissingBean(ChannelConfigProvider.class)
@@ -90,8 +47,11 @@ public class PayGatewayAutoConfiguration {
         }
 
         PaymentGateway.Builder builder = PaymentGateway.builder().configProvider(provider);
-        for (ChannelProvider channelProvider : providers) {
-            builder.channel(channelProvider);
+        // 仅注册使用方自定义的渠道实现（内置渠道由 builder.build() 经 SPI 自动注册）
+        if (providers != null) {
+            for (ChannelProvider channelProvider : providers) {
+                builder.channel(channelProvider);
+            }
         }
         Clock customClock = clock.getIfAvailable();
         if (customClock != null) {

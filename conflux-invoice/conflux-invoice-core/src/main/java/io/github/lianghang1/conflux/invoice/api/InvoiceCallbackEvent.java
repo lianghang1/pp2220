@@ -26,8 +26,6 @@ public class InvoiceCallbackEvent implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 回调定位到的渠道账户键。 */
-    private String accountKey;
     /** 网关侧定位字段（渠道能在报文中带回时优先使用）。 */
     private String invoiceId;
     private String redApplyId;
@@ -50,5 +48,5 @@ public class InvoiceCallbackEvent implements Serializable {
     /** 验签/解析后的渠道原始报文。 */
     private String rawPayload;
     /** 渠道附加字段。 */
-    private Map<String, String> attrs;
+    private Map<String, String> attr;
 }

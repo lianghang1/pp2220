@@ -4,7 +4,7 @@ package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
  * 百旺金穗云接口版本。
  *
  * <p>同一能力同时存在 V1 / V2 时默认走 {@link #V2}；V1 保留完整实现（含报文差异），
- * 由 {@code attrs.apiVersion=V1} 切换，便于存量接入方平滑迁移。</p>
+ * 由 {@code attr.apiVersion=V1} 切换，便于存量接入方平滑迁移。</p>
  *
  * @author lianghang
  */

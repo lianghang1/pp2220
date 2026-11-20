@@ -14,7 +14,7 @@
     <artifactId>conflux-invoice-spring-boot-starter</artifactId>
     <packaging>jar</packaging>
     <name>conflux-invoice-spring-boot-starter</name>
-    <description>Spring Boot 2.x 自动装配：conflux.invoice.* 配置绑定、账户键唯一性启动期校验、
+    <description>Spring Boot 2.x 自动装配：conflux.invoice.* 配置绑定、渠道配置装载、
         ChannelInstance 分级路由、InvoiceGateway 装配。</description>
 
     <dependencies>

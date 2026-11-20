@@ -14,7 +14,7 @@ import java.util.Map;
  * 蓝字发票开具请求（框架统一入口）。
  *
  * <p>{@code channelCode} 可空：留空时由 {@code ChannelInstanceRouter} 按
- * appId + 销方税号 + 票种做通道分级择优；显式指定则直连该渠道（用于灰度/降级）。</p>
+ * configId + 销方税号 + 票种做通道分级择优；显式指定则直连该渠道（用于灰度/降级）。</p>
  *
  * <p>金额单位为「元」；{@code amount} 为含税合计，必须与明细行合计一致（引擎校验）。</p>
  *
@@ -27,7 +27,7 @@ public class InvoiceRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填）。 */
-    private String appId;
+    private String configId;
     /** 使用方业务单号（必填，渠道商户单号；查重由使用方负责）。 */
     private String bizOrderNo;
     /** 指定渠道编码（可空，空则按通道分级路由）。 */
@@ -75,5 +75,5 @@ public class InvoiceRequest implements Serializable {
     /** 沙箱开关。 */
     private boolean sandbox;
     /** 扩展字段（渠道个性参数）。 */
-    private Map<String, String> attrs;
+    private Map<String, String> attr;
 }

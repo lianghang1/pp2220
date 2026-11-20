@@ -106,11 +106,11 @@ public class PayPalClient {
     }
 
     public static PayPalParams paramsOf(ChannelConfig config) {
-        if (config.getParams() instanceof PayPalParams) {
-            return (PayPalParams) config.getParams();
+        if (config instanceof PayPalParams) {
+            return (PayPalParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                "PayPal 渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                "PayPal 渠道参数类型不匹配: {}", config == null ? "null" : config.getClass().getName());
     }
 
     /** 缓存的访问令牌。 */

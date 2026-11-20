@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 百望云回调解析回归：method/type 分流、状态归一、文件内联、accountKey、可选验签。
+ * 百望云回调解析回归：method/type 分流、状态归一、文件内联、可选验签。
  */
 class BaiwangCallbackParserTest {
 
@@ -42,7 +42,6 @@ class BaiwangCallbackParserTest {
         assertThat(event.getState()).isEqualTo(InvoiceState.SUCCEEDED);
         assertThat(event.getInvoiceNo()).isEqualTo("24652000000012345678");
         assertThat(event.getChannelOrderNo()).isEqualTo("BW-S1");
-        assertThat(event.getAccountKey()).isEqualTo("tenant-1");
         assertThat(event.getAmount()).isEqualByComparingTo("113.00");
         assertThat(event.getFiles()).extracting(f -> f.getType())
                 .contains(InvoiceFileType.XML, InvoiceFileType.PDF);
@@ -85,7 +84,7 @@ class BaiwangCallbackParserTest {
         InvoiceCallbackRequest raw = callback(BaiwangSpec.METHOD_CALLBACK_INVOICE,
                 BaiwangSpec.CALLBACK_SUCCESS, data, "deadbeef");
         ChannelConfig config = new ChannelConfig();
-        config.setAttrs(java.util.Collections.singletonMap("callbackSignKey", "secret"));
+        config.setAttr(java.util.Collections.singletonMap("callbackSignKey", "secret"));
         assertThatThrownBy(() -> BaiwangCallbackParser.parse(raw, config))
                 .isInstanceOf(GatewayException.class);
     }
@@ -117,9 +116,6 @@ class BaiwangCallbackParserTest {
         }
         InvoiceCallbackRequest req = new InvoiceCallbackRequest();
         req.setBody(JsonUtils.toJson(root));
-        Map<String, String> query = new LinkedHashMap<String, String>();
-        query.put("accountKey", "tenant-1");
-        req.setQueryParams(query);
         return req;
     }
 }

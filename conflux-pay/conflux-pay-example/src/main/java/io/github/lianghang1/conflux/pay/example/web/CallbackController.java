@@ -48,7 +48,9 @@ public class CallbackController {
                 .setFormParams(collectFormParams(request))
                 .setBody(body);
         try {
-            CallbackEvent event = paymentGateway.parseCallback(callbackRequest);
+            // 实际业务应查自己 DB（用回调里的业务单号）定位 configId，这里演示从查询参数取
+            String configId = queryParams == null ? null : queryParams.get("configId");
+            CallbackEvent event = paymentGateway.parseCallback(configId, callbackRequest);
             handleEvent(event);
             return ResponseEntity.status(200).body(paymentGateway.callbackSuccessReply(channelCode));
         } catch (GatewayException e) {

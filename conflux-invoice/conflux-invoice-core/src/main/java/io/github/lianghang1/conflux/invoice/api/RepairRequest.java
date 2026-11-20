@@ -20,10 +20,10 @@ public class RepairRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String appId;
+    private String configId;
     /** 渠道编码（无本地单据时必填，用于定位渠道配置与能力）。 */
     private String channelCode;
-    /** 销方税号（无本地单据时必填，与 appId/channelCode 共同定位配置）。 */
+    /** 销方税号（无本地单据时必填，与 configId/channelCode 共同定位配置）。 */
     private String sellerTaxNo;
     /** 网关单据号（可选；为空时渠道按票号/日期范围修复）。 */
     private String invoiceId;

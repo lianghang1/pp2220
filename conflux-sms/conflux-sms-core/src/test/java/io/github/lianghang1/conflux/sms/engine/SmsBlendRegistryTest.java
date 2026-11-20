@@ -26,21 +26,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class SmsBlendRegistryTest {
 
-    private static Map<String, String> alibabaAttrs() {
-        Map<String, String> attrs = new HashMap<String, String>();
-        attrs.put("accessKeyId", "LTAI5tTestKey");
-        attrs.put("accessKeySecret", "testSecret");
-        attrs.put("signature", "签名");
-        attrs.put("templateId", "SMS_123456");
-        attrs.put("templateName", "code");
-        attrs.put("regionId", "cn-hangzhou");
-        return attrs;
+    private static Map<String, String> alibabaAttr() {
+        Map<String, String> attr = new HashMap<String, String>();
+        attr.put("accessKeyId", "LTAI5tTestKey");
+        attr.put("accessKeySecret", "testSecret");
+        attr.put("signature", "签名");
+        attr.put("templateId", "SMS_123456");
+        attr.put("templateName", "code");
+        attr.put("regionId", "cn-hangzhou");
+        return attr;
     }
 
     @Test
     void shouldLoadAlibabaConfigIntoFactory() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
-        String configId = registry.register("demo", "alibaba", alibabaAttrs());
+        String configId = registry.register("demo", "alibaba", alibabaAttr());
 
         assertThat(configId).isEqualTo("demo::alibaba");
         SmsBlend blend = SmsFactory.getSmsBlend(configId);
@@ -53,15 +53,15 @@ class SmsBlendRegistryTest {
     @Test
     void configChangeShouldRebuildBlend() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
-        registry.register("rebuild", "alibaba", alibabaAttrs());
+        registry.register("rebuild", "alibaba", alibabaAttr());
         SmsBlend first = SmsFactory.getSmsBlend("rebuild::alibaba");
 
         // 相同配置复用（指纹一致）
-        registry.register("rebuild", "alibaba", alibabaAttrs());
+        registry.register("rebuild", "alibaba", alibabaAttr());
         assertThat(SmsFactory.getSmsBlend("rebuild::alibaba")).isSameAs(first);
 
         // 配置变更（密钥轮换）触发重建（指纹变化）
-        Map<String, String> changed = alibabaAttrs();
+        Map<String, String> changed = alibabaAttr();
         changed.put("accessKeySecret", "rotated-secret");
         registry.register("rebuild", "alibaba", changed);
         assertThat(SmsFactory.getSmsBlend("rebuild::alibaba")).isNotSameAs(first);
@@ -70,8 +70,8 @@ class SmsBlendRegistryTest {
     @Test
     void differentAppsShouldIsolateConfigId() {
         SmsBlendRegistry registry = new SmsBlendRegistry();
-        String a = registry.register("appA", "alibaba", alibabaAttrs());
-        String b = registry.register("appB", "alibaba", alibabaAttrs());
+        String a = registry.register("appA", "alibaba", alibabaAttr());
+        String b = registry.register("appB", "alibaba", alibabaAttr());
         assertThat(a).isNotEqualTo(b);
         assertThat(SmsFactory.getSmsBlend(a)).isNotSameAs(SmsFactory.getSmsBlend(b));
     }
@@ -117,7 +117,7 @@ class SmsBlendRegistryTest {
         registry.register(SmsChannelProvider.of(customFactory));
         // 工厂已进入 sms4j 原生注册表
         assertThat(ProviderFactoryHolder.requireForSupplier("mycustom")).isNotNull();
-        String configId = registry.register("custom", "mycustom", alibabaAttrs());
+        String configId = registry.register("custom", "mycustom", alibabaAttr());
         assertThat(SmsFactory.getSmsBlend(configId)).isNotNull();
     }
 }

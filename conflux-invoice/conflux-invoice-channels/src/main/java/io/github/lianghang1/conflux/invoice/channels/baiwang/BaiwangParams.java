@@ -1,10 +1,9 @@
 package io.github.lianghang1.conflux.invoice.channels.baiwang;
 
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
+import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -19,14 +18,10 @@ import java.util.Map;
  */
 @Data
 @Accessors(chain = true)
-public class BaiwangParams implements InvoiceChannelParams, Serializable {
+public class BaiwangParams extends ChannelConfig {
 
-    private static final long serialVersionUID = 1L;
-
-    /** 渠道账户键（多销方税号路由用）。 */
+    /** 渠道应用标识（多销方税号路由用）。 */
     private String channelAppId;
-    /** 销方税号（sellerTaxNo）。 */
-    private String sellerTaxNo;
     /** 销方名称。 */
     private String sellerName;
     /** 开放平台 appKey。 */
@@ -37,8 +32,6 @@ public class BaiwangParams implements InvoiceChannelParams, Serializable {
     private String salt;
     /** 网关地址，如 https://openapi.baiwang.com/router/rest。 */
     private String serverUrl;
-    /** 沙箱开关（仅影响默认地址选择，不参与签名）。 */
-    private boolean sandbox;
     /** 显式 token（配置后跳过登录直接复用；为空则按 username/password 登录获取）。 */
     private String accessToken;
     /** 登录用户名（租户管理员账号，用于 PasswordLoginClient 获取 token）。 */
@@ -64,17 +57,13 @@ public class BaiwangParams implements InvoiceChannelParams, Serializable {
     private String callbackUrl;
     /** 调用超时（毫秒）。 */
     private long timeoutMillis = 30000L;
-    /** 原始配置（含 attrs.* 覆盖项）。 */
-    private Map<String, String> attrs;
 
-    @Override
     public String channelAppId() {
         return channelAppId;
     }
 
-    @Override
     public String sellerTaxNo() {
-        return sellerTaxNo;
+        return getSellerTaxNo();
     }
 
     /** 网关凭据是否齐备（开票/查询主链路要求）。 */

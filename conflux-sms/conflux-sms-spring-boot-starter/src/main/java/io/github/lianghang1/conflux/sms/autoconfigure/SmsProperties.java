@@ -10,23 +10,23 @@ import java.util.Map;
  *
  * <p>与支付域 PayGatewayProperties 同构的「应用 → 渠道 → 配置」结构。渠道编码
  * 直接采用 sms4j 的 supplier 标识（alibaba/tencent/huawei…）；统一凭证键提到外层，
- * 其余字段按 sms4j Config 字段名放在 attrs，装载期合并后交给 sms4j 官方工厂。</p>
+ * 其余字段按 sms4j Config 字段名放在 attr，装载期合并后交给 sms4j 官方工厂。</p>
  *
  * @author lianghang
  */
 @ConfigurationProperties(prefix = "conflux.sms")
 public class SmsProperties {
 
-    /** 应用 → 渠道配置：第一层 key 为 appId，第二层 key 为渠道编码。 */
-    private Map<String, Map<String, ChannelProperties>> apps =
+    /** 应用 → 渠道配置：第一层 key 为 configId，第二层 key 为渠道编码。 */
+    private Map<String, Map<String, ChannelProperties>> configs =
             new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
-    public Map<String, Map<String, ChannelProperties>> getApps() {
-        return apps;
+    public Map<String, Map<String, ChannelProperties>> getConfigs() {
+        return configs;
     }
 
-    public void setApps(Map<String, Map<String, ChannelProperties>> apps) {
-        this.apps = apps;
+    public void setConfigs(Map<String, Map<String, ChannelProperties>> configs) {
+        this.configs = configs;
     }
 
     /** 单渠道配置：统一凭证字段 + 渠道个性键值包。 */
@@ -39,7 +39,7 @@ public class SmsProperties {
         private String templateId;
 
         /** 渠道个性键值包（厂商特有键名，如 sdkAppId/sender/signId，装载时填入 sms4j Config）。 */
-        private Map<String, String> attrs = new LinkedHashMap<String, String>();
+        private Map<String, String> attr = new LinkedHashMap<String, String>();
 
         public String getAccessKeyId() {
             return accessKeyId;
@@ -73,12 +73,12 @@ public class SmsProperties {
             this.templateId = templateId;
         }
 
-        public Map<String, String> getAttrs() {
-            return attrs;
+        public Map<String, String> getAttr() {
+            return attr;
         }
 
-        public void setAttrs(Map<String, String> attrs) {
-            this.attrs = attrs;
+        public void setAttr(Map<String, String> attr) {
+            this.attr = attr;
         }
     }
 }

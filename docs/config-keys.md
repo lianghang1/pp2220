@@ -1,26 +1,35 @@
 # 渠道配置键对照表
 
-配置采用「统一基础键 + 渠道扩展键」两层模型：
-语义相同的键全渠道同名（`notifyUrl` / `sandbox` / `subMchNo`），
-各渠道凭证体系不同的部分使用渠道自有命名，统一放在 `attrs` 下。
-均经 `conflux.pay.apps.<appId>.<渠道>` 声明。
+配置采用「公共字段 + 渠道个性 `attr`」模型：
+公共字段（`configId` / `channelCode` / `notifyUrl` / `sandbox`）为配置对象一等字段，
+各渠道凭证体系不同的部分使用渠道自有命名，统一放在 `attr` 下。
+均经 `conflux.pay.configs.<configId>.<channelCode>` 声明。
 
-## 统一基础键（全渠道同名）
+> 公共字段优先：公共字段与 `attr` 出现同名键时，以公共字段为准；同一语义字段只存一处。
+
+## 公共字段（全渠道同名，一等字段）
 
 | 键 | 说明 | 备注 |
 |---|---|---|
-| notifyUrl | 渠道异步通知地址 | 回调反查定位参数见「账户键与回调路由」 |
-| sandbox | 沙箱开关 | 支付宝/PayPal/云闪付有官方沙箱；微信仅 V2 仿真系统；云闪付走自身沙箱地址 |
-| subMchNo | 服务商模式特约商户号 | 参与账户键生成；同一渠道应用标识下多个特约商户必须各不相同 |
+| notifyUrl | 渠道异步通知地址 | 业务也可在下单/退款/转账请求里用 `.setNotifyUrl(...)` 按单覆盖（请求优先、配置兜底） |
+| sandbox | 沙箱开关 | 支付宝/PayPal/云闪付有官方沙箱；微信仅 V2 仿真系统；天满走自身测试地址 |
 
-## 各渠道扩展键（`attrs` 下）
+## 回调配置定位
+
+验签仍在框架，但配置定位权在使用方：业务按自己的订单号查库得到 `configId`（发票再加
+`sellerTaxNo`），显式调用 `parseCallback(configId, request)`，框架据此取配置验签。
+框架不再从回调报文隐式反查账户键（accountKey 整套已删除），回调 URL 无需携带任何账户定位参数。
+
+## 各渠道扩展键（`attr` 下）
+
+> 服务商模式特约商户号 `subMchNo` 也放 `attr`（键名 `subMchNo`），不再作为公共字段。
 
 ### wechat（wxApiVersion 路由 V2/V3）
 
 | 键 | 必填 | 说明 |
 |---|---|---|
 | merchantId | ✓（V2/V3 均） | 微信支付商户号 |
-| appId | ✓ | 微信应用 AppID |
+| appId | ✓ | 微信应用 AppID（渠道真实 appid，不受框架 configId 改名影响） |
 | apiV3Key | V3 | APIv3 密钥 |
 | merchantSerialNumber | V3 | 商户 API 证书序列号 |
 | merchantPrivateKey | V3 | 商户 API 私钥 PEM |
@@ -28,6 +37,7 @@
 | entPayKey | 否 | 企业付款密钥（缺省 apiV2Key） |
 | appSecret | 否 | 公众号/小程序 AppSecret（仅用户标识 OAuth2 用） |
 | subAppId | 否 | 服务商模式特约商户 AppID |
+| subMchNo | 否 | 服务商模式特约商户号（下沉自公共字段） |
 | wxApiVersion | 否 | v2/v3，缺省 v3 |
 
 ### alipay
@@ -45,10 +55,11 @@
 
 | 键 | 必填 | 说明 |
 |---|---|---|
-| merchantId | ✓ | 商户号（回调反查键） |
+| merchantId | ✓ | 商户号 |
 | p12CertPath / p12CertPassword | ✓ | 商户 P12 签名证书 |
 | publicKey | ✓ | 平台公钥（回调验签） |
 | serProvId | 否 | 服务商标识（直连可空） |
+| subMchNo | 否 | 服务商模式特约商户号 |
 
 ### paypal
 
@@ -66,7 +77,7 @@
 |---|---|---|
 | appId | ✓ | 天满产品 ID |
 | appKey | ✓ | 天满产品密钥 |
-| mid | ✓ | 商户号（同时作为回调配置反查的账户键） |
+| mid | ✓ | 商户号 |
 | tid | ✓ | 终端号 |
 | subAppId | 否 | 微信开放平台 appId（微信渠道下单必需） |
 | gateway | 否 | 自定义网关前缀；缺省按 sandbox 切正式/测试地址 |
@@ -75,56 +86,36 @@
 
 | 键 | 必填 | 说明 |
 |---|---|---|
-| appKey | ✓ | 回调验签与配置反查键 |
+| appKey | ✓ | 验签凭据 |
 | payOutcome | 否 | success / fail / paying（缺省） |
 
-## ISV 服务商模式额外键
+## 服务商模式配置示例
 
-- 微信：`subMchNo`（统一基础键，特约商户号）+ `attrs.subAppId`；付款码走 V2 直连子商户报文
-- 支付宝：`attrs.appAuthToken`（ISV 代商户授权令牌，全接口自动携带）
-- 云闪付：`subMchNo`（下单/退款报文携带 merId）
-
-## 账户键与回调路由（多账户 / 服务商模式）
-
-回调处理器必须先取得配置才能验签/解密（报文尚未解开时拿不到其中的商户号），
-因此账户只能由**回调地址**定位，不能依赖通知报文内容。
-
-| 概念 | 说明 |
-|---|---|
-| `accountKey` | 回调反查唯一键，由 `ChannelAccountKey.of(channelAppId, subMchNo)` 生成：普通商户 = `channelAppId`；服务商模式 = `channelAppId#subMchNo` |
-| `accountKey` 查询参数 | 回调 URL 显式携带，优先于各渠道原有定位参数（appId / app_id / merId / clientId / appKey） |
-| 冲突处理 | 两个配置生成相同账户键时，starter 装载期抛 `CONFIG_CONFLICT` 并拒绝启动，不静默覆盖 |
-
-- **普通商户**（每个账户有独立渠道应用标识）：无需改动，旧回调地址继续用原参数。
-- **服务商模式**（同一 appid 挂多个 `subMchNo`）：为每个特约商户配置不同 `subMchNo`，
-  回调地址改为 `https://<域名>/callback/{渠道}?accountKey=<应用标识>%23<特约商户号>`。
-  `#` 在 URL 中是片段标识符，必须转义为 `%23`，否则服务端收不到完整参数。
-- 自定义 `ChannelConfigProvider`（配置在 DB/配置中心）需实现 `getByAccountKey`，
-  并在装载期校验账户键唯一性，冲突时抛 `CONFIG_CONFLICT`。
-
-配置示例（同一渠道应用标识、两个特约商户各用一份配置）：
+同一渠道、不同业务用不同 `configId` 各自一份配置；`subMchNo` 下沉进 `attr`：
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     brand-a:
       wechat:
-        subMchNo: "1900000109"
-        notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000109
-        attrs:
+        notifyUrl: https://<域名>/callback/wechat
+        attr:
           merchantId: 服务商商户号
           appId: wx-isv-appid
+          subMchNo: "1900000109"
           apiV3Key: <APIv3密钥>
           merchantSerialNumber: <证书序列号>
           merchantPrivateKey: <商户私钥PEM>
     brand-b:
       wechat:
-        subMchNo: "1900000110"
-        notifyUrl: https://<域名>/callback/wechat?accountKey=wx-isv-appid%231900000110
-        attrs:
+        notifyUrl: https://<域名>/callback/wechat
+        attr:
           merchantId: 服务商商户号
           appId: wx-isv-appid
+          subMchNo: "1900000110"
           apiV3Key: <APIv3密钥>
           merchantSerialNumber: <证书序列号>
           merchantPrivateKey: <商户私钥PEM>
 ```
+
+回调时业务按订单查库得到对应 `configId`（如 `brand-a`），调用 `parseCallback(configId, request)` 即可。

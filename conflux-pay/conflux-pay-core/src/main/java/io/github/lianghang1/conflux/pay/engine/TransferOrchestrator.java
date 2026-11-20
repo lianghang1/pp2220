@@ -45,7 +45,7 @@ class TransferOrchestrator {
         }
 
         Transfer transfer = new Transfer()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizTransferNo(request.getBizTransferNo())
                 .setMethod(method.getCode())
                 .setChannelCode(channel)
@@ -54,11 +54,12 @@ class TransferOrchestrator {
                 .setAmount(request.getAmount())
                 .setCurrency(request.getCurrency())
                 .setRemark(request.getRemark())
+                .setNotifyUrl(request.getNotifyUrl())
                 .setState(TransferState.CREATED)
                 .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()));
         try {
             TransferHandler handler = rt.registry.transferHandler(channel);
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), channel);
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), channel);
             TransferInvocation invocation = handler.createTransfer(transfer, config);
             if (StringUtils.isNotBlank(invocation.getChannelTransferNo())) {
                 transfer.setChannelTransferNo(invocation.getChannelTransferNo());
@@ -83,13 +84,13 @@ class TransferOrchestrator {
     TransferResult query(TransferQueryRequest request) {
         request.check();
         Transfer transfer = new Transfer()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizTransferNo(request.getBizTransferNo())
                 .setChannelCode(request.getChannelCode())
                 .setChannelTransferNo(request.getChannelTransferNo());
         try {
             TransferHandler handler = rt.registry.transferHandler(request.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
             TransferSnapshot snapshot = handler.queryTransfer(transfer, config);
             if (StringUtils.isNotBlank(snapshot.getChannelTransferNo())
                     && StringUtils.isBlank(transfer.getChannelTransferNo())) {

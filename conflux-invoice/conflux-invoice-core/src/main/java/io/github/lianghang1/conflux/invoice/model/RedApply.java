@@ -23,7 +23,7 @@ public class RedApply implements Serializable {
 
     /** 网关红字确认单号（主键）。 */
     private String redApplyId;
-    private String appId;
+    private String configId;
     /** 使用方业务单号（渠道侧幂等键，查重由使用方负责）。 */
     private String bizRedNo;
     /** 原蓝字发票单据号。 */
@@ -38,7 +38,8 @@ public class RedApply implements Serializable {
     private BigDecimal amount;
     private String channelCode;
     private String channelInstanceId;
-    private String accountKey;
+    /** 销方纳税人识别号（红冲 carrier 携带，用于按 configId+渠道+税号定位配置）。 */
+    private String sellerTaxNo;
     /** 渠道侧申请流水号。 */
     private String channelOrderNo;
     /** 红字确认单编号（渠道/税局回传）。 */

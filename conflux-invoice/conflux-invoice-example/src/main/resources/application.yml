@@ -14,17 +14,18 @@ conflux:
       immediate-download: true
       # output-dir: ./data/invoice-files
       download-timeout-millis: 30000
-    apps:
+    configs:
       demo:
         mock:
-          # 销方纳税人识别号（企业准入标识，也是多账户路由/回调反查键的一段）
+          # 销方纳税人识别号（企业准入标识，多实例路由的一段）
           seller-tax-no: "91310000MOCK000001"
-          notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+          # 回调入口由业务按订单查库定位 configId/销方税号；此演示用查询参数传递
+          notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?configId=demo&sellerTaxNo=91310000MOCK000001"
           sandbox: true
           tier: SERVICE_API
           priority: 10
           enabled: true
-          attrs:
+          attr:
             appKey: "demo-app-key"
             appSecret: "demo-secret"
             issueOutcome: "AUTH"
@@ -38,16 +39,16 @@ conflux:
         # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
         # ------------------------------------------------------------------
         # baiwangjs:
-        #   # 销方税号：路由键与回调反查账户键的第二段
+        #   # 销方税号：多实例路由键的一段
         #   seller-tax-no: "91310000XXXXXXXXXX"
-        #   # 回调地址须带 accountKey=<gatewayKey>#<sellerTaxNo>，'#' 转义为 %23
-        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwangjs?accountKey=<GATEWAY_KEY>%2391310000XXXXXXXXXX"
+        #   # 回调入口由业务按订单查库定位 configId/销方税号；演示用查询参数传递
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwangjs?configId=demo&sellerTaxNo=91310000XXXXXXXXXX"
         #   sandbox: true
         #   tier: SERVICE_API
         #   priority: 20
         #   enabled: false
-        #   attrs:
-        #     gatewayKey: "<网关KEY>"             # HMAC 签名的 username，也是账户键第一段
+        #   attr:
+        #     gatewayKey: "<网关KEY>"             # HMAC 签名的 username
         #     gatewaySecret: "<网关SECRET>"       # HmacSHA256 密钥
         #     qyId: "<企业唯一标识>"              # 3.1.1 查询一次后填入，必填
         #     sellerTaxNo: "91310000XXXXXXXXXX"  # 写入报文的销方税号
@@ -98,13 +99,13 @@ conflux:
         # 整段默认注释；取消注释 + 填真实凭据 + enabled 改 true 即可启用。
         # ------------------------------------------------------------------
         # baiwang:
-        #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（路由键与回调反查键）
-        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwang?accountKey=<APP_KEY>%2391310000XXXXXXXXXX"
+        #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（多实例路由键）
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/baiwang?configId=demo&sellerTaxNo=91310000XXXXXXXXXX"
         #   sandbox: true
         #   tier: SERVICE_API
         #   priority: 20
         #   enabled: false
-        #   attrs:
+        #   attr:
         #     appKey: "<应用KEY，即 clientId/gatewayKey>"
         #     appSecret: "<签名密钥，即 clientSecret/gatewaySecret>"
         #     # 二选一：显式令牌，或用 username/password 登录获取（过期自动重登）
@@ -126,12 +127,12 @@ conflux:
         # ------------------------------------------------------------------
         # piaotong:
         #   seller-tax-no: "91310000XXXXXXXXXX"
-        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/piaotong?accountKey=<PLATFORM_CODE>%2391310000XXXXXXXXXX"
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/piaotong?configId=demo&sellerTaxNo=91310000XXXXXXXXXX"
         #   sandbox: true
         #   tier: SERVICE_API
         #   priority: 20
         #   enabled: false
-        #   attrs:
+        #   attr:
         #     platformCode: "<平台编码>"            # 票通分配的第三方平台编码（8 位）
         #     aliasName: "ABCD"                    # 平台简称（4 位，拼 20/26 位流水号）
         #     password: "<3DES 密钥>"              # 业务报文加解密密钥（ECB/UTF-8）
@@ -162,12 +163,12 @@ conflux:
         # ------------------------------------------------------------------
         # nuonuo:
         #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（自用型应用开票 salerTaxNum）
-        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/nuonuo?accountKey=<APP_KEY>%2391310000XXXXXXXXXX"
+        #   notify-url: "http://127.0.0.1:8080/api/invoices/callback/nuonuo?configId=demo&sellerTaxNo=91310000XXXXXXXXXX"
         #   sandbox: true                         # 沙箱环境 token 可为空
         #   tier: SERVICE_API
         #   priority: 20
         #   enabled: false
-        #   attrs:
+        #   attr:
         #     appKey: "<平台分配的 appKey>"
         #     appSecret: "<平台分配的 appSecret>"
         #     # accessToken: "<业务令牌；沙箱可空，正式必填或由 getMerchantToken 获取>"

@@ -8,7 +8,8 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
  * 回调解析能力：验签 + 归一化 + 生成应答报文。
  *
  * <p>验签失败必须抛 {@code SIGN_INVALID}；解析失败抛 {@code CALLBACK_PARSE_FAILED}。
- * 账户键由 {@link InvoiceAccountKey#resolve} 从回调地址取得，用于反查配置。</p>
+ * 配置由使用方按 configId + channelCode + sellerTaxNo 查库后经门面传入，
+ * 框架不再从回调报文隐式反查账户键。</p>
  *
  * @author lianghang
  */

@@ -46,7 +46,6 @@ public final class NuonuoCallbackParser {
         }
         String action = text(root, "action");
         InvoiceCallbackEvent event = new InvoiceCallbackEvent()
-                .setAccountKey(accountKey(raw))
                 .setRawPayload(raw.getBody());
 
         if (NuonuoSpec.NOTICE_ACTION.equals(action)
@@ -55,7 +54,7 @@ public final class NuonuoCallbackParser {
         } else {
             // 未知 action：只登记流水，不迁移状态
             event.setBizOrderNo(text(root, "order_no"))
-                    .setAttrs(attrsOf(action, text(root, "sale_tax_num")));
+                    .setAttr(attrOf(action, text(root, "sale_tax_num")));
         }
         return event;
     }
@@ -72,9 +71,9 @@ public final class NuonuoCallbackParser {
         }
         String pdf = text(root, "invoice_down_url");
         if (StringUtils.isNotBlank(pdf)) {
-            Map<String, String> attrs = new LinkedHashMap<String, String>();
-            attrs.put("pdfUrl", pdf);
-            event.setAttrs(attrs);
+            Map<String, String> attr = new LinkedHashMap<String, String>();
+            attr.put("pdfUrl", pdf);
+            event.setAttr(attr);
             java.util.List<InvoiceFile> files = new java.util.ArrayList<InvoiceFile>();
             files.add(new InvoiceFile().setType(InvoiceFileType.PDF).setUrl(pdf));
             event.setFiles(files);
@@ -86,24 +85,15 @@ public final class NuonuoCallbackParser {
         return InvoiceCallbackReply.ok(NuonuoSpec.REPLY_SUCCESS);
     }
 
-    private static String accountKey(InvoiceCallbackRequest raw) {
-        Map<String, String> query = raw.getQueryParams();
-        if (query == null) {
-            return null;
-        }
-        String v = query.get(NuonuoSpec.ACCOUNT_KEY_PARAM);
-        return StringUtils.isBlank(v) ? query.get("accountKey") : v;
-    }
-
-    private static Map<String, String> attrsOf(String action, String taxNo) {
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
+    private static Map<String, String> attrOf(String action, String taxNo) {
+        Map<String, String> attr = new LinkedHashMap<String, String>();
         if (StringUtils.isNotBlank(action)) {
-            attrs.put("action", action);
+            attr.put("action", action);
         }
         if (StringUtils.isNotBlank(taxNo)) {
-            attrs.put("sale_tax_num", taxNo);
+            attr.put("sale_tax_num", taxNo);
         }
-        return attrs;
+        return attr;
     }
 
     private static String text(JsonNode node, String... keys) {

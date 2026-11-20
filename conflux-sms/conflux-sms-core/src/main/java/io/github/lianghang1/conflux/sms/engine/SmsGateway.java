@@ -25,7 +25,7 @@ import java.util.Set;
  * {@code SmsConfigProvider} 读取配置，凭证变更可被装载层感知并重建客户端。</p>
  *
  * <p>内部完全委托 sms4j 原始包：{@link SmsBlendRegistry} 负责配置装载，
- * 本门面按「appId + 渠道」取出 {@link SmsBlend} 发送，把 {@link SmsResponse}
+ * 本门面按「configId + 渠道」取出 {@link SmsBlend} 发送，把 {@link SmsResponse}
  * 归一为 {@link SmsSendResult}。SDK 无状态：不持有台账、不判重、不做频率控制。</p>
  *
  * @author lianghang
@@ -59,31 +59,31 @@ public class SmsGateway {
     }
 
     /**
-     * 统一发送：按 appId + 渠道取出 sms4j SmsBlend 发送，并归一结果。
+     * 统一发送：按 configId + 渠道取出 sms4j SmsBlend 发送，并归一结果。
      *
      * <p>每次调用都从 {@link SmsConfigProvider} 读取配置并确保装载
      * （凭证变更可重建）。配置源由 {@link Builder#configProvider} 注入。</p>
      *
-     * @param appId       使用方应用标识
+     * @param configId       使用方应用标识
      * @param channelCode 渠道标识
      * @param request     统一发送请求
      */
-    public SmsSendResult send(String appId, String channelCode, SmsSendRequest request) {
-        if (StringUtils.isBlank(appId) || StringUtils.isBlank(channelCode) || request == null
+    public SmsSendResult send(String configId, String channelCode, SmsSendRequest request) {
+        if (StringUtils.isBlank(configId) || StringUtils.isBlank(channelCode) || request == null
                 || StringUtils.isBlank(request.getPhone())) {
             throw new GatewayException(SmsErrorCode.BAD_REQUEST,
-                    "发送参数不完整: appId/channelCode/request.phone 必填");
+                    "发送参数不完整: configId/channelCode/request.phone 必填");
         }
-        SmsChannelConfig cfg = configProvider.getConfig(appId, channelCode);
+        SmsChannelConfig cfg = configProvider.getConfig(configId, channelCode);
         registry.ensureLoaded(cfg);
-        SmsBlend blend = registry.smsBlend(appId, channelCode);
+        SmsBlend blend = registry.smsBlend(configId, channelCode);
         SmsResponse response = dispatch(blend, request);
         boolean ok = response != null && response.isSuccess();
         return new SmsSendResult()
                 .setSuccess(ok)
                 .setBizId(request.getBizId())
                 .setChannel(channelCode)
-                .setAppId(appId)
+                .setConfigId(configId)
                 .setRaw(response == null ? null : response.getData())
                 .setError(ok ? null : (response == null ? "渠道返回空结果" : String.valueOf(response.getData())));
     }

@@ -31,11 +31,11 @@ public class WechatClientHolder {
     }
 
     public static WechatParams paramsOf(ChannelConfig config) {
-        if (config.getParams() instanceof WechatParams) {
-            return (WechatParams) config.getParams();
+        if (config instanceof WechatParams) {
+            return (WechatParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                "微信渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                "微信渠道参数类型不匹配: {}", config == null ? "null" : config.getClass().getName());
     }
 
     private WxPayService buildService(WechatParams params, ChannelConfig config) {

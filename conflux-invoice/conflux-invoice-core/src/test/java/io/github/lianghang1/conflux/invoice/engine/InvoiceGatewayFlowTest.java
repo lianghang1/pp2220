@@ -52,7 +52,7 @@ class InvoiceGatewayFlowTest {
                 .build();
 
         InvoiceResult result = gateway.issue(new InvoiceRequest()
-                .setAppId(APP).setBizOrderNo("INV-CORE-1")
+                .setConfigId(APP).setBizOrderNo("INV-CORE-1")
                 .setSellerTaxNo(TAX).setBuyerTitle("测试购方")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setItems(Collections.singletonList(new InvoiceItem()
@@ -78,7 +78,7 @@ class InvoiceGatewayFlowTest {
                 .build();
 
         InvoiceResult result = gateway.issue(new InvoiceRequest()
-                .setAppId(APP).setBizOrderNo("INV-CORE-2")
+                .setConfigId(APP).setBizOrderNo("INV-CORE-2")
                 .setSellerTaxNo(TAX).setBuyerTitle("测试购方")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setChannelCode(STUB)
@@ -99,7 +99,7 @@ class InvoiceGatewayFlowTest {
                 .build();
 
         InvoiceResult result = gateway.query(new InvoiceQueryRequest()
-                .setAppId(APP).setChannelCode(STUB)
+                .setConfigId(APP).setChannelCode(STUB)
                 .setInvoice(new io.github.lianghang1.conflux.invoice.model.Invoice()
                         .setInvoiceId("INV-CORE-3").setBizOrderNo("INV-CORE-3")
                         .setChannelOrderNo("CH-EXIST")));
@@ -125,7 +125,7 @@ class InvoiceGatewayFlowTest {
                 .channel(noIssuer).configProvider(config).build();
 
         assertThatThrownBy(() -> gateway.issue(new InvoiceRequest()
-                .setAppId(APP).setBizOrderNo("INV-CORE-4")
+                .setConfigId(APP).setBizOrderNo("INV-CORE-4")
                 .setSellerTaxNo(TAX).setBuyerTitle("测试购方")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setItems(Collections.singletonList(new InvoiceItem()
@@ -140,12 +140,12 @@ class InvoiceGatewayFlowTest {
 
     private static ChannelInstance instance(String id, ChannelTier tier, int priority) {
         ChannelInstance inst = new ChannelInstance()
-                .setInstanceId(id).setAppId(APP).setChannelCode(STUB)
-                .setAccountKey(STUB + "#" + TAX).setSellerTaxNo(TAX)
+                .setInstanceId(id).setConfigId(APP).setChannelCode(STUB)
+                .setSellerTaxNo(TAX)
                 .setTier(tier).setPriority(priority).setEnabled(true);
         ChannelConfig cfg = new ChannelConfig()
-                .setAppId(APP).setChannelCode(STUB).setChannelInstanceId(id)
-                .setAccountKey(inst.getAccountKey()).setSellerTaxNo(TAX).setTier(tier);
+                .setConfigId(APP).setChannelCode(STUB).setChannelInstanceId(id)
+                .setSellerTaxNo(TAX).setTier(tier);
         return inst.setConfig(cfg);
     }
 
@@ -166,21 +166,14 @@ class InvoiceGatewayFlowTest {
     private static final class StubConfigProvider implements InvoiceConfigProvider {
         private final List<ChannelInstance> instances = new java.util.ArrayList<ChannelInstance>();
 
-        @Override public ChannelConfig getConfig(String appId, String channelCode, String sellerTaxNo) {
+        @Override public ChannelConfig getConfig(String configId, String channelCode, String sellerTaxNo) {
             for (ChannelInstance i : instances) {
                 if (i.isEnabled()) { return i.getConfig(); }
             }
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "no config");
         }
 
-        @Override public ChannelConfig getByAccountKey(String channelCode, String accountKey) {
-            for (ChannelInstance i : instances) {
-                if (accountKey.equals(i.getAccountKey())) { return i.getConfig(); }
-            }
-            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "no config");
-        }
-
-        @Override public List<ChannelInstance> instances(String appId, String sellerTaxNo) {
+        @Override public List<ChannelInstance> instances(String configId, String sellerTaxNo) {
             return instances;
         }
     }

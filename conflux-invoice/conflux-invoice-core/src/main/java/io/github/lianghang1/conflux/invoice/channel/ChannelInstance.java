@@ -9,8 +9,8 @@ import java.io.Serializable;
 /**
  * 渠道实例：一个「渠道 + 企业（销方税号）+ 通道级别」的可路由单元。
  *
- * <p>支付域按 appId + channelCode 二维取配置；发票域因为存在企业准入与
- * 通道分级，需要第三、第四个维度：同一 appId 下可能有多个税号，同一税号
+ * <p>支付域按 configId + channelCode 二维取配置；发票域因为存在企业准入与
+ * 通道分级，需要第三、第四个维度：同一 configId 下可能有多个税号，同一税号
  * 又可能同时具备乐企直连与服务商 API 两条通道，路由时按
  * {@link ChannelTier#getPriority()} 与 {@link #priority} 择优、失败降级。</p>
  *
@@ -23,9 +23,8 @@ public class ChannelInstance implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String instanceId;
-    private String appId;
+    private String configId;
     private String channelCode;
-    private String accountKey;
     private String sellerTaxNo;
     private ChannelTier tier;
     /** 同级别内的权重，数值越大越优先。 */

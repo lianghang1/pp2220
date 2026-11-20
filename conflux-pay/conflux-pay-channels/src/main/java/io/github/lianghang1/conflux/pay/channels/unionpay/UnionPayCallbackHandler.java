@@ -2,9 +2,7 @@ package io.github.lianghang1.conflux.pay.channels.unionpay;
 
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
@@ -32,22 +30,11 @@ public class UnionPayCallbackHandler implements ChannelCallbackHandler {
     }
 
     @Override
-    public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+    public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
         Map<String, Object> params = JsonUtils.toMap(raw.getBody());
         if (params.isEmpty()) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "云闪付通知报文为空");
         }
-        String merchantId = text(params.get("merId"));
-        if (StringUtils.isBlank(merchantId)) {
-            // 通知报文无商户号时按回调地址携带的 merId 查询参数反查
-            merchantId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("merId");
-        }
-        String accountKey = ChannelAccountKey.resolve(raw, merchantId);
-        if (StringUtils.isBlank(accountKey)) {
-            throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "云闪付回调需携带 merId 或 accountKey 查询参数以定位渠道配置");
-        }
-        ChannelConfig config = configLookup.byAccountKey(accountKey);
         UnionPayParams paramsConf = UnionPayClient.paramsOf(config);
         if (!client.signer().verify(params, paramsConf)) {
             throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "云闪付通知验签失败");
@@ -61,7 +48,7 @@ public class UnionPayCallbackHandler implements ChannelCallbackHandler {
                 && "refund".equals(raw.getQueryParams().get("noticeType"));
         CallbackEvent event = new CallbackEvent()
                 .setType(refund || refundNotice ? BizOrderType.REFUND : BizOrderType.PAYMENT)
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setBizOrderNo(text(params.get("orderNo")))
                 .setChannelOrderNo(text(params.get("transIndex")))
                 .setSuccess("00".equals(text(params.get("respCode")))

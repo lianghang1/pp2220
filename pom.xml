@@ -18,5 +18,6 @@
         <module>conflux-pay</module>
         <module>conflux-invoice</module>
         <module>conflux-sms</module>
+        <module>conflux-file</module>
     </modules>
 </project>

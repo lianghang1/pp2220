@@ -6,10 +6,9 @@ import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
 import io.github.lianghang1.conflux.pay.api.PayPayload;
 import io.github.lianghang1.conflux.pay.channel.BillHandler;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
 import io.github.lianghang1.conflux.pay.channel.PaymentHandler;
 import io.github.lianghang1.conflux.pay.channel.PaymentInvocation;
@@ -203,9 +202,9 @@ public class TestChannelProvider implements ChannelProvider {
     public BillHandler billHandler() {
         return new BillHandler() {
             @Override
-            public BillSheet fetchBill(String appId, LocalDate billDate, ChannelConfig config) {
+            public BillSheet fetchBill(String configId, LocalDate billDate, ChannelConfig config) {
                 return new BillSheet()
-                        .setAppId(appId)
+                        .setConfigId(configId)
                         .setChannelCode(CODE)
                         .setBillDate(billDate)
                         .setEntries(new ArrayList<BillEntry>(billEntries));
@@ -217,16 +216,15 @@ public class TestChannelProvider implements ChannelProvider {
     public ChannelCallbackHandler callbackHandler() {
         return new ChannelCallbackHandler() {
             @Override
-            public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+            public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
                 String sign = raw.getHeaders() == null ? null : raw.getHeaders().get("X-Test-Sign");
                 if (!VALID_SIGN.equals(sign)) {
                     throw new GatewayException(GatewayErrorCode.SIGN_INVALID, "模拟验签失败");
                 }
                 Map<String, Object> body = JsonUtils.toMap(raw.getBody());
-                ChannelConfig config = configLookup.byAccountKey(APP_KEY);
                 CallbackEvent event = new CallbackEvent()
                         .setType(BizOrderType.valueOf((String) body.get("type")))
-                        .setAppId(config.getAppId())
+                        .setConfigId(config.getConfigId())
                         .setBizOrderNo((String) body.get("bizOrderNo"))
                         .setChannelOrderNo((String) body.get("channelOrderNo"))
                         .setSuccess(Boolean.TRUE.equals(body.get("success")))
@@ -257,8 +255,7 @@ public class TestChannelProvider implements ChannelProvider {
     }
 
     /** 渠道自定义参数。 */
-    public static class TestParams implements ChannelParams {
-        @Override
+    public static class TestParams extends ChannelConfig {
         public String channelAppId() {
             return APP_KEY;
         }
@@ -267,33 +264,20 @@ public class TestChannelProvider implements ChannelProvider {
     /** 测试用配置提供者：单一应用、单一渠道。 */
     public static class TestConfigProvider implements ChannelConfigProvider {
 
-        private final String appId;
+        private final String configId;
 
-        public TestConfigProvider(String appId) {
-            this.appId = appId;
+        public TestConfigProvider(String configId) {
+            this.configId = configId;
         }
 
         @Override
-        public ChannelConfig getConfig(String appId, String channelCode) {
+        public ChannelConfig getConfig(String configId, String channelCode) {
             if (!CODE.equals(channelCode)) {
                 throw new GatewayException(GatewayErrorCode.CONFIG_MISSING, "渠道配置缺失: {}", channelCode);
             }
-            return new ChannelConfig()
-                    .setAppId(appId)
-                    .setChannelCode(channelCode)
-                    .setParams(new TestParams());
-        }
-
-        @Override
-        public ChannelConfig getByAccountKey(String channelCode, String accountKey) {
-            if (!CODE.equals(channelCode) || !APP_KEY.equals(accountKey)) {
-                throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                        "渠道账户键无对应配置: channel={}, accountKey={}", channelCode, accountKey);
-            }
-            return new ChannelConfig()
-                    .setAppId(appId)
-                    .setChannelCode(channelCode)
-                    .setParams(new TestParams());
+            return new TestParams()
+                    .setConfigId(configId)
+                    .setChannelCode(channelCode);
         }
     }
 }

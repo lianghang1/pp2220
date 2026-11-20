@@ -19,7 +19,7 @@ public class SmsSendResult {
     /** 渠道编码。 */
     private String channel;
     /** 使用方应用标识。 */
-    private String appId;
+    private String configId;
     /** 渠道返回原始报文/对象（保留渠道侧细节，便于排查）。 */
     private Object raw;
     /** 失败时的归一错误描述。 */

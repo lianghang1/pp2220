@@ -28,18 +28,16 @@ public class Invoice implements Serializable {
     /** 网关发票单据号（主键）。 */
     private String invoiceId;
     /** 使用方应用标识。 */
-    private String appId;
+    private String configId;
     /** 使用方业务单号（渠道商户单号；查重由使用方负责）。 */
     private String bizOrderNo;
     /** 实际使用的渠道编码。 */
     private String channelCode;
     /** 实际使用的渠道实例标识。 */
     private String channelInstanceId;
-    /** 渠道账户键（回调反查用）。 */
-    private String accountKey;
 
     // ---- 票面 ----
-    /** 销方纳税人识别号（企业准入标识，也是多账户路由键）。 */
+    /** 销方纳税人识别号（企业准入标识，也是多销方路由维度）。 */
     private String sellerTaxNo;
     private String sellerName;
     /** 购方纳税人识别号（普票可空）。 */
@@ -110,5 +108,5 @@ public class Invoice implements Serializable {
     private String originalInvoiceId;
 
     /** 扩展字段（渠道回传的自定义信息）。 */
-    private Map<String, String> attrs;
+    private Map<String, String> attr;
 }

@@ -39,24 +39,25 @@ class RefundOrchestrator {
         request.check();
         String channel = request.getChannelCode();
         Refund refund = new Refund()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizRefundNo(request.getBizRefundNo())
                 .setBizOrderNo(request.getBizOrderNo())
                 .setChannelCode(channel)
                 .setAmount(request.getAmount())
                 .setCurrency(request.getCurrency())
                 .setReason(request.getReason())
+                .setNotifyUrl(request.getNotifyUrl())
                 .setState(RefundState.CREATED)
                 .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()));
         Payment payment = new Payment()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizOrderNo(request.getBizOrderNo())
                 .setChannelCode(channel)
                 .setAmount(request.getTotalAmount())
                 .setChannelOrderNo(request.getChannelOrderNo());
         try {
             RefundHandler handler = rt.registry.refundHandler(channel);
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), channel);
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), channel);
             RefundInvocation invocation = handler.createRefund(refund, payment, config);
             if (StringUtils.isNotBlank(invocation.getChannelRefundNo())) {
                 refund.setChannelRefundNo(invocation.getChannelRefundNo());
@@ -78,14 +79,14 @@ class RefundOrchestrator {
     RefundResult query(RefundQueryRequest request) {
         request.check();
         Refund refund = new Refund()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizRefundNo(request.getBizRefundNo())
                 .setChannelCode(request.getChannelCode())
                 .setChannelRefundNo(request.getChannelRefundNo())
                 .setBizOrderNo(request.getBizOrderNo());
         try {
             RefundHandler handler = rt.registry.refundHandler(request.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
             RefundSnapshot snapshot = handler.queryRefund(refund, config);
             if (StringUtils.isNotBlank(snapshot.getChannelRefundNo())
                     && StringUtils.isBlank(refund.getChannelRefundNo())) {

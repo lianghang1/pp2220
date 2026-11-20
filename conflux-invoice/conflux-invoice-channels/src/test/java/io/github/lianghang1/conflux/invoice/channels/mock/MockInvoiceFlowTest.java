@@ -14,7 +14,6 @@ import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.api.RedIssueRequest;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.ChannelInstance;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceAccountKey;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelRegistry;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
@@ -61,7 +60,7 @@ class MockInvoiceFlowTest {
 
         // 授权提交：会话 + 发票载体回传
         InvoiceResult authed = gateway.submitAuth(new AuthSubmission()
-                .setAppId("demo")
+                .setConfigId("demo")
                 .setSession(issued.getAuthSession())
                 .setInvoice(issued.getInvoice())
                 .setCaptcha("888888"));
@@ -73,7 +72,7 @@ class MockInvoiceFlowTest {
 
         // 两段红冲第一段：原票载体回传
         RedApply apply = gateway.applyRed(new RedApplyRequest()
-                .setAppId("demo").setBizRedNo("R1")
+                .setConfigId("demo").setBizRedNo("R1")
                 .setOriginalInvoice(blueInvoice).setReason("开票信息有误"));
         assertSame(RedApplyState.WAITING_CONFIRM, apply.getState());
         assertNotNull(apply.getRedConfirmNo());
@@ -81,15 +80,15 @@ class MockInvoiceFlowTest {
 
         // 查询确认状态：确认单载体回传
         RedApply confirmed = gateway.queryRedApply(new RedApplyQueryRequest()
-                .setAppId("demo").setRedApply(apply));
+                .setConfigId("demo").setRedApply(apply));
         assertSame(RedApplyState.CONFIRMED, confirmed.getState());
 
         // 第二段开具红票：确认单 + 原票载体回传
         InvoiceResult red = gateway.issueRed(new RedIssueRequest()
-                .setAppId("demo").setRedApply(confirmed).setOriginalInvoice(blueInvoice));
+                .setConfigId("demo").setRedApply(confirmed).setOriginalInvoice(blueInvoice));
         assertSame(InvoiceState.SUCCEEDED, red.getState());
         assertTrue(red.hasLegalXml());
-        assertEquals("true", red.getInvoice().getAttrs().get("RED_INVOICE"));
+        assertEquals("true", red.getInvoice().getAttr().get("RED_INVOICE"));
     }
 
     /** 异步开票 → 查单拿快照（状态推进由使用方负责）。 */
@@ -102,7 +101,7 @@ class MockInvoiceFlowTest {
         assertTrue(accepted.getFiles().isEmpty());
 
         InvoiceResult polled = gateway.query(new InvoiceQueryRequest()
-                .setAppId("demo").setChannelCode("mock")
+                .setConfigId("demo").setChannelCode("mock")
                 .setInvoice(accepted.getInvoice()));
         assertSame(InvoiceState.SUCCEEDED, polled.getState());
         assertTrue(polled.hasLegalXml());
@@ -127,7 +126,7 @@ class MockInvoiceFlowTest {
         assertSame(InvoiceState.SUCCEEDED, issued.getState());
 
         QuickRedResult quick = gateway.quickRed(new RedApplyRequest()
-                .setAppId("demo").setBizRedNo("R5")
+                .setConfigId("demo").setBizRedNo("R5")
                 .setOriginalInvoice(issued.getInvoice()).setReason("测试快捷红冲"));
         assertNotNull(quick);
         assertNotNull(quick.getOutcome());
@@ -139,12 +138,12 @@ class MockInvoiceFlowTest {
         InvoiceGateway gateway = gateway(new MockInvoiceParams());
         InvoiceResult issued = gateway.issue(request("B6"));
         RedApply apply = gateway.applyRed(new RedApplyRequest()
-                .setAppId("demo").setBizRedNo("R6")
+                .setConfigId("demo").setBizRedNo("R6")
                 .setOriginalInvoice(issued.getInvoice()).setReason("拒绝测试"));
         // mock 渠道未实现主动确认能力 → SDK 明确抛出，由使用方改走查询状态流程
         GatewayException ex = assertThrows(GatewayException.class, () ->
                 gateway.confirmRed(new RedConfirmRequest()
-                        .setAppId("demo").setRedApply(apply).setAccept(false).setReason("不同意")));
+                        .setConfigId("demo").setRedApply(apply).setAccept(false).setReason("不同意")));
         assertSame(InvoiceErrorCode.CHANNEL_CAPABILITY_NOT_SUPPORTED, ex.getErrorCode());
     }
 
@@ -153,13 +152,12 @@ class MockInvoiceFlowTest {
     void callbackOnlyParsesToEvent() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams());
         Map<String, String> query = new HashMap<String, String>();
-        query.put(InvoiceAccountKey.ROUTING_PARAM, InvoiceAccountKey.of(APP_KEY, TAX));
         String body = "{\"bizOrderNo\":\"FROM-CALLBACK\",\"state\":\"SUCCEEDED\","
                 + "\"invoiceNo\":\"FP-CALLBACK\",\"xml\":\"<EInvoice>callback</EInvoice>\"}";
         InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
                 .setChannelCode("mock").setQueryParams(query).setBody(body);
 
-        InvoiceCallbackEvent event = gateway.parseCallback(raw);
+        InvoiceCallbackEvent event = gateway.parseCallback("demo", TAX, raw);
         assertNotNull(event);
         assertEquals("FROM-CALLBACK", event.getBizOrderNo());
         assertSame(InvoiceState.SUCCEEDED, event.getState());
@@ -171,11 +169,10 @@ class MockInvoiceFlowTest {
     void callbackBadSignThrows() {
         InvoiceGateway gateway = gateway(new MockInvoiceParams());
         Map<String, String> query = new HashMap<String, String>();
-        query.put(InvoiceAccountKey.ROUTING_PARAM, InvoiceAccountKey.of(APP_KEY, TAX));
         query.put("sign", "BAD-SIGN");
         InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
                 .setChannelCode("mock").setQueryParams(query).setBody("{}");
-        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.parseCallback(raw));
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.parseCallback("demo", TAX, raw));
         assertSame(InvoiceErrorCode.SIGN_INVALID, ex.getErrorCode());
     }
 
@@ -185,14 +182,13 @@ class MockInvoiceFlowTest {
         params.setChannelAppId(APP_KEY).setSellerTaxNo(TAX);
         InvoiceChannelRegistry registry = new InvoiceChannelRegistry();
         registry.register(new MockInvoiceChannelProvider());
-        String accountKey = InvoiceAccountKey.of(APP_KEY, TAX);
-        ChannelConfig config = new ChannelConfig()
-                .setAppId("demo").setChannelCode("mock")
+        ChannelConfig config = params
+                .setConfigId("demo").setChannelCode("mock")
                 .setChannelInstanceId("demo::mock::" + TAX)
-                .setAccountKey(accountKey).setSellerTaxNo(TAX).setParams(params);
+                .setSellerTaxNo(TAX);
         ChannelInstance instance = new ChannelInstance()
-                .setInstanceId("instance-1").setAppId("demo").setChannelCode("mock")
-                .setAccountKey(accountKey).setSellerTaxNo(TAX)
+                .setInstanceId("instance-1").setConfigId("demo").setChannelCode("mock")
+                .setSellerTaxNo(TAX)
                 .setTier(ChannelTier.SERVICE_API).setPriority(10)
                 .setEnabled(true).setConfig(config);
         InMemoryInvoiceConfigProvider provider = new InMemoryInvoiceConfigProvider()
@@ -203,7 +199,7 @@ class MockInvoiceFlowTest {
 
     private InvoiceRequest request(String bizOrderNo) {
         return new InvoiceRequest()
-                .setAppId("demo").setBizOrderNo(bizOrderNo)
+                .setConfigId("demo").setBizOrderNo(bizOrderNo)
                 .setSellerTaxNo(TAX).setBuyerTitle("测试购方")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setItems(Collections.singletonList(new InvoiceItem()

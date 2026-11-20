@@ -7,7 +7,7 @@ package io.github.lianghang1.conflux.sms.config;
  * 传给 {@code SmsBlendRegistry.register} 的配置 map，键名与 sms4j Config 字段一致。
  *
  * <p>渠道特有字段（如腾讯 sdkAppId、华为 sender、极光 signId）不在此列，
- * 由使用方在 attrs 中按 sms4j Config 字段名自定义。</p>
+ * 由使用方在 attr 中按 sms4j Config 字段名自定义。</p>
  *
  * @author lianghang
  */

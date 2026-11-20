@@ -61,7 +61,7 @@ public final class NuonuoCodec {
                 put(detail, "num", item.getQuantity());
                 put(detail, "price", item.getUnitPrice());
                 put(detail, "unit", item.getUnit());
-                // 行性质：0 正常 / 1 折扣 / 2 被折扣；项目明细暂以正常行处理，attrs 可覆盖
+                // 行性质：0 正常 / 1 折扣 / 2 被折扣；项目明细暂以正常行处理，attr 可覆盖
                 put(detail, "invoiceLineProperty", attr(params, "invoiceLineProperty", "0"));
                 // 单价含税标志：0 不含税 / 1 含税
                 put(detail, "withTaxFlag", attr(params, "withTaxFlag", "0"));
@@ -270,10 +270,10 @@ public final class NuonuoCodec {
     }
 
     private static String attr(NuonuoParams params, String key, String fallback) {
-        if (params == null || params.getAttrs() == null) {
+        if (params == null || params.getAttr() == null) {
             return fallback;
         }
-        String v = params.getAttrs().get(key);
+        String v = params.getAttr().get(key);
         return StringUtils.isBlank(v) ? fallback : v;
     }
 

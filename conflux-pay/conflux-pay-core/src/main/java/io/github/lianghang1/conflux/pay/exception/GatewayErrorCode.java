@@ -28,7 +28,7 @@ public enum GatewayErrorCode implements ErrorCode {
     CHANNEL_CALL_FAILED(2105, "渠道调用失败", 500),
     SIGN_INVALID(2106, "回调验签失败", 400),
     CALLBACK_PARSE_FAILED(2107, "回调报文解析失败", 400),
-    CONFIG_CONFLICT(2108, "渠道账户标识冲突，无法唯一定位回调配置", 500);
+    CONFIG_CONFLICT(2108, "渠道配置冲突，无法唯一定位配置", 500);
 
     private final int code;
     private final String message;

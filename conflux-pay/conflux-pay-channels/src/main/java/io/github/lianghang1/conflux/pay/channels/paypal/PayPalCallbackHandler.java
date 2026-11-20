@@ -2,9 +2,7 @@ package io.github.lianghang1.conflux.pay.channels.paypal;
 
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
@@ -34,15 +32,9 @@ public class PayPalCallbackHandler implements ChannelCallbackHandler {
     }
 
     @Override
-    public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+    public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
         Map<String, Object> event = JsonUtils.toMap(raw.getBody());
         String clientId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("clientId");
-        String accountKey = ChannelAccountKey.resolve(raw, clientId);
-        if (StringUtils.isBlank(accountKey)) {
-            throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "PayPal 回调地址需携带 clientId 或 accountKey 查询参数以定位渠道配置");
-        }
-        ChannelConfig config = configLookup.byAccountKey(accountKey);
         PayPalParams params = PayPalClient.paramsOf(config);
         String eventType = PayPalTranslator.text(event.get("event_type"));
 
@@ -51,7 +43,7 @@ public class PayPalCallbackHandler implements ChannelCallbackHandler {
         }
 
         CallbackEvent callbackEvent = new CallbackEvent()
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setRaw(toFlatTextMap(event));
         if (eventType != null && eventType.contains("REFUND")) {
             callbackEvent.setType(BizOrderType.REFUND)

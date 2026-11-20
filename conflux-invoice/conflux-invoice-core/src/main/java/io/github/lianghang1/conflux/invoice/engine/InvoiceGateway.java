@@ -136,11 +136,13 @@ public class InvoiceGateway {
     // ---------- 渠道回调 ----------
 
     /**
-     * 验签并解析渠道回调，返回归一化事件。使用方按事件中的业务单号定位自己的
-     * 单据，判重、金额校验与状态推进自行完成后，将应答报文写回渠道。
+     * 验签并解析渠道回调，返回归一化事件。使用方查自己 DB 得到 configId 与销方税号后
+     * 显式传入，框架据此取配置验签——不再从回调报文隐式反查账户键。
+     * 使用方按事件中的业务单号定位自己的单据，判重、金额校验与状态推进自行完成后，
+     * 将应答报文写回渠道。
      */
-    public InvoiceCallbackEvent parseCallback(InvoiceCallbackRequest request) {
-        return orchestrator.parseCallback(request);
+    public InvoiceCallbackEvent parseCallback(String configId, String sellerTaxNo, InvoiceCallbackRequest request) {
+        return orchestrator.parseCallback(configId, sellerTaxNo, request);
     }
 
     /** 渠道认可的处理成功应答报文。 */
@@ -247,10 +249,22 @@ public class InvoiceGateway {
             return this;
         }
 
-        /** 构建；渠道配置提供者必填。 */
+        /**
+         * 构建；渠道配置提供者必填。
+         *
+         * <p>内置渠道实现由 {@link io.github.lianghang1.conflux.invoice.channel.BuiltinInvoiceChannels#all()}
+         * 经 SPI 全量自动注册（引入 channels 依赖即生效），用户零 {@code .channel()}；
+         * 自定义渠道在 build 前已进入注册表，同编码时按"先注册者优先"保留自定义实现。</p>
+         */
         public InvoiceGateway build() {
             if (configProvider == null) {
                 throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "未设置渠道配置提供者");
+            }
+            for (io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider builtin
+                    : io.github.lianghang1.conflux.invoice.channel.BuiltinInvoiceChannels.all()) {
+                if (builtin != null) {
+                    registry.register(builtin);
+                }
             }
             return new InvoiceGateway(this);
         }

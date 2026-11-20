@@ -84,7 +84,7 @@ class BaiwangJsAuxiliaryProviderTest {
 
     @Test
     void resend_withoutInvoiceNo_failsFastWithoutNetwork() {
-        Invoice invoice = new Invoice().setInvoiceId("INV-1").setAppId("demo")
+        Invoice invoice = new Invoice().setInvoiceId("INV-1").setConfigId("demo")
                 .setBizOrderNo("ORDER-1").setChannelCode(BaiwangJsSpec.CODE);
         InvoiceContext ctx = InvoiceContext.of(config(), null, invoice);
         DeliveryResult r = new BaiwangJsChannelProvider().resend(ctx,
@@ -113,9 +113,8 @@ class BaiwangJsAuxiliaryProviderTest {
 
     @Test
     void checkRedAvailable_requiresCredentials() {
-        ChannelConfig empty = new ChannelConfig().setAppId("demo")
-                .setChannelCode(BaiwangJsSpec.CODE)
-                .setParams(new BaiwangJsParams());
+        ChannelConfig empty = new BaiwangJsParams()
+                .setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE);
         Invoice original = new Invoice().setBizOrderNo("ORDER-1").setSellerTaxNo(TAX);
         InvoiceContext ctx = InvoiceContext.of(empty, null, original);
         GatewayException ex = assertThrows(GatewayException.class,
@@ -125,15 +124,15 @@ class BaiwangJsAuxiliaryProviderTest {
 
     /** A 档 BW-43/52 关键语义：辅助查询失败一律降级到回调已记录的版式地址，绝不阻断主流程。 */
     @Test
-    void fetch_withoutCredentials_fallsBackToCallbackAttrs() {
-        ChannelConfig empty = new ChannelConfig().setAppId("demo")
-                .setChannelCode(BaiwangJsSpec.CODE)
-                .setParams(new BaiwangJsParams());
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        attrs.put("xmlurl", "https://cdn/x.xml");
-        attrs.put("pdfUrl", "https://cdn/x.pdf");
+    void fetch_withoutCredentials_fallsBackToCallbackAttr() {
+        ChannelConfig empty = new BaiwangJsParams()
+                .setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE)
+                .setAttr(new LinkedHashMap<String, String>());
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        attr.put("xmlurl", "https://cdn/x.xml");
+        attr.put("pdfUrl", "https://cdn/x.pdf");
         Invoice invoice = new Invoice().setInvoiceId("INV-1").setBizOrderNo("ORDER-1")
-                .setChannelCode(BaiwangJsSpec.CODE).setAttrs(attrs);
+                .setChannelCode(BaiwangJsSpec.CODE).setAttr(attr);
         InvoiceContext ctx = InvoiceContext.of(empty, null, invoice);
         List<InvoiceFile> files = new BaiwangJsChannelProvider()
                 .fetch(ctx, EnumSet.of(InvoiceFileType.XML));
@@ -152,22 +151,21 @@ class BaiwangJsAuxiliaryProviderTest {
                 .setBody(Base64.getEncoder().encodeToString(
                         json.getBytes(StandardCharsets.UTF_8)));
         ChannelConfig config = new ChannelConfig()
-                .setAttrs(new LinkedHashMap<String, String>());
+                .setAttr(new LinkedHashMap<String, String>());
         InvoiceCallbackEvent event = BaiwangJsCallbackParser.parse(raw, config);
         assertNull(event.getState(), "可冲销明细回调不迁移单据状态");
-        assertEquals("100.00", event.getAttrs().get("hzcxje"));
-        assertEquals("6.00", event.getAttrs().get("hzcxse"));
-        assertTrue(event.getAttrs().get("channelResult").startsWith("HZCX:"));
+        assertEquals("100.00", event.getAttr().get("hzcxje"));
+        assertEquals("6.00", event.getAttr().get("hzcxse"));
+        assertTrue(event.getAttr().get("channelResult").startsWith("HZCX:"));
     }
 
     // ---- 夹具 ----
 
     private static ChannelConfig config() {
-        return new ChannelConfig()
-                .setAppId("demo").setChannelCode(BaiwangJsSpec.CODE)
-                .setSellerTaxNo(TAX)
-                .setParams(new BaiwangJsParams()
-                        .setGatewayKey("gw-key").setGatewaySecret("secret")
-                        .setQyId("Q1").setSellerTaxNo(TAX).setDlzh("13800000000"));
+        BaiwangJsParams params = new BaiwangJsParams()
+                .setGatewayKey("gw-key").setGatewaySecret("secret")
+                .setQyId("Q1").setDlzh("13800000000");
+        params.setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE).setSellerTaxNo(TAX);
+        return params;
     }
 }

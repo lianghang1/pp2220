@@ -23,7 +23,7 @@ public class DeliveryRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 接收手机号（单个） */
     private String phone;
     /** 接收邮箱，多个以英文逗号分隔 */
@@ -35,7 +35,7 @@ public class DeliveryRequest implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(phone != null && phone.trim().length() > 0
                 || email != null && email.trim().length() > 0, "手机号或邮箱至少提供一个");
         GatewayAssert.param(invoice != null, "invoice 发票载体不能为空");

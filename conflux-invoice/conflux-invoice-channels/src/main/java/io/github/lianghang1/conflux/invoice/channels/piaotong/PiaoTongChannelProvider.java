@@ -17,7 +17,6 @@ import io.github.lianghang1.conflux.invoice.api.RedConfirmRequest;
 import io.github.lianghang1.conflux.invoice.channel.AuthSessionHandler;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceCallbackHandler;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceDeliverer;
@@ -78,7 +77,6 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
         AuthSessionHandler, InvoiceCallbackHandler, InvoiceDeliverer {
 
     private static final long RED_CONFIRM_HOURS = 72L;
-    private static final String ACCOUNT_KEY_PARAM = "accountKey";
 
     @Override
     public String channelCode() {
@@ -99,7 +97,7 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
     // ==================== 配置解析 ====================
 
     @Override
-    public InvoiceChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         Map<String, String> props = properties == null
                 ? Collections.<String, String>emptyMap() : properties;
         PiaoTongParams params = new PiaoTongParams()
@@ -108,12 +106,12 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
                 .setPassword(first(props, "password", "desKey"))
                 .setPrivateKey(first(props, "privateKey", "rsaPrivateKey"))
                 .setPublicKey(first(props, "publicKey", "rsaPublicKey", "platformPublicKey"))
-                .setSellerTaxNo(first(props, "sellerTaxNo", "taxpayerNum", "nsrsbh"))
                 .setAccount(first(props, "account", "dlzh", "loginAccount"))
                 .setSellerName(props.get("sellerName"))
                 .setBaseUrl(firstNonBlank(props.get("baseUrl"), PiaoTongSpec.DEFAULT_BASE_URL))
-                .setTimeoutMillis(parseLong(props.get("timeoutMillis"), 30000L))
-                .setAttrs(new LinkedHashMap<String, String>(props));
+                .setTimeoutMillis(parseLong(props.get("timeoutMillis"), 30000L));
+        params.setSellerTaxNo(first(props, "sellerTaxNo", "taxpayerNum", "nsrsbh"));
+        params.setAttr(new LinkedHashMap<String, String>(props));
         params.setChannelAppIdValue(firstNonBlank(
                 first(props, "channelAppId", "platformCode"), params.getSellerTaxNo()));
         return params;
@@ -190,7 +188,7 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
      * 字段键沿用票通文档命名，与百旺键的映射见 docs。
      */
     private void appendSpecialBiz(Map<String, Object> body, Invoice invoice) {
-        Map<String, String> attrs = invoice.getAttrs();
+        Map<String, String> attr = invoice.getAttr();
         Map<String, String> jzfw = invoice.getJzfwTdys();
         if (jzfw != null && !jzfw.isEmpty()) {
             Map<String, Object> buildService = new LinkedHashMap<String, Object>();
@@ -228,15 +226,15 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
             }
             body.put("realEstateRentalList", rentalList);
         }
-        // 货物运输/旅客运输/不动产销售节点使用方较少，直接经 attrs 原样透传
-        putJsonAttr(body, attrs, "goodsTransportList");
-        putJsonAttr(body, attrs, "passengerTransportList");
-        putJsonAttr(body, attrs, "realEstateSaleList");
-        putJsonAttr(body, attrs, "herBuyerList");
+        // 货物运输/旅客运输/不动产销售节点使用方较少，直接经 attr 原样透传
+        putJsonAttr(body, attr, "goodsTransportList");
+        putJsonAttr(body, attr, "passengerTransportList");
+        putJsonAttr(body, attr, "realEstateSaleList");
+        putJsonAttr(body, attr, "herBuyerList");
     }
 
-    private void putJsonAttr(Map<String, Object> body, Map<String, String> attrs, String key) {
-        String json = attrs == null ? null : attrs.get(key);
+    private void putJsonAttr(Map<String, Object> body, Map<String, String> attr, String key) {
+        String json = attr == null ? null : attr.get(key);
         if (StringUtils.isBlank(json)) {
             return;
         }
@@ -327,7 +325,7 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
 
     /**
      * 红字确认单申请：2.38 新版（支持全额/部分、销/购方申请）优先；
-     * {@code attrs.redApplyMode=OLD} 切回 2.28 旧版。
+     * {@code attr.redApplyMode=OLD} 切回 2.28 旧版。
      *
      * <p>响应 {@code processState}：81 无需确认 / 84 双方已确认 → 直接 CONFIRMED；
      * 82/83 待对方确认 → WAITING_CONFIRM；4/85~90 失败或作废 → REJECTED。</p>
@@ -338,28 +336,28 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
         Invoice invoice = ctx.requireInvoice();
         PiaoTongParams params = params(ctx);
         requireCredentials(params);
-        Map<String, String> invoiceAttrs = invoice.getAttrs();
+        Map<String, String> invoiceAttr = invoice.getAttr();
 
         RedApplyParams p = new RedApplyParams();
         p.taxpayerNum = params.getSellerTaxNo();
         p.redApplySerialNo = firstNonBlank(
                 apply == null ? null : apply.getChannelOrderNo(),
                 PiaoTongEnvelope.invoiceSerialNo(params));
-        p.redReason = redReason(apply, invoiceAttrs);
+        p.redReason = redReason(apply, invoiceAttr);
         p.blueAllEleInvNo = PiaoTongCodec.electronicNo(invoice);
         p.invoiceCode = invoice.getInvoiceCode();
         p.invoiceNo = invoice.getInvoiceNo();
         p.blueInvoiceDate = firstNonBlank(
-                first(invoiceAttrs, "blueInvoiceDate"),
+                first(invoiceAttr, "blueInvoiceDate"),
                 invoice.getInvoiceDate() == null ? null
                         : invoice.getInvoiceDate().format(COMPACT_DATE));
-        p.applySource = firstNonBlank(first(invoiceAttrs, "applySource"), "0");
+        p.applySource = firstNonBlank(first(invoiceAttr, "applySource"), "0");
         p.invoiceKind = PiaoTongCodec.invoiceKind(invoice);
         p.account = firstNonBlank(params.getAccount(),
-                first(invoiceAttrs, "account"));
+                first(invoiceAttr, "account"));
 
         boolean old = "OLD".equalsIgnoreCase(
-                params.getAttrs() == null ? null : params.getAttrs().get("redApplyMode"));
+                params.getAttr() == null ? null : params.getAttr().get("redApplyMode"));
         PiaoTongResponse response = gateway(params).call(
                 old ? PiaoTongSpec.RED_APPLY_OLD : PiaoTongSpec.RED_APPLY_NEW,
                 PiaoTongCodec.redApplyBody(invoice, p));
@@ -521,7 +519,7 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
         }
         // 1/2 需扫码认证
         String qrcodeType = firstNonBlank(
-                params.getAttrs() == null ? null : params.getAttrs().get("qrcodeType"), "1");
+                params.getAttr() == null ? null : params.getAttr().get("qrcodeType"), "1");
         PiaoTongResponse qr = gateway(params).call(PiaoTongSpec.AUTH_QRCODE,
                 PiaoTongCodec.qrcodeBody(params.getSellerTaxNo(), account, qrcodeType));
         if (!PiaoTongSpec.ST_SUCCESS.equals(qr.bizText("resultCode"))) {
@@ -680,11 +678,11 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
 
     private PiaoTongParams params(InvoiceContext ctx) {
         ChannelConfig config = ctx.getConfig();
-        if (config != null && config.getParams() instanceof PiaoTongParams) {
-            return (PiaoTongParams) config.getParams();
+        if (config != null && config instanceof PiaoTongParams) {
+            return (PiaoTongParams) config;
         }
         if (config != null) {
-            return (PiaoTongParams) parseParams(config.getAttrs());
+            return (PiaoTongParams) parseParams(config.getAttr());
         }
         throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "票通云渠道配置缺失");
     }
@@ -706,29 +704,29 @@ public class PiaoTongChannelProvider implements InvoiceChannelProvider,
         if (StringUtils.isNotBlank(invoice.getChannelOrderNo())) {
             return invoice.getChannelOrderNo();
         }
-        Map<String, String> attrs = invoice.getAttrs();
-        if (attrs != null && StringUtils.isNotBlank(attrs.get("invoiceReqSerialNo"))) {
-            return attrs.get("invoiceReqSerialNo");
+        Map<String, String> attr = invoice.getAttr();
+        if (attr != null && StringUtils.isNotBlank(attr.get("invoiceReqSerialNo"))) {
+            return attr.get("invoiceReqSerialNo");
         }
         throw new GatewayException(InvoiceErrorCode.CHANNEL_CALL_FAILED,
-                "开票缺少 invoiceReqSerialNo：请通过 request.attrs 预生成后传入");
+                "开票缺少 invoiceReqSerialNo：请通过 request.attr 预生成后传入");
     }
 
     private String accountOf(InvoiceContext ctx, PiaoTongParams params) {
         Invoice invoice = ctx.getInvoice();
         String account = firstNonBlank(params.getAccount(),
-                invoice == null ? null : first(invoice.getAttrs(), "account"));
+                invoice == null ? null : first(invoice.getAttr(), "account"));
         if (StringUtils.isBlank(account)) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                    "票通云授权链路需要电子税局登录账号（配置 account 或单据 attrs.account）");
+                    "票通云授权链路需要电子税局登录账号（配置 account 或单据 attr.account）");
         }
         return account;
     }
 
     /** 冲红原因：票通 01/02/03/04；兼容百旺 chyydm 数字 1~4 自动补零。 */
-    private String redReason(RedApply apply, Map<String, String> invoiceAttrs) {
+    private String redReason(RedApply apply, Map<String, String> invoiceAttr) {
         String reason = firstNonBlank(
-                invoiceAttrs == null ? null : invoiceAttrs.get("redReason"),
+                invoiceAttr == null ? null : invoiceAttr.get("redReason"),
                 apply == null ? null : apply.getChyydm());
         if (StringUtils.isBlank(reason)) {
             return PiaoTongSpec.DEFAULT_RED_REASON;

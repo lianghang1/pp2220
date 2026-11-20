@@ -47,7 +47,7 @@ public class AliJsapiPayMethod implements AlipayPayMethod {
                     "JSAPI 支付需在 channelExtras 中提供 openid（支付宝 buyerId）");
         }
         AlipayTradeCreateRequest request = new AlipayTradeCreateRequest();
-        request.setNotifyUrl(config.getNotifyUrl());
+        request.setNotifyUrl(StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl()));
         AlipayTradeCreateModel model = new AlipayTradeCreateModel();
         model.setOutTradeNo(payment.getBizOrderNo());
         model.setTotalAmount(AlipayStateTranslator.toYuan(payment.getAmount()));

@@ -91,7 +91,7 @@ public final class BaiwangJsSigner {
         if (StringUtils.isBlank(params.getGatewayKey())
                 || StringUtils.isBlank(params.getGatewaySecret())) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                    "百旺金穗云缺少网关 KEY/SECRET，请在 attrs.gatewayKey/gatewaySecret 中配置");
+                    "百旺金穗云缺少网关 KEY/SECRET，请在 attr.gatewayKey/gatewaySecret 中配置");
         }
         String date = gmtDate(instant);
         String host = StringUtils.isBlank(params.getHost())

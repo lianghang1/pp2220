@@ -65,7 +65,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
             request.setOutTradeNo(payment.getBizOrderNo());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
-            request.setNotifyUrl(config.getNotifyUrl());
+            request.setNotifyUrl(StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl()));
             request.setTradeType(WxPayConstants.TradeType.JSAPI);
             request.setOpenid(openid);
             WxPayMpOrderResult result = wrap("JSAPI V2 下单", () ->
@@ -76,7 +76,7 @@ public class WxJsapiPayMethod implements WechatPayMethod {
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
         request.setOutTradeNo(payment.getBizOrderNo());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
-        request.setNotifyUrl(config.getNotifyUrl());
+        request.setNotifyUrl(StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl()));
         request.setAmount(v3Amount(payment));
         WxPayUnifiedOrderV3Request.Payer payer = new WxPayUnifiedOrderV3Request.Payer();
         payer.setOpenid(openid);

@@ -23,7 +23,6 @@ import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.ChannelInstance;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceAccountKey;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions;
 import io.github.lianghang1.conflux.invoice.exception.InvoiceErrorCode;
@@ -79,13 +78,12 @@ class InvoiceOrchestrator {
     InvoiceResult issue(InvoiceRequest req) {
         validateIssueRequest(req);
         Invoice invoice = buildInvoice(req);
-        ChannelInstance instance = router.route(req.getAppId(), req.getSellerTaxNo(),
+        ChannelInstance instance = router.route(req.getConfigId(), req.getSellerTaxNo(),
                 req.getInvoiceType(), req.getChannelCode());
-        ChannelConfig config = resolveConfig(instance, req.getAppId(), req.getSellerTaxNo());
+        ChannelConfig config = resolveConfig(instance, req.getConfigId(), req.getSellerTaxNo());
         rt.registry.assertTypeSupported(instance.getChannelCode(), req.getInvoiceType());
         invoice.setChannelCode(instance.getChannelCode())
-                .setChannelInstanceId(instance.getInstanceId())
-                .setAccountKey(instance.getAccountKey());
+                .setChannelInstanceId(instance.getInstanceId());
         InvoiceContext ctx = InvoiceContext.of(config, instance, invoice).setRequest(req);
         InvoiceResult outcome = rt.registry.issuer(invoice.getChannelCode()).issue(ctx);
         return applyOutcome(invoice, outcome);
@@ -95,7 +93,7 @@ class InvoiceOrchestrator {
     private Invoice buildInvoice(InvoiceRequest req) {
         return new Invoice()
                 .setInvoiceId(req.getBizOrderNo())
-                .setAppId(req.getAppId())
+                .setConfigId(req.getConfigId())
                 .setBizOrderNo(req.getBizOrderNo())
                 .setSellerTaxNo(req.getSellerTaxNo())
                 .setSellerName(req.getSellerName())
@@ -120,7 +118,7 @@ class InvoiceOrchestrator {
                 .setSandbox(req.isSandbox())
                 .setState(InvoiceState.CREATED)
                 .setNotifyUrl(req.getNotifyUrl())
-                .setAttrs(req.getAttrs());
+                .setAttr(req.getAttr());
     }
 
     // ==================== 查单 ====================
@@ -129,7 +127,7 @@ class InvoiceOrchestrator {
     InvoiceResult query(InvoiceQueryRequest req) {
         req.check();
         Invoice invoice = req.getInvoice() != null ? req.getInvoice() : locate(req);
-        ChannelConfig config = configOf(req.getAppId(), req.getChannelCode(), invoice);
+        ChannelConfig config = configOf(req.getConfigId(), req.getChannelCode(), invoice);
         InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
         InvoiceResult outcome = rt.registry.querier(req.getChannelCode()).query(ctx);
         return applyOutcome(invoice, outcome);
@@ -139,7 +137,7 @@ class InvoiceOrchestrator {
     private Invoice locate(InvoiceQueryRequest req) {
         return new Invoice()
                 .setInvoiceId(req.getBizOrderNo())
-                .setAppId(req.getAppId())
+                .setConfigId(req.getConfigId())
                 .setBizOrderNo(req.getBizOrderNo())
                 .setChannelCode(req.getChannelCode())
                 .setChannelOrderNo(req.getChannelOrderNo())
@@ -157,7 +155,7 @@ class InvoiceOrchestrator {
         if (session.getState() == AuthSessionState.EXPIRED) {
             throw new GatewayException(InvoiceErrorCode.AUTH_SESSION_EXPIRED, "授权会话已过期，请重新发起授权");
         }
-        ChannelConfig config = configOf(submission.getAppId(), invoice.getChannelCode(), invoice);
+        ChannelConfig config = configOf(submission.getConfigId(), invoice.getChannelCode(), invoice);
         InvoiceContext ctx = InvoiceContext.of(config, null, invoice).setAuthSession(session);
         AuthResult result = rt.registry.authHandler(invoice.getChannelCode()).submit(ctx, submission);
         if (result == null) {
@@ -190,7 +188,7 @@ class InvoiceOrchestrator {
         Invoice original = req.getOriginalInvoice();
         String channel = StringUtils.isNotBlank(req.getChannelCode())
                 ? req.getChannelCode() : original.getChannelCode();
-        ChannelConfig config = configOf(req.getAppId(), channel, original);
+        ChannelConfig config = configOf(req.getConfigId(), channel, original);
         RedApply apply = buildRedApply(req, original, channel);
         InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
         RedApplyResult outcome = rt.registry.redHandler(channel).apply(ctx);
@@ -203,7 +201,7 @@ class InvoiceOrchestrator {
         Invoice original = req.getOriginalInvoice();
         String channel = StringUtils.isNotBlank(req.getChannelCode())
                 ? req.getChannelCode() : original.getChannelCode();
-        ChannelConfig config = configOf(req.getAppId(), channel, original);
+        ChannelConfig config = configOf(req.getConfigId(), channel, original);
         RedApply apply = buildRedApply(req, original, channel);
         InvoiceContext ctx = InvoiceContext.of(config, null, original).setRedApply(apply);
         QuickRedOutcome outcome = rt.registry.redHandler(channel).quickRed(ctx);
@@ -230,7 +228,7 @@ class InvoiceOrchestrator {
     RedApply queryRedApply(RedApplyQueryRequest req) {
         req.check();
         RedApply apply = req.getRedApply();
-        ChannelConfig config = configOfRed(req.getAppId(), apply);
+        ChannelConfig config = configOfRed(req.getConfigId(), apply);
         InvoiceContext ctx = InvoiceContext.of(config, null, null).setRedApply(apply);
         RedApplyResult outcome = rt.registry.redHandler(apply.getChannelCode()).queryRed(ctx);
         return applyRedOutcome(apply, outcome);
@@ -240,7 +238,7 @@ class InvoiceOrchestrator {
     RedApply confirmRed(RedConfirmRequest req) {
         req.check();
         RedApply apply = req.getRedApply();
-        ChannelConfig config = configOfRed(req.getAppId(), apply);
+        ChannelConfig config = configOfRed(req.getConfigId(), apply);
         InvoiceContext ctx = InvoiceContext.of(config, null, null).setRedApply(apply);
         RedApplyResult outcome = rt.registry.redHandler(apply.getChannelCode()).confirm(ctx, req);
         if (outcome == null) {
@@ -257,7 +255,7 @@ class InvoiceOrchestrator {
         Invoice original = req.getOriginalInvoice();
         String channel = StringUtils.isNotBlank(req.getChannelCode())
                 ? req.getChannelCode() : apply.getChannelCode();
-        ChannelConfig config = configOf(req.getAppId(), channel, original);
+        ChannelConfig config = configOf(req.getConfigId(), channel, original);
         Invoice red = createRedInvoice(apply, original, config, req.getNotifyUrl());
         InvoiceContext ctx = InvoiceContext.of(config, null, red).setRedApply(apply);
         InvoiceResult outcome = rt.registry.redHandler(channel).issueRed(ctx);
@@ -268,7 +266,7 @@ class InvoiceOrchestrator {
     private RedApply buildRedApply(RedApplyRequest req, Invoice original, String channel) {
         return new RedApply()
                 .setRedApplyId(req.getBizRedNo())
-                .setAppId(req.getAppId())
+                .setConfigId(req.getConfigId())
                 .setBizRedNo(req.getBizRedNo())
                 .setOriginalInvoiceId(original.getInvoiceId())
                 .setOriginalInvoiceNo(original.getInvoiceNo())
@@ -278,7 +276,7 @@ class InvoiceOrchestrator {
                 .setAmount(req.getAmount() != null ? req.getAmount() : original.getAmount())
                 .setChannelCode(channel)
                 .setChannelInstanceId(original.getChannelInstanceId())
-                .setAccountKey(original.getAccountKey())
+                .setSellerTaxNo(original.getSellerTaxNo())
                 .setChannelOrderNo(original.getChannelOrderNo())
                 .setState(RedApplyState.APPLYING)
                 .setNotifyUrl(req.getNotifyUrl());
@@ -287,15 +285,14 @@ class InvoiceOrchestrator {
     /** 建立红字发票载体。 */
     private Invoice createRedInvoice(RedApply apply, Invoice original, ChannelConfig config,
                                      String notifyUrl) {
-        Map<String, String> attrs = new HashMap<String, String>();
-        attrs.put("RED_INVOICE", "true");
+        Map<String, String> attr = new HashMap<String, String>();
+        attr.put("RED_INVOICE", "true");
         return new Invoice()
                 .setInvoiceId(apply.getBizRedNo())
-                .setAppId(apply.getAppId())
+                .setConfigId(apply.getConfigId())
                 .setBizOrderNo(apply.getBizRedNo() + "-RED")
                 .setChannelCode(apply.getChannelCode())
                 .setChannelInstanceId(apply.getChannelInstanceId())
-                .setAccountKey(apply.getAccountKey())
                 .setSellerTaxNo(original.getSellerTaxNo())
                 .setSellerName(original.getSellerName())
                 .setBuyerTaxNo(original.getBuyerTaxNo())
@@ -309,7 +306,7 @@ class InvoiceOrchestrator {
                 .setChannelOrderNo(apply.getChannelOrderNo())
                 .setNotifyUrl(notifyUrl)
                 .setState(InvoiceState.CREATED)
-                .setAttrs(attrs);
+                .setAttr(attr);
     }
 
     // ==================== 辅助能力：交付 / 修复 ====================
@@ -318,7 +315,7 @@ class InvoiceOrchestrator {
     DeliveryResult resend(DeliveryRequest req) {
         req.check();
         Invoice invoice = req.getInvoice();
-        ChannelConfig config = configOf(req.getAppId(), invoice.getChannelCode(), invoice);
+        ChannelConfig config = configOf(req.getConfigId(), invoice.getChannelCode(), invoice);
         InvoiceContext ctx = InvoiceContext.of(config, null, invoice);
         DeliveryResult result = rt.registry.deliverer(invoice.getChannelCode()).resend(ctx, req);
         if (result == null) {
@@ -359,26 +356,25 @@ class InvoiceOrchestrator {
     }
 
     private ChannelConfig configForRepair(RepairRequest req, String channel) {
-        if (StringUtils.isBlank(req.getAppId())) {
-            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "修复需提供 appId 定位渠道配置");
+        if (StringUtils.isBlank(req.getConfigId())) {
+            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "修复需提供 configId 定位渠道配置");
         }
-        return rt.configProvider.getConfig(req.getAppId(), channel, req.getSellerTaxNo());
+        return rt.configProvider.getConfig(req.getConfigId(), channel, req.getSellerTaxNo());
     }
 
     // ==================== 渠道回调 ====================
 
-    /** 验签并解析渠道回调为归一事件；不查单、不校验金额、不推进状态。 */
-    InvoiceCallbackEvent parseCallback(InvoiceCallbackRequest raw) {
+    /** 验签并解析渠道回调为归一事件；不查单、不校验金额、不推进状态。
+     *  configId 与 sellerTaxNo 由使用方查库后显式传入，框架据此取配置验签。 */
+    InvoiceCallbackEvent parseCallback(String configId, String sellerTaxNo, InvoiceCallbackRequest raw) {
         if (raw == null || StringUtils.isBlank(raw.getChannelCode())) {
             throw new GatewayException(InvoiceErrorCode.CALLBACK_PARSE_FAILED, "回调报文缺少 channelCode");
         }
-        String code = raw.getChannelCode();
-        String accountKey = InvoiceAccountKey.resolve(raw, null);
-        if (StringUtils.isBlank(accountKey)) {
-            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                    "回调地址缺少 {} 参数，无法反查账户配置", InvoiceAccountKey.ROUTING_PARAM);
+        if (StringUtils.isBlank(configId)) {
+            throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "回调缺少 configId，无法定位渠道配置");
         }
-        ChannelConfig config = rt.configProvider.getByAccountKey(code, accountKey);
+        String code = raw.getChannelCode();
+        ChannelConfig config = rt.configProvider.getConfig(configId, code, sellerTaxNo);
         InvoiceCallbackEvent event = rt.registry.callbackHandler(code).parse(raw, config);
         if (event == null) {
             throw new GatewayException(InvoiceErrorCode.CALLBACK_PARSE_FAILED, "回调解析结果为空");
@@ -495,9 +491,8 @@ class InvoiceOrchestrator {
         return new AuthSession()
                 .setSessionId(StringUtils.isNotBlank(c.getSessionId()) ? c.getSessionId() : InvoiceIds.authSession())
                 .setInvoiceId(invoice.getInvoiceId())
-                .setAppId(invoice.getAppId())
+                .setConfigId(invoice.getConfigId())
                 .setChannelCode(invoice.getChannelCode())
-                .setAccountKey(invoice.getAccountKey())
                 .setAuthType(c.getAuthType() == null ? AuthType.SMS : c.getAuthType())
                 .setState(AuthSessionState.PENDING)
                 .setChallengeUrl(c.getChallengeUrl())
@@ -545,37 +540,30 @@ class InvoiceOrchestrator {
         }
     }
 
-    /** 红冲确认单场景：优先用载体上的账户键反查配置。 */
-    private ChannelConfig configOfRed(String appId, RedApply apply) {
+    /** 红冲确认单场景：按 configId + 渠道正向定位配置。 */
+    private ChannelConfig configOfRed(String configId, RedApply apply) {
         if (StringUtils.isBlank(apply.getChannelCode())) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_NOT_FOUND, "确认单缺少渠道编码");
         }
-        if (StringUtils.isNotBlank(apply.getAccountKey())) {
-            return rt.configProvider.getByAccountKey(apply.getChannelCode(), apply.getAccountKey());
-        }
-        return rt.configProvider.getConfig(appId, apply.getChannelCode(), null);
+        return rt.configProvider.getConfig(configId, apply.getChannelCode(), apply.getSellerTaxNo());
     }
 
-    private ChannelConfig configOf(String appId, String channelCode, Invoice invoice) {
+    private ChannelConfig configOf(String configId, String channelCode, Invoice invoice) {
         if (StringUtils.isBlank(channelCode)) {
             throw new GatewayException(InvoiceErrorCode.CHANNEL_NOT_FOUND, "缺少渠道编码");
         }
-        String accountKey = invoice == null ? null : invoice.getAccountKey();
-        if (StringUtils.isNotBlank(accountKey)) {
-            return rt.configProvider.getByAccountKey(channelCode, accountKey);
-        }
         String sellerTaxNo = invoice == null ? null : invoice.getSellerTaxNo();
-        return rt.configProvider.getConfig(appId, channelCode, sellerTaxNo);
+        return rt.configProvider.getConfig(configId, channelCode, sellerTaxNo);
     }
 
-    private ChannelConfig resolveConfig(ChannelInstance instance, String appId, String sellerTaxNo) {
+    private ChannelConfig resolveConfig(ChannelInstance instance, String configId, String sellerTaxNo) {
         return instance.getConfig() != null ? instance.getConfig()
-                : rt.configProvider.getConfig(appId, instance.getChannelCode(), sellerTaxNo);
+                : rt.configProvider.getConfig(configId, instance.getChannelCode(), sellerTaxNo);
     }
 
     private void validateIssueRequest(InvoiceRequest req) {
         GatewayAssert.param(req != null, "开票请求不能为空");
-        GatewayAssert.param(StringUtils.isNotBlank(req.getAppId()), "appId 不能为空");
+        GatewayAssert.param(StringUtils.isNotBlank(req.getConfigId()), "configId 不能为空");
         GatewayAssert.param(StringUtils.isNotBlank(req.getBizOrderNo()), "bizOrderNo 不能为空");
         GatewayAssert.param(StringUtils.isNotBlank(req.getSellerTaxNo()), "sellerTaxNo 不能为空");
         GatewayAssert.param(StringUtils.isNotBlank(req.getBuyerTitle()), "buyerTitle 不能为空");

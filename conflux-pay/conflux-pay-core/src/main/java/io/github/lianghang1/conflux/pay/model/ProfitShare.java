@@ -22,7 +22,7 @@ public class ProfitShare implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务分账单号（渠道商户单号，渠道侧幂等键；查重由使用方负责） */
     private String bizShareNo;
     /** 关联的使用方业务单号（冗余） */

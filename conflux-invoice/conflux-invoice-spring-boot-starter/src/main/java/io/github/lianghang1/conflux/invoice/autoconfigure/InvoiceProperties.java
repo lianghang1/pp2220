@@ -13,7 +13,7 @@ import java.util.Map;
  * {@code sellerTaxNo}（企业准入标识）与 {@code tier/priority}（通道分级路由），
  * 因为同一应用下可能有多个销方税号、同一税号又可能有多级通道。</p>
  *
- * <p>渠道声明路径为 {@code conflux.invoice.apps.<appId>.<channel>.*}：
+ * <p>渠道声明路径为 {@code conflux.invoice.configs.<configId>.<channelCode>.*}：
  * 第一层 key 为应用标识，第二层 key 为渠道编码。</p>
  *
  * @author lianghang
@@ -23,7 +23,7 @@ import java.util.Map;
 public class InvoiceProperties {
 
     /** 应用 → 渠道配置：第一层 key 为应用标识，第二层 key 为渠道编码。 */
-    private Map<String, Map<String, ChannelProperties>> apps =
+    private Map<String, Map<String, ChannelProperties>> configs =
             new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
     /** 是否注册 mock 渠道（默认 true，便于零凭据启动演示）。 */
@@ -43,7 +43,7 @@ public class InvoiceProperties {
         private long downloadTimeoutMillis = 30000L;
     }
 
-    /** 单渠道配置：统一基础键 + attrs 渠道个性键值包。 */
+    /** 单渠道配置：统一基础键 + attr 渠道个性键值包。 */
     @Data
     public static class ChannelProperties {
         /** 销方纳税人识别号（企业准入标识，也是多账户路由键）。 */
@@ -57,6 +57,6 @@ public class InvoiceProperties {
         private int priority;
         private boolean enabled = true;
         /** 渠道个性键值包（经 InvoiceChannelProvider.parseParams 解析）。 */
-        private Map<String, String> attrs = new LinkedHashMap<String, String>();
+        private Map<String, String> attr = new LinkedHashMap<String, String>();
     }
 }

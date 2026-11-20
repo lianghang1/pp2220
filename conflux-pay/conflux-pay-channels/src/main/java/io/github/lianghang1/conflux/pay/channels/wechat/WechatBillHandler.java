@@ -44,7 +44,7 @@ public class WechatBillHandler implements BillHandler {
     }
 
     @Override
-    public BillSheet fetchBill(String appId, LocalDate billDate, ChannelConfig config) {
+    public BillSheet fetchBill(String configId, LocalDate billDate, ChannelConfig config) {
         WechatParams params = WechatClientHolder.paramsOf(config);
         WxPayService service = holder.service(config);
         WxPayDownloadBillRequest request = new WxPayDownloadBillRequest();
@@ -54,7 +54,7 @@ public class WechatBillHandler implements BillHandler {
         String csv = wrap("账单下载", () -> service.downloadRawBill(request));
         List<BillEntry> entries = parseCsv(csv, billDate);
         return new BillSheet()
-                .setAppId(appId)
+                .setConfigId(configId)
                 .setChannelCode("wechat")
                 .setBillDate(billDate)
                 .setEntries(entries);

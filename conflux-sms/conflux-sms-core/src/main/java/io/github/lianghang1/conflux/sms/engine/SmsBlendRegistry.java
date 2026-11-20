@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>渠道的配置对象与发送能力全部是 sms4j 原始包的实现，本类不含任何渠道业务代码，
  * 也不依赖 sms4j 的 Spring Boot starter——纯 Java 项目同样可用。</p>
  *
- * <p>configId 采用「appId::channel」隔离：同一渠道在不同 app 下持有各自实例，
+ * <p>configId 采用「configId::channel」隔离：同一渠道在不同 app 下持有各自实例，
  * 避免跨 app 串配置。注册发生在启动/配置变更期，运行期只读，线程安全。</p>
  *
  * @author lianghang
@@ -75,20 +75,20 @@ public class SmsBlendRegistry {
      * registerDefaultFactory），清单外的自定义渠道须先经
      * {@link #register(SmsChannelProvider)} 注册。</p>
      *
-     * @param appId    使用方应用标识
+     * @param configId    使用方应用标识
      * @param channel  渠道标识（sms4j supplier，如 alibaba/tencent/huawei）
-     * @param attrs    配置键值（键名与 sms4j Config 字段一致，如 accessKeyId/secretKey）
-     * @return 注册使用的 configId（形如 appId::channel）
+     * @param attr    配置键值（键名与 sms4j Config 字段一致，如 accessKeyId/secretKey）
+     * @return 注册使用的 configId（形如 configId::channel）
      */
-    public String register(String appId, String channel, Map<String, String> attrs) {
-        if (appId == null || appId.trim().isEmpty() || channel == null || channel.trim().isEmpty()) {
-            throw new GatewayException(SmsErrorCode.BAD_REQUEST, "appId/channel 必填");
+    public String register(String configId, String channel, Map<String, String> attr) {
+        if (configId == null || configId.trim().isEmpty() || channel == null || channel.trim().isEmpty()) {
+            throw new GatewayException(SmsErrorCode.BAD_REQUEST, "configId/channel 必填");
         }
-        String configId = configId(appId, channel);
-        String fingerprint = fingerprint(attrs);
+        String blendId = configId(configId, channel);
+        String fingerprint = fingerprint(attr);
         // 指纹一致则复用已装载的 blend，避免每次发送都重建；配置变更则重建覆盖
-        if (configIds.contains(configId) && fingerprint.equals(fingerprints.get(configId))) {
-            return configId;
+        if (configIds.contains(blendId) && fingerprint.equals(fingerprints.get(blendId))) {
+            return blendId;
         }
         ensureSms4jInitialized(null);
 
@@ -99,13 +99,13 @@ public class SmsBlendRegistry {
         }
         registeredChannels.add(channel);
 
-        BaseConfig config = buildConfig(factory, attrs);
-        config.setConfigId(configId);
+        BaseConfig config = buildConfig(factory, attr);
+        config.setConfigId(blendId);
         SmsFactory.createSmsBlend(config);
-        configIds.add(configId);
-        fingerprints.put(configId, fingerprint);
-        log.info("短信渠道装载完成: configId={}, supplier={}", configId, factory.getSupplier());
-        return configId;
+        configIds.add(blendId);
+        fingerprints.put(blendId, fingerprint);
+        log.info("短信渠道装载完成: configId={}, supplier={}", blendId, factory.getSupplier());
+        return blendId;
     }
 
     /** 从 sms4j 原生注册表取工厂；内置渠道未注册时兜底注册其官方工厂。 */
@@ -126,19 +126,19 @@ public class SmsBlendRegistry {
         if (channelConfig == null) {
             throw new GatewayException(SmsErrorCode.CONFIG_MISSING, "短信渠道配置为空");
         }
-        return register(channelConfig.getAppId(), channelConfig.getChannel(), channelConfig.getAttrs());
+        return register(channelConfig.getConfigId(), channelConfig.getChannelCode(), channelConfig.mergedAttr());
     }
 
     /** 配置指纹：稳定排序后拼接，键变或值变都会触发重建。 */
-    private static String fingerprint(Map<String, String> attrs) {
-        if (attrs == null || attrs.isEmpty()) {
+    private static String fingerprint(Map<String, String> attr) {
+        if (attr == null || attr.isEmpty()) {
             return "";
         }
-        java.util.List<String> keys = new java.util.ArrayList<String>(attrs.keySet());
+        java.util.List<String> keys = new java.util.ArrayList<String>(attr.keySet());
         java.util.Collections.sort(keys);
         StringBuilder sb = new StringBuilder();
         for (String key : keys) {
-            sb.append(key).append('=').append(attrs.get(key)).append('\u0001');
+            sb.append(key).append('=').append(attr.get(key)).append('\u0001');
         }
         return sb.toString();
     }
@@ -160,13 +160,13 @@ public class SmsBlendRegistry {
         return java.util.Collections.unmodifiableSet(registeredChannels);
     }
 
-    /** 按 appId + 渠道取出已注册的 SmsBlend；未装载抛明确异常。 */
-    public SmsBlend smsBlend(String appId, String channel) {
-        String configId = configId(appId, channel);
-        SmsBlend blend = SmsFactory.getSmsBlend(configId);
+    /** 按 configId + 渠道取出已注册的 SmsBlend；未装载抛明确异常。 */
+    public SmsBlend smsBlend(String configId, String channel) {
+        String blendId = configId(configId, channel);
+        SmsBlend blend = SmsFactory.getSmsBlend(blendId);
         if (blend == null) {
             throw new GatewayException(SmsErrorCode.CONFIG_MISSING,
-                    "短信渠道配置未装载: appId={}, channel={}", appId, channel);
+                    "短信渠道配置未装载: configId={}, channel={}", configId, channel);
         }
         return blend;
     }
@@ -176,18 +176,18 @@ public class SmsBlendRegistry {
         return java.util.Collections.unmodifiableSet(configIds);
     }
 
-    /** configId 生成规则：appId::channel。 */
-    public static String configId(String appId, String channel) {
-        return appId + "::" + channel;
+    /** configId 生成规则：configId::channel。 */
+    public static String configId(String configId, String channel) {
+        return configId + "::" + channel;
     }
 
     @SuppressWarnings("unchecked")
-    private BaseConfig buildConfig(BaseProviderFactory factory, Map<String, String> attrs) {
+    private BaseConfig buildConfig(BaseProviderFactory factory, Map<String, String> attr) {
         try {
             BaseConfig config = (BaseConfig) factory.getConfigClass().newInstance();
-            if (attrs != null && !attrs.isEmpty()) {
+            if (attr != null && !attr.isEmpty()) {
                 // 忽略 Config 中不存在的键（各厂商字段差异大），大小写不敏感
-                BeanUtil.fillBeanWithMapIgnoreCase(attrs, config, true);
+                BeanUtil.fillBeanWithMapIgnoreCase(attr, config, true);
             }
             return config;
         } catch (Exception e) {

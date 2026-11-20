@@ -18,10 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author lianghang
  */
 @SpringBootTest(classes = PayGatewayAutoConfigurationTest.TestApp.class, properties = {
-        "conflux.pay.apps.demo.mock.notifyUrl=http://127.0.0.1/callback/mock",
-        "conflux.pay.apps.demo.mock.sandbox=true",
-        "conflux.pay.apps.demo.mock.attrs.appKey=demo-app-key",
-        "conflux.pay.apps.demo.mock.attrs.payOutcome=paying"
+        "conflux.pay.configs.demo.mock.notifyUrl=http://127.0.0.1/callback/mock",
+        "conflux.pay.configs.demo.mock.sandbox=true",
+        "conflux.pay.configs.demo.mock.attr.appKey=demo-app-key",
+        "conflux.pay.configs.demo.mock.attr.payOutcome=paying"
 })
 class PayGatewayAutoConfigurationTest {
     @Autowired
@@ -35,12 +35,11 @@ class PayGatewayAutoConfigurationTest {
     }
 
     @Test
-    void propertiesConfigProviderShouldResolveBothDirections() {
+    void propertiesConfigProviderShouldResolveConfig() {
         ChannelConfig config = configProvider.getConfig("demo", "mock");
-        assertThat(config.getAppId()).isEqualTo("demo");
+        assertThat(config.getConfigId()).isEqualTo("demo");
         assertThat(config.getNotifyUrl()).isEqualTo("http://127.0.0.1/callback/mock");
         assertThat(config.isSandbox()).isTrue();
-        assertThat(configProvider.getByAccountKey("mock", "demo-app-key").getAppId()).isEqualTo("demo");
     }
 
     @Configuration

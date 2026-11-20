@@ -7,7 +7,7 @@ package io.github.lianghang1.conflux.invoice.channels.baiwangjs;
  * 接口路径、字段、状态码均取自公开文档，未核对的一律不编造。</p>
  *
  * <p><b>版本口径</b>：同一能力同时存在 V1 / V2 时默认走 V2，V1 保留完整实现，
- * 由 {@code attrs.apiVersion=V1} 切换。报文组装差异见 {@link BaiwangJsCodec}：
+ * 由 {@code attr.apiVersion=V1} 切换。报文组装差异见 {@link BaiwangJsCodec}：
  * V1 用合并字段 {@code xsfDzdh/xsfYhzh/gmfDzdh/gmfYhzh}（地址与电话以 {@code ~~} 分隔），
  * V2 用拆分字段 {@code xsfDz/xsfDh/xsfYh/xsfZh/gmfDz/gmfDh/gmfYh/gmfZh}。</p>
  *
@@ -139,9 +139,6 @@ public final class BaiwangJsSpec {
     public static final String FPLXDM_VEHICLE = "03";
     public static final String FPLXDM_VAT_SPECIAL = "004";
     public static final String FPLXDM_VAT_GENERAL = "007";
-
-    /** 回调地址上用于反查账户配置的查询参数名（框架统一约定）。 */
-    public static final String ACCOUNT_KEY_PARAM = "accountKey";
 
     private BaiwangJsSpec() {
     }

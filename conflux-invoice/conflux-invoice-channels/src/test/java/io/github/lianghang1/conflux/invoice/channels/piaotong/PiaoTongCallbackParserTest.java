@@ -43,9 +43,9 @@ class PiaoTongCallbackParserTest {
                 .setPrivateKey(Base64.getEncoder().encodeToString(
                         pair.getPrivate().getEncoded()))
                 .setPublicKey(Base64.getEncoder().encodeToString(
-                        pair.getPublic().getEncoded()))
-                .setSellerTaxNo("911100000000000000");
-        config = new ChannelConfig().setParams(params);
+                        pair.getPublic().getEncoded()));
+        params.setSellerTaxNo("911100000000000000");
+        config = params;
     }
 
     private static InvoiceCallbackRequest push(String businessJson) {
@@ -75,7 +75,7 @@ class PiaoTongCallbackParserTest {
         assertEquals("12345678", event.getInvoiceNo());
         assertEquals("123456789012", event.getInvoiceCode());
         assertTrue(event.getAmount().compareTo(new java.math.BigDecimal("106.00")) == 0);
-        assertEquals("0000", event.getAttrs().get("channelResult"));
+        assertEquals("0000", event.getAttr().get("channelResult"));
     }
 
     @Test
@@ -97,7 +97,7 @@ class PiaoTongCallbackParserTest {
                 push(business("4999", "2")), config).getState());
         // 红票推送登记 redInvoice 标记
         assertEquals("true", PiaoTongCallbackParser.parse(
-                push(business("0000", "2")), config).getAttrs().get("redInvoice"));
+                push(business("0000", "2")), config).getAttr().get("redInvoice"));
     }
 
     @Test
@@ -109,8 +109,8 @@ class PiaoTongCallbackParserTest {
                 + "\"authId\":\"AUTH123\"}";
         InvoiceCallbackEvent event = PiaoTongCallbackParser.parse(push(business), config);
         assertEquals(InvoiceState.WAITING_AUTH, event.getState());
-        assertEquals("AUTH123", event.getAttrs().get("authId"));
-        assertEquals("QRCODE", event.getAttrs().get("authenticationQrcode"));
+        assertEquals("AUTH123", event.getAttr().get("authId"));
+        assertEquals("QRCODE", event.getAttr().get("authenticationQrcode"));
     }
 
     @Test
@@ -165,18 +165,6 @@ class PiaoTongCallbackParserTest {
     }
 
     @Test
-    void accountKey_fromQueryParams() {
-        InvoiceCallbackRequest raw = push(business("0000", "1"));
-        Map<String, String> queryParams = new HashMap<String, String>();
-        queryParams.put("accountKey", "PT000001|911100000000000000");
-        raw.setQueryParams(queryParams);
-        InvoiceCallbackEvent event = PiaoTongCallbackParser.parse(raw, config);
-        assertEquals("PT000001|911100000000000000", event.getAccountKey());
-        // 清理 parse 暂存的 ThreadLocal 配置，避免影响后续 reply 用例
-        PiaoTongCallbackParser.reply(true, null);
-    }
-
-    @Test
     void provider_wiring() {
         PiaoTongChannelProvider provider = new PiaoTongChannelProvider();
         assertEquals(PiaoTongSpec.CODE, provider.channelCode());
@@ -200,7 +188,7 @@ class PiaoTongCallbackParserTest {
         PiaoTongParams parsed = (PiaoTongParams) provider.parseParams(props);
         assertEquals("PT000001", parsed.getPlatformCode());
         assertEquals("ABCD", parsed.getAliasName());
-        // 账户键 = channelAppId（platformCode）+ sellerTaxNo 复合定位
+        // 渠道应用标识取 platformCode，销方税号用于配置定位
         assertEquals("PT000001", parsed.channelAppId());
         assertEquals("911100000000000000", parsed.sellerTaxNo());
         assertTrue(parsed.hasCredentials());

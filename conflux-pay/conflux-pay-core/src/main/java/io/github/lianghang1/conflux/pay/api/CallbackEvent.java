@@ -27,7 +27,7 @@ public class CallbackEvent implements Serializable {
     /** 回调单据类型 */
     private BizOrderType type;
     /** 使用方应用标识（经渠道侧应用标识换算得到） */
-    private String appId;
+    private String configId;
     /** 渠道侧回传的业务单号（使用方据此定位自己的订单并查重） */
     private String bizOrderNo;
     /** 渠道侧单号 */

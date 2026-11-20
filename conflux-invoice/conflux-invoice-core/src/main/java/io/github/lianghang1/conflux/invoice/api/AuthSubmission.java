@@ -25,7 +25,7 @@ public class AuthSubmission implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 短信验证码 */
     private String captcha;
     /** 扫码/扫脸回传 token */
@@ -39,7 +39,7 @@ public class AuthSubmission implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(session != null, "session 授权会话载体不能为空");
         GatewayAssert.param(invoice != null, "invoice 发票载体不能为空");
     }

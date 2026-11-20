@@ -41,14 +41,14 @@ class BaiwangJsCallbackParserTest {
                 + "  \"qdfphm\":\"24312000000000000001\", \"fpdm\":\"\", \"fphm\":\"\",\n"
                 + "  \"kprq\":\"20260115142522\", \"jshj\":\"133.00\", \"hjse\":\"13.00\"\n"
                 + "}"));
-        assertEquals(BaiwangJsSpec.YW_FPKJ, event.getAttrs().get("ywlxdm"));
+        assertEquals(BaiwangJsSpec.YW_FPKJ, event.getAttr().get("ywlxdm"));
         assertEquals(DDLSH, event.getBizOrderNo());
         assertEquals(DDLSH, event.getChannelOrderNo());
         assertEquals("24312000000000000001", event.getInvoiceNo());
         assertEquals(LocalDate.of(2026, 1, 15), event.getInvoiceDate());
         assertEquals("133.00", event.getAmount().toPlainString());
         assertNull(event.getState(), "成功结果等版式回调携带 XML 后才置 SUCCEEDED");
-        assertEquals("true", event.getAttrs().get("faceFieldsOnly"));
+        assertEquals("true", event.getAttr().get("faceFieldsOnly"));
         assertNull(event.getFiles());
     }
 
@@ -60,7 +60,7 @@ class BaiwangJsCallbackParserTest {
                 + "  \"xmlurl\":\"https://cdn/x.xml\", \"jfdz\":\"https://etax/delivery\"\n"
                 + "}"));
         assertEquals(InvoiceState.SUCCEEDED, event.getState());
-        assertEquals("true", event.getAttrs().get("layoutReady"));
+        assertEquals("true", event.getAttr().get("layoutReady"));
         assertEquals(3, event.getFiles().size());
         boolean hasXml = false;
         for (InvoiceFile file : event.getFiles()) {
@@ -72,7 +72,7 @@ class BaiwangJsCallbackParserTest {
             }
         }
         assertTrue(hasXml, "qdbswj 必须给出 XML 法定原件地址");
-        assertEquals("https://etax/delivery", event.getAttrs().get("jfdz"));
+        assertEquals("https://etax/delivery", event.getAttr().get("jfdz"));
     }
 
     @Test
@@ -86,11 +86,11 @@ class BaiwangJsCallbackParserTest {
 
         InvoiceCallbackEvent login = parse(status("fpkj", "1004", ""));
         assertEquals(InvoiceState.WAITING_AUTH, login.getState());
-        assertEquals("LOGIN", login.getAttrs().get("authType"));
+        assertEquals("LOGIN", login.getAttr().get("authType"));
 
         InvoiceCallbackEvent face = parse(status("fpkj", "1003", ""));
         assertEquals(InvoiceState.WAITING_AUTH, face.getState());
-        assertEquals("FACE", face.getAttrs().get("authType"));
+        assertEquals("FACE", face.getAttr().get("authType"));
     }
 
     @Test
@@ -100,8 +100,8 @@ class BaiwangJsCallbackParserTest {
                 + "  \"qdfphm\":\"24312000000000000002\",\n"
                 + "  \"yqdfphm\":\"24312000000000000001\", \"hjje\":\"-897.25\"\n"
                 + "}"));
-        assertEquals("24312000000000000001", event.getAttrs().get("originalInvoiceNo"));
-        assertEquals("true", event.getAttrs().get("redInvoice"));
+        assertEquals("24312000000000000001", event.getAttr().get("originalInvoiceNo"));
+        assertEquals("true", event.getAttr().get("redInvoice"));
         assertNull(event.getState());
     }
 
@@ -113,7 +113,7 @@ class BaiwangJsCallbackParserTest {
                 + "}"));
         assertEquals(RedApplyState.WAITING_CONFIRM, ok.getRedState());
         assertEquals("34010524071001103631", ok.getRedConfirmNo());
-        assertEquals("u-1", ok.getAttrs().get("redApplyUuid"));
+        assertEquals("u-1", ok.getAttr().get("redApplyUuid"));
         assertNull(ok.getState());
 
         InvoiceCallbackEvent fail = parse(callback("{\n"
@@ -131,14 +131,14 @@ class BaiwangJsCallbackParserTest {
                 + "  \"rzid\":\"rz-1\", \"ewm\":\"data:image/png;base64,AAAA\"\n"
                 + "}"));
         assertNull(qr.getState());
-        assertEquals("rz-1", qr.getAttrs().get("rzid"));
+        assertEquals("rz-1", qr.getAttr().get("rzid"));
 
         InvoiceCallbackEvent risk = parse(callback("{\n"
                 + "  \"ywlxdm\":\"cxnsrfx\", \"ddlsh\":\"" + DDLSH + "\", \"status\":\"1\",\n"
                 + "  \"sfsl\":\"N\", \"sxlb\":\"4\", \"yjjb\":\"01\"\n"
                 + "}"));
-        assertEquals("N", risk.getAttrs().get("sfsl"));
-        assertEquals("4", risk.getAttrs().get("sxlb"));
+        assertEquals("N", risk.getAttr().get("sfsl"));
+        assertEquals("4", risk.getAttr().get("sxlb"));
     }
 
     @Test
@@ -175,17 +175,17 @@ class BaiwangJsCallbackParserTest {
     @Test
     void optionalSign_whenConfigured_isVerified() {
         String json = "{\"ywlxdm\":\"fpkj\",\"ddlsh\":\"" + DDLSH + "\",\"status\":\"1\"}";
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        attrs.put("callbackSignKey", "sign-key");
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        attr.put("callbackSignKey", "sign-key");
         String sign = io.github.lianghang1.conflux.common.util.SignUtil
                 .hmacSha256Hex(json, "sign-key");
         InvoiceCallbackRequest raw = rawWithBody(base64(json));
         raw.getQueryParams().put("sign", sign);
-        assertEquals(DDLSH, BaiwangJsCallbackParser.parse(raw, config(attrs)).getBizOrderNo());
+        assertEquals(DDLSH, BaiwangJsCallbackParser.parse(raw, config(attr)).getBizOrderNo());
 
         raw.getQueryParams().put("sign", "wrong");
         GatewayException ex = assertThrows(GatewayException.class,
-                () -> BaiwangJsCallbackParser.parse(raw, config(attrs)));
+                () -> BaiwangJsCallbackParser.parse(raw, config(attr)));
         assertTrue(ex.getMessage().contains("验签失败"));
     }
 
@@ -201,7 +201,6 @@ class BaiwangJsCallbackParserTest {
 
     private InvoiceCallbackRequest rawWithBody(String encodedBody) {
         Map<String, String> query = new LinkedHashMap<String, String>();
-        query.put(BaiwangJsSpec.ACCOUNT_KEY_PARAM, "gw-key#91310000TEST000001");
         return new InvoiceCallbackRequest()
                 .setChannelCode(BaiwangJsSpec.CODE)
                 .setQueryParams(query)
@@ -213,11 +212,10 @@ class BaiwangJsCallbackParserTest {
                 + "\",\"status\":\"" + status + "\",\"ycyy\":\"" + ycyy + "\"}");
     }
 
-    private ChannelConfig config(Map<String, String> attrs) {
+    private ChannelConfig config(Map<String, String> attr) {
         return new ChannelConfig()
-                .setAppId("demo").setChannelCode(BaiwangJsSpec.CODE)
-                .setAccountKey("gw-key#91310000TEST000001")
-                .setAttrs(attrs);
+                .setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE)
+                .setAttr(attr);
     }
 
     private String base64(String json) {

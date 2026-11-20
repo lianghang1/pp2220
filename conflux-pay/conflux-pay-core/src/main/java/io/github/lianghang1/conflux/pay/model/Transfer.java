@@ -21,7 +21,7 @@ public class Transfer implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识 */
-    private String appId;
+    private String configId;
     /** 使用方业务转账单号（渠道商户单号，渠道侧幂等键；查重由使用方负责） */
     private String bizTransferNo;
     /** 转账方式编码（PayMethod.code，如 WECHAT_TRANS / ALI_TRANSFER） */
@@ -38,6 +38,8 @@ public class Transfer implements Serializable {
     private String currency;
     /** 转账备注/附言 */
     private String remark;
+    /** 异步通知地址（按单覆盖渠道配置）；请求优先、配置兜底，由渠道 handler 读取 */
+    private String notifyUrl;
     /** 转账单状态 */
     private TransferState state;
     /** 渠道侧转账单号 */

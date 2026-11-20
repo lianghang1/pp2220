@@ -1,6 +1,6 @@
 package io.github.lianghang1.conflux.pay.channels.alipay;
 
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
@@ -19,7 +19,7 @@ import java.util.Map;
  * @author lianghang
  */
 @Data
-public class AlipayParams implements ChannelParams {
+public class AlipayParams extends ChannelConfig {
 
     public static final String DEFAULT_GATEWAY = "https://openapi.alipay.com/gateway.do";
     /** 沙箱网关 */
@@ -47,7 +47,7 @@ public class AlipayParams implements ChannelParams {
         return sandbox ? SANDBOX_GATEWAY : gateway;
     }
 
-    /** 从配置键值对构建（attrs 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；必填项缺失抛参数异常。 */
+    /** 从配置键值对构建（attr 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；必填项缺失抛参数异常。 */
     public static AlipayParams fromMap(Map<String, String> properties) {
         AlipayParams params = new AlipayParams();
         if (properties != null) {
@@ -67,8 +67,6 @@ public class AlipayParams implements ChannelParams {
         }
         return params;
     }
-
-    @Override
     public String channelAppId() {
         return appId;
     }

@@ -491,7 +491,7 @@ class BaiwangJsAuxiliaryCodecTest {
                 .setQuantity(java.math.BigDecimal.ONE)
                 .setUnitPrice(new java.math.BigDecimal("113.00"));
         return new Invoice()
-                .setInvoiceId("INV-A").setAppId("demo")
+                .setInvoiceId("INV-A").setConfigId("demo")
                 .setSellerTaxNo(TAX).setSellerName("测试销方")
                 .setBuyerTitle("测试购方").setBuyerTaxNo("91310000BUYER00001")
                 .setBuyerAddress("BuyerAddr").setBuyerPhone("021-7777")
@@ -505,19 +505,19 @@ class BaiwangJsAuxiliaryCodecTest {
     }
 
     private static InvoiceContext issueCtx(Invoice invoice) {
-        io.github.lianghang1.conflux.invoice.channel.ChannelConfig config =
-                new io.github.lianghang1.conflux.invoice.channel.ChannelConfig()
-                        .setAppId("demo").setChannelCode(BaiwangJsSpec.CODE)
-                        .setSellerTaxNo(invoice.getSellerTaxNo())
-                        .setParams(params())
-                        .setAttrs(java.util.Collections.<String, String>emptyMap());
+        BaiwangJsParams config = params();
+        config.setConfigId("demo").setChannelCode(BaiwangJsSpec.CODE)
+                .setSellerTaxNo(invoice.getSellerTaxNo())
+                .setAttr(java.util.Collections.<String, String>emptyMap());
         return io.github.lianghang1.conflux.invoice.channel.InvoiceContext
                 .of(config, null, invoice);
     }
 
     private static BaiwangJsParams params() {
-        return new BaiwangJsParams()
+        BaiwangJsParams p = new BaiwangJsParams()
                 .setGatewayKey("gw-key").setGatewaySecret("secret")
-                .setQyId("Q1").setSellerTaxNo(TAX).setDlzh("13800000000");
+                .setQyId("Q1").setDlzh("13800000000");
+        p.setSellerTaxNo(TAX);
+        return p;
     }
 }

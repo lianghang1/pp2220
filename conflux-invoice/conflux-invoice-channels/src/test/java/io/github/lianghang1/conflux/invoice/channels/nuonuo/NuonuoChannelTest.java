@@ -194,13 +194,11 @@ class NuonuoChannelTest {
                 + "\"invoice_down_url\":\"https://inv.jss.com.cn/fp2/x.pdf\","
                 + "\"status\":1,\"message\":\"\"}";
         InvoiceCallbackRequest raw = new InvoiceCallbackRequest()
-                .setChannelCode("nuonuo").setBody(body)
-                .setQueryParams(Collections.singletonMap("accountKey", "APPKEY#91310000TEST000001"));
+                .setChannelCode("nuonuo").setBody(body);
         InvoiceCallbackEvent event = NuonuoCallbackParser.parse(raw, null);
         assertEquals(InvoiceState.SUCCEEDED, event.getState());
         assertEquals("ORDER-1", event.getBizOrderNo());
         assertEquals("24312000000022669098", event.getInvoiceNo());
-        assertEquals("APPKEY#91310000TEST000001", event.getAccountKey());
         assertThat(event.getFiles()).hasSize(1);
         assertEquals("https://inv.jss.com.cn/fp2/x.pdf", event.getFiles().get(0).getUrl());
     }
@@ -226,11 +224,12 @@ class NuonuoChannelTest {
     // ---------- 辅助 ----------
 
     private static NuonuoParams params() {
-        return new NuonuoParams()
+        NuonuoParams p = new NuonuoParams()
                 .setAppKey("K").setAppSecret("S")
-                .setSellerTaxNo("91310000TEST000001")
-                .setSandbox(true)
                 .setGateway(NuonuoSpec.SANDBOX_GATEWAY);
+        p.setSellerTaxNo("91310000TEST000001");
+        p.setSandbox(true);
+        return p;
     }
 
     private static InvoiceContext context() {
@@ -243,7 +242,7 @@ class NuonuoChannelTest {
                 .setQuantity(BigDecimal.ONE)
                 .setUnitPrice(new BigDecimal("100.00"));
         Invoice invoice = new Invoice()
-                .setInvoiceId("INV-1").setAppId("demo")
+                .setInvoiceId("INV-1").setConfigId("demo")
                 .setBizOrderNo("ORDER-1")
                 .setSellerTaxNo("91310000TEST000001").setSellerName("测试销方")
                 .setBuyerTitle("测试购方").setBuyerTaxNo("91310000BUYER00001")
@@ -252,11 +251,10 @@ class NuonuoChannelTest {
                 .setAmount(new BigDecimal("113.00"))
                 .setTaxAmount(new BigDecimal("13.00"))
                 .setState(InvoiceState.PROCESSING);
-        ChannelConfig config = new ChannelConfig()
-                .setAppId("demo").setChannelCode(NuonuoSpec.CODE)
-                .setSellerTaxNo(invoice.getSellerTaxNo())
-                .setParams(params())
-                .setAttrs(new LinkedHashMap<String, String>());
+        ChannelConfig config = params()
+                .setConfigId("demo").setChannelCode(NuonuoSpec.CODE)
+                .setAttr(new LinkedHashMap<String, String>());
+        config.setSellerTaxNo(invoice.getSellerTaxNo());
         return InvoiceContext.of(config, null, invoice);
     }
 }

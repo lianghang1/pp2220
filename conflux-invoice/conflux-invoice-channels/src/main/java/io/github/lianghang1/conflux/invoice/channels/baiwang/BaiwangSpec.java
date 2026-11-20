@@ -81,9 +81,6 @@ public final class BaiwangSpec {
     /** 红字确认等待小时数。 */
     public static final long RED_CONFIRM_HOURS = 72L;
 
-    /** 回调定位账户键的查询参数名。 */
-    public static final String ACCOUNT_KEY_PARAM = "accountKey";
-
     private static final Map<InvoiceType, String> TYPE_CODES = new EnumMap<InvoiceType, String>(InvoiceType.class);
 
     static {
@@ -103,7 +100,7 @@ public final class BaiwangSpec {
         return LocalDateTime.now().format(ORDER_TIME);
     }
 
-    /** 框架票种 → 文档 invoiceTypeCode（默认，可由 attrs 覆盖）。 */
+    /** 框架票种 → 文档 invoiceTypeCode（默认，可由 attr 覆盖）。 */
     public static String invoiceTypeCode(InvoiceType type) {
         return type == null ? null : TYPE_CODES.get(type);
     }

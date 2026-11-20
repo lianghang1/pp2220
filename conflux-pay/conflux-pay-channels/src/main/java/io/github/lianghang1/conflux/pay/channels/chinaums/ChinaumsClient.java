@@ -156,11 +156,11 @@ public class ChinaumsClient {
     }
 
     public static ChinaumsParams paramsOf(ChannelConfig config) {
-        if (config.getParams() instanceof ChinaumsParams) {
-            return (ChinaumsParams) config.getParams();
+        if (config instanceof ChinaumsParams) {
+            return (ChinaumsParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
                 "天满渠道参数类型不匹配: {}",
-                config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                config == null ? "null" : config.getClass().getName());
     }
 }

@@ -2,7 +2,6 @@ package io.github.lianghang1.conflux.pay.engine;
 
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
@@ -32,19 +31,18 @@ class CallbackDispatcher {
         this.rt = rt;
     }
 
-    /** 验签并解析渠道回调，返回归一化事件。 */
-    CallbackEvent parse(ChannelCallbackRequest raw) {
+    /** 验签并解析渠道回调，返回归一化事件。configId 由使用方查库后显式传入。 */
+    CallbackEvent parse(String configId, ChannelCallbackRequest raw) {
         if (raw == null || StringUtils.isBlank(raw.getChannelCode())) {
             throw GatewayException.of(CommonErrorCode.BAD_REQUEST, "回调请求缺少渠道编码");
         }
+        if (StringUtils.isBlank(configId)) {
+            throw GatewayException.of(CommonErrorCode.BAD_REQUEST, "回调缺少 configId，无法定位渠道配置");
+        }
         normalizeHeaders(raw);
         ChannelCallbackHandler handler = rt.registry.callbackHandler(raw.getChannelCode());
-        CallbackEvent event = handler.parseCallback(raw, new CallbackConfigLookup() {
-            @Override
-            public ChannelConfig byAccountKey(String accountKey) {
-                return rt.configProvider.getByAccountKey(raw.getChannelCode(), accountKey);
-            }
-        });
+        ChannelConfig config = rt.configProvider.getConfig(configId, raw.getChannelCode());
+        CallbackEvent event = handler.parseCallback(raw, config);
         if (event == null || event.getType() == null) {
             throw GatewayException.of(GatewayErrorCode.CALLBACK_PARSE_FAILED, "回调解析结果为空");
         }

@@ -1,6 +1,6 @@
 package io.github.lianghang1.conflux.pay.channels.wechat;
 
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
@@ -22,7 +22,7 @@ import java.util.Map;
  * @author lianghang
  */
 @Data
-public class WechatParams implements io.github.lianghang1.conflux.pay.channel.ChannelParams {
+public class WechatParams extends ChannelConfig {
 
     /** V2 协议版本标识 */
     public static final String API_VERSION_V2 = "v2";
@@ -50,7 +50,7 @@ public class WechatParams implements io.github.lianghang1.conflux.pay.channel.Ch
     /** 协议版本（v2/v3，缺省 v3） */
     private String wxApiVersion = API_VERSION_V3;
 
-    /** 从配置键值对构建（attrs 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；按版本校验必填项。 */
+    /** 从配置键值对构建（attr 渠道个性键；notifyUrl/sandbox 为统一键由 ChannelConfig 承载）；按版本校验必填项。 */
     public static WechatParams fromMap(Map<String, String> properties) {
         WechatParams params = new WechatParams();
         if (properties != null) {
@@ -95,8 +95,6 @@ public class WechatParams implements io.github.lianghang1.conflux.pay.channel.Ch
     public String effectiveEntPayKey() {
         return StringUtils.isNotBlank(entPayKey) ? entPayKey : apiV2Key;
     }
-
-    @Override
     public String channelAppId() {
         return appId;
     }

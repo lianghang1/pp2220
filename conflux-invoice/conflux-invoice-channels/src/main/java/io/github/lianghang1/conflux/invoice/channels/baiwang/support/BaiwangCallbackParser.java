@@ -30,7 +30,7 @@ import java.util.Map;
  * （{@code baiwang.s.callback.invoice} 开票回调等），{@code type} 区分
  * 01-开票成功/02-开票失败/05-删除。文件地址（xmlUrl/pdfUrl/ofdUrl）在 data 内。</p>
  *
- * <p><b>验签</b>：宿主配置 {@code attrs.callbackSignKey} 时，对
+ * <p><b>验签</b>：宿主配置 {@code attr.callbackSignKey} 时，对
  * {@code data + "&" + type} 做 HMAC-SHA256 校验；未配置时不校验。</p>
  *
  * @author lianghang
@@ -61,7 +61,6 @@ public final class BaiwangCallbackParser {
         assertSign(config, dataText, type, str(root, "sign"));
 
         InvoiceCallbackEvent event = new InvoiceCallbackEvent()
-                .setAccountKey(accountKey(raw))
                 .setRawPayload(raw.getBody());
 
         if (BaiwangSpec.METHOD_CALLBACK_INVOICE.equals(method)) {
@@ -73,10 +72,10 @@ public final class BaiwangCallbackParser {
             // 扫码开票提交结果：只登记流水，不迁移发票状态
             event.setChannelOrderNo(firstNonBlank(str(data, "serialNo"), str(data, "orderNo")))
                     .setBizOrderNo(str(data, "orderNo"))
-                    .setAttrs(attrsOf(method, type, str(root, "taxNo")));
+                    .setAttr(attrOf(method, type, str(root, "taxNo")));
         } else {
             // 未知业务类型：只登记，不迁移状态
-            event.setAttrs(attrsOf(method, type, str(root, "taxNo")));
+            event.setAttr(attrOf(method, type, str(root, "taxNo")));
         }
         return event;
     }
@@ -104,7 +103,7 @@ public final class BaiwangCallbackParser {
     private static void fillRed(InvoiceCallbackEvent event, Map<String, Object> data, String method) {
         event.setRedConfirmNo(firstNonBlank(str(data, "redInfoNo"), str(data, "redConfirmNo")))
                 .setChannelOrderNo(str(data, "serialNo"))
-                .setAttrs(attrsOf(method, null, str(data, "sellerTaxNo")));
+                .setAttr(attrOf(method, null, str(data, "sellerTaxNo")));
         String status = firstNonBlank(str(data, "redConfirmStatus"), str(data, "redInfoStatus"),
                 str(data, "openStatus"));
         if (BaiwangSpec.RED_CONFIRMED.equals(status)) {
@@ -116,10 +115,10 @@ public final class BaiwangCallbackParser {
 
     /** 可选验签：宿主配置 callbackSignKey 时校验 HMAC(data原文 + "&" + type)。 */
     private static void assertSign(ChannelConfig config, String dataText, String type, String sign) {
-        if (config == null || config.getAttrs() == null || StringUtils.isBlank(sign)) {
+        if (config == null || config.getAttr() == null || StringUtils.isBlank(sign)) {
             return;
         }
-        String key = config.getAttrs().get("callbackSignKey");
+        String key = config.getAttr().get("callbackSignKey");
         if (StringUtils.isBlank(key)) {
             return;
         }
@@ -157,26 +156,17 @@ public final class BaiwangCallbackParser {
         }
     }
 
-    private static String accountKey(InvoiceCallbackRequest raw) {
-        Map<String, String> query = raw.getQueryParams();
-        if (query == null) {
-            return null;
-        }
-        String v = query.get(BaiwangSpec.ACCOUNT_KEY_PARAM);
-        return StringUtils.isBlank(v) ? query.get("accountKey") : v;
+    private static Map<String, String> attrOf(String method, String type, String taxNo) {
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        put(attr, "method", method);
+        put(attr, "type", type);
+        put(attr, "taxNo", taxNo);
+        return attr;
     }
 
-    private static Map<String, String> attrsOf(String method, String type, String taxNo) {
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        put(attrs, "method", method);
-        put(attrs, "type", type);
-        put(attrs, "taxNo", taxNo);
-        return attrs;
-    }
-
-    private static void put(Map<String, String> attrs, String key, String value) {
+    private static void put(Map<String, String> attr, String key, String value) {
         if (StringUtils.isNotBlank(value)) {
-            attrs.put(key, value);
+            attr.put(key, value);
         }
     }
 

@@ -44,7 +44,7 @@ class ProfitShareOrchestrator {
         }
 
         ProfitShare share = new ProfitShare()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizShareNo(request.getBizShareNo())
                 .setBizOrderNo(request.getBizOrderNo())
                 .setChannelCode(channel)
@@ -55,7 +55,7 @@ class ProfitShareOrchestrator {
                 .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()));
         try {
             ProfitShareHandler handler = rt.registry.profitShareHandler(channel);
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), channel);
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), channel);
             ProfitShareInvocation invocation = handler.createProfitShare(share, config);
             if (StringUtils.isNotBlank(invocation.getChannelShareNo())) {
                 share.setChannelShareNo(invocation.getChannelShareNo());
@@ -80,13 +80,13 @@ class ProfitShareOrchestrator {
     ProfitShareResult query(ProfitShareQueryRequest request) {
         request.check();
         ProfitShare share = new ProfitShare()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizShareNo(request.getBizShareNo())
                 .setChannelCode(request.getChannelCode())
                 .setChannelShareNo(request.getChannelShareNo());
         try {
             ProfitShareHandler handler = rt.registry.profitShareHandler(request.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
             ProfitShareSnapshot snapshot = handler.queryProfitShare(share, config);
             if (StringUtils.isNotBlank(snapshot.getChannelShareNo())
                     && StringUtils.isBlank(share.getChannelShareNo())) {

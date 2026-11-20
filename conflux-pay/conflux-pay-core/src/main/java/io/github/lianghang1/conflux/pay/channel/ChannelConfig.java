@@ -4,14 +4,18 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
- * 渠道配置：一次渠道调用的完整配置上下文。
+ * 渠道配置基类（各渠道强类型 config 的父类）：承载框架理解的公共字段与个性 attr。
  *
- * <p>由 {@code ChannelConfigProvider} 按 appId + 渠道编码构建并缓存（实现方决定缓存策略）；
- * 统一基础键（appId/channelCode/notifyUrl/sandbox/subMchNo）由框架承载，
- * {@code params} 为渠道自定义参数对象（实现 {@link ChannelParams} 的类型，
- * 承载渠道个性键，由渠道包内向下转型使用）。</p>
+ * <p>各渠道包定义 {@code XxxConfig extends ChannelConfig}：公共字段（configId/channelCode/
+ * notifyUrl/sandbox）由框架装载时显式设置，渠道个性键放 {@link #attr}，由渠道自己的
+ * {@code of(attr)} / {@code fromMap(attr)} 映射为强类型字段。框架对 attr 内容零感知。</p>
+ *
+ * <p>服务商模式特约商户号 subMchNo 不再作为独立公共字段——它属于渠道个性配置，
+ * 放 attr 中（键 {@code subMchNo}），通过 {@link #getSubMchNo()} 从 attr 派生读取，
+ * 兼容各渠道 handler 的服务商路由判断。</p>
  *
  * @author lianghang
  */
@@ -21,22 +25,19 @@ public class ChannelConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 使用方应用标识 */
-    private String appId;
+    /** 配置标识（使用方自定义，用于定位一组渠道配置） */
+    private String configId;
     /** 渠道编码 */
     private String channelCode;
     /** 渠道异步通知地址（统一键：全渠道同名语义） */
     private String notifyUrl;
     /** 沙箱开关（统一键：有官方沙箱/仿真系统的渠道据此切换网关） */
     private boolean sandbox;
-    /** 服务商模式下的特约商户号；普通商户模式为 null */
-    private String subMchNo;
-    /**
-     * 渠道账户标识：回调配置反查的唯一键，由 {@link ChannelAccountKey#of(String, String)}
-     * 依据 {@link ChannelParams#channelAppId()} 与 {@link #subMchNo} 生成。
-     * 普通商户等于 channelAppId，服务商模式为 {@code channelAppId#subMchNo}。
-     */
-    private String accountKey;
-    /** 渠道自定义参数对象 */
-    private ChannelParams params;
+    /** 渠道个性配置（原始键值对；键名由各渠道定义，映射进渠道强类型 config） */
+    private Map<String, String> attr;
+
+    /** 服务商模式特约商户号：从 attr 派生（不再作为独立公共字段）。 */
+    public String getSubMchNo() {
+        return attr == null ? null : attr.get("subMchNo");
+    }
 }

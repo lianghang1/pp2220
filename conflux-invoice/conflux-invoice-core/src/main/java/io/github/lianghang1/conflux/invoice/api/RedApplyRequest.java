@@ -23,7 +23,7 @@ public class RedApplyRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 使用方业务单号（渠道幂等键，必填） */
     private String bizRedNo;
     /** 红冲原因（必填） */
@@ -44,7 +44,7 @@ public class RedApplyRequest implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(bizRedNo != null && bizRedNo.trim().length() > 0, "bizRedNo 不能为空");
         GatewayAssert.param(reason != null && reason.trim().length() > 0, "红冲原因不能为空");
         GatewayAssert.param(originalInvoice != null, "originalInvoice 原票载体不能为空");

@@ -11,7 +11,7 @@ import java.util.Map;
  * 发票明细行（框架统一模型）。
  *
  * <p>金额单位为「元」，建议保留 2 位小数；税收分类编码由渠道映射为各自字段名。
- * 渠道个性字段放 {@link #attrs}，框架零感知。</p>
+ * 渠道个性字段放 {@link #attr}，框架零感知。</p>
  *
  * @author lianghang
  */
@@ -52,5 +52,5 @@ public class InvoiceItem implements Serializable {
     /** 增值税特殊管理（如「免税」「即征即退 50%」「按 3% 简易征收」），优惠政策标识为 1 时必填。 */
     private String zzstsgl;
     /** 渠道个性字段。 */
-    private Map<String, String> attrs;
+    private Map<String, String> attr;
 }

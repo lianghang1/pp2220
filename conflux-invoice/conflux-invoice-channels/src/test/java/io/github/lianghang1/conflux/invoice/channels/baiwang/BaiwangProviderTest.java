@@ -69,7 +69,7 @@ class BaiwangProviderTest {
         assertThat(p.getServerUrl()).isEqualTo(BaiwangSpec.SANDBOX_BASE_URL);
         assertThat(p.channelAppId()).isEqualTo("app-1");
         assertThat(p.hasTokenSource()).isTrue();
-        assertThat(p.getAttrs()).containsEntry("clientId", "app-1");
+        assertThat(p.getAttr()).containsEntry("clientId", "app-1");
     }
 
     @Test
@@ -93,11 +93,11 @@ class BaiwangProviderTest {
     }
 
     @Test
-    void fetchFallsBackToCallbackAttrsWhenNoCredentials() {
-        Map<String, String> attrs = new LinkedHashMap<String, String>();
-        attrs.put("xmlUrl", "https://example.com/a.xml");
-        attrs.put("pdfUrl", "https://example.com/a.pdf");
-        Invoice invoice = new Invoice().setBizOrderNo("B-2").setAttrs(attrs);
+    void fetchFallsBackToCallbackAttrWhenNoCredentials() {
+        Map<String, String> attr = new LinkedHashMap<String, String>();
+        attr.put("xmlUrl", "https://example.com/a.xml");
+        attr.put("pdfUrl", "https://example.com/a.pdf");
+        Invoice invoice = new Invoice().setBizOrderNo("B-2").setAttr(attr);
         List<InvoiceFile> files = provider.fetch(context(invoice, Collections.<String, String>emptyMap()),
                 EnumSet.of(InvoiceFileType.XML));
         assertThat(files).hasSize(1);
@@ -106,7 +106,7 @@ class BaiwangProviderTest {
 
     private static InvoiceContext context(Invoice invoice, Map<String, String> props) {
         ChannelConfig config = new ChannelConfig();
-        config.setAttrs(props);
+        config.setAttr(props);
         return InvoiceContext.of(config, null, invoice);
     }
 }

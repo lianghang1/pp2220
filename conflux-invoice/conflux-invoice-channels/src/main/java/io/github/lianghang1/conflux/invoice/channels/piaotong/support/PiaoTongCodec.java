@@ -48,9 +48,9 @@ public final class PiaoTongCodec {
 
     /** 20 位发票请求流水号（同一次业务全程复用同一值）。 */
     public static String serialNo(Invoice invoice) {
-        Map<String, String> attrs = invoice.getAttrs();
-        if (attrs != null && StringUtils.isNotBlank(attrs.get("invoiceReqSerialNo"))) {
-            return attrs.get("invoiceReqSerialNo");
+        Map<String, String> attr = invoice.getAttr();
+        if (attr != null && StringUtils.isNotBlank(attr.get("invoiceReqSerialNo"))) {
+            return attr.get("invoiceReqSerialNo");
         }
         return invoice.getChannelOrderNo() != null
                 ? invoice.getChannelOrderNo() : "PT" + System.currentTimeMillis();
@@ -71,9 +71,9 @@ public final class PiaoTongCodec {
 
     /** 数电发票号码：电子发票号码 = 发票代码 + 发票号码（数电时优先单据已存）。 */
     public static String electronicNo(Invoice invoice) {
-        if (StringUtils.isNotBlank(invoice.getAttrs() == null
-                ? null : invoice.getAttrs().get("electronicInvoiceNo"))) {
-            return invoice.getAttrs().get("electronicInvoiceNo");
+        if (StringUtils.isNotBlank(invoice.getAttr() == null
+                ? null : invoice.getAttr().get("electronicInvoiceNo"))) {
+            return invoice.getAttr().get("electronicInvoiceNo");
         }
         if (StringUtils.isNotBlank(invoice.getInvoiceCode())
                 && StringUtils.isNotBlank(invoice.getInvoiceNo())) {
@@ -100,20 +100,20 @@ public final class PiaoTongCodec {
         put(body, "buyerAddress", invoice.getBuyerAddress());
         put(body, "buyerTel", invoice.getBuyerPhone());
         put(body, "buyerBankName", invoice.getBuyerBank());
-        put(body, "buyerBankAccount", first(invoice.getAttrs(), "buyerBankAccount"));
+        put(body, "buyerBankAccount", first(invoice.getAttr(), "buyerBankAccount"));
         // 收票人：电票交付（票通直接给客户发邮件/短信）
-        Map<String, String> attrs = invoice.getAttrs();
-        put(body, "takerName", first(attrs, "takerName", "buyerName"));
-        put(body, "takerTel", first(attrs, "takerTel", "buyerMobile"));
-        put(body, "takerEmail", first(attrs, "takerEmail", "buyerEmail"));
-        put(body, "sellerAddress", first(attrs, "sellerAddress"));
-        put(body, "sellerTel", first(attrs, "sellerTel"));
-        put(body, "sellerBankName", first(attrs, "sellerBankName"));
-        put(body, "sellerBankAccount", first(attrs, "sellerBankAccount"));
-        put(body, "casherName", first(attrs, "payee", "casherName"));
-        put(body, "reviewerName", first(attrs, "checker", "reviewerName"));
+        Map<String, String> attr = invoice.getAttr();
+        put(body, "takerName", first(attr, "takerName", "buyerName"));
+        put(body, "takerTel", first(attr, "takerTel", "buyerMobile"));
+        put(body, "takerEmail", first(attr, "takerEmail", "buyerEmail"));
+        put(body, "sellerAddress", first(attr, "sellerAddress"));
+        put(body, "sellerTel", first(attr, "sellerTel"));
+        put(body, "sellerBankName", first(attr, "sellerBankName"));
+        put(body, "sellerBankAccount", first(attr, "sellerBankAccount"));
+        put(body, "casherName", first(attr, "payee", "casherName"));
+        put(body, "reviewerName", first(attr, "checker", "reviewerName"));
         put(body, "remark", invoice.getRemark());
-        put(body, "definedData", first(attrs, "definedData"));
+        put(body, "definedData", first(attr, "definedData"));
         put(body, "tradeNo", invoice.getBizOrderNo());
         body.put("itemList", itemLines(invoice));
         return body;
@@ -264,10 +264,10 @@ public final class PiaoTongCodec {
         put(body, "blueAllEleInvNo", invoice == null ? null : electronicNo(invoice));
         body.put("redBillNo", redBillNo);
         put(body, "account", account);
-        Map<String, String> attrs = invoice == null ? null : invoice.getAttrs();
-        put(body, "takerName", first(attrs, "takerName"));
-        put(body, "takerTel", first(attrs, "takerTel", "buyerMobile"));
-        put(body, "takerEmail", first(attrs, "takerEmail", "buyerEmail"));
+        Map<String, String> attr = invoice == null ? null : invoice.getAttr();
+        put(body, "takerName", first(attr, "takerName"));
+        put(body, "takerTel", first(attr, "takerTel", "buyerMobile"));
+        put(body, "takerEmail", first(attr, "takerEmail", "buyerEmail"));
         return body;
     }
 
@@ -387,12 +387,12 @@ public final class PiaoTongCodec {
         }
     }
 
-    public static String first(Map<String, String> attrs, String... names) {
-        if (attrs == null) {
+    public static String first(Map<String, String> attr, String... names) {
+        if (attr == null) {
             return null;
         }
         for (String name : names) {
-            String value = attrs.get(name);
+            String value = attr.get(name);
             if (StringUtils.isNotBlank(value)) {
                 return value;
             }

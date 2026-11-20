@@ -61,7 +61,7 @@ public final class BaiwangJsGateway {
      * 3.1.1 查询企业唯一标识（配置期工具，仅调用一次）。
      *
      * <p>框架不自动调用，避免启动期产生外部依赖；使用方在配置 {@code qyId} 前调用本方法，
-     * 把返回的 qyId 写入 {@code attrs.qyId}。返回 null 表示渠道未给出（code≠0）。</p>
+     * 把返回的 qyId 写入 {@code attr.qyId}。返回 null 表示渠道未给出（code≠0）。</p>
      */
     public String queryUniqueSign(String sellerName, String sellerTaxNo) {
         Map<String, Object> body = BaiwangJsCodec.uniqueSignBody(sellerName, sellerTaxNo);

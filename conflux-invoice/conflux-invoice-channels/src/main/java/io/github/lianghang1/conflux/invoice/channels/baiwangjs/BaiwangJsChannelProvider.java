@@ -20,7 +20,6 @@ import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.AuthSessionHandler;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceCallbackHandler;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceDeliverer;
@@ -70,7 +69,7 @@ import java.util.Set;
  *
  * <p><b>版本</b>：开票与查单默认 V2（{@code /cloud/v2/applyInvoice}、
  * {@code /cloud/v2/queryOrder}），V1 保留完整实现（含合并字段报文差异），
- * 通过 {@code attrs.apiVersion=V1} 切换；其余接口文档只有单一版本。</p>
+ * 通过 {@code attr.apiVersion=V1} 切换；其余接口文档只有单一版本。</p>
  *
  * <p>实现无状态、线程安全；所有运行态数据从 {@link InvoiceContext} 取得。</p>
  *
@@ -102,14 +101,13 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
     // ==================== 配置解析 ====================
 
     @Override
-    public InvoiceChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         Map<String, String> props = properties == null
                 ? Collections.<String, String>emptyMap() : properties;
         BaiwangJsParams params = new BaiwangJsParams()
                 .setGatewayKey(first(props, "gatewayKey", "appKey", "keyId"))
                 .setGatewaySecret(first(props, "gatewaySecret", "appSecret", "keySecret"))
                 .setQyId(first(props, "qyId", "enterpriseId"))
-                .setSellerTaxNo(first(props, "sellerTaxNo", "nsrsbh", "sksbh"))
                 .setDlzh(first(props, "dlzh", "loginAccount"))
                 .setKpr(first(props, "kpr", "drawer"))
                 .setSqr(first(props, "sqr", "applicant"))
@@ -121,10 +119,11 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
                 .setBaseUrl(firstNonBlank(props.get("baseUrl"), BaiwangJsSpec.DEFAULT_BASE_URL))
                 .setUserAgent(firstNonBlank(props.get("userAgent"), BaiwangJsSpec.DEFAULT_UA))
                 .setTimeoutMillis(parseLong(props.get("timeoutMillis"), 30000L))
-                .setSandbox(Boolean.parseBoolean(props.get("sandbox")))
-                .setApiVersion(BaiwangJsApiVersion.parse(props.get("apiVersion")))
-                .setAttrs(new LinkedHashMap<String, String>(props));
+                .setApiVersion(BaiwangJsApiVersion.parse(props.get("apiVersion")));
 
+        params.setSellerTaxNo(first(props, "sellerTaxNo", "nsrsbh", "sksbh"));
+        params.setSandbox(Boolean.parseBoolean(props.get("sandbox")));
+        params.setAttr(new LinkedHashMap<String, String>(props));
         params.setChannelAppId(firstNonBlank(
                 first(props, "channelAppId", "gatewayKey", "appKey"), params.getQyId()));
         params.setHost(hostOf(params.getBaseUrl()));
@@ -144,7 +143,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
      *
      * <p>框架不自动调用，避免启动期外部依赖。使用方首次接入时传入至少含
      * {@code gatewayKey}/{@code gatewaySecret} 的配置调用一次，把返回的 {@code qyId}
-     * 写入 {@code attrs.qyId} 即可。返回 null 表示渠道未返回（配置有误或企业未开户）。</p>
+     * 写入 {@code attr.qyId} 即可。返回 null 表示渠道未返回（配置有误或企业未开户）。</p>
      *
      * <p><b>为什么必须显式传凭据</b>：该接口本身用于换取 qyId，签名只需网关
      * KEY/SECRET（不需要 qyId）；若从空配置构造参数，网关签名会因缺 KEY/SECRET
@@ -245,7 +244,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
      * 二者均为同步接口，字段名差异由 {@link BaiwangJsCodec#layoutFiles} 兼容。
      *
      * <p>本方法会在编排层置 {@code SUCCEEDED} 前被调用，因此<b>渠道查询失败一律降级</b>到
-     * {@code qdbswj} 回调已记录在 attrs 的 URL，绝不因辅助查询异常阻断主流程；
+     * {@code qdbswj} 回调已记录在 attr 的 URL，绝不因辅助查询异常阻断主流程；
      * 两者都拿不到时返回空列表，由编排层的 XML 法定原件强约束兜底。</p>
      */
     @Override
@@ -253,7 +252,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
         Invoice invoice = ctx.requireInvoice();
         List<InvoiceFile> files = fetchFromChannel(ctx, invoice);
         if (files.isEmpty()) {
-            files = filesFromAttrs(invoice);
+            files = filesFromAttr(invoice);
         }
         if (types == null || types.isEmpty()) {
             return files;
@@ -298,16 +297,16 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
         }
     }
 
-    /** qdbswj 版式回调落到单据 attrs 的 URL。 */
-    private List<InvoiceFile> filesFromAttrs(Invoice invoice) {
-        Map<String, String> attrs = invoice.getAttrs();
+    /** qdbswj 版式回调落到单据 attr 的 URL。 */
+    private List<InvoiceFile> filesFromAttr(Invoice invoice) {
+        Map<String, String> attr = invoice.getAttr();
         List<InvoiceFile> files = new ArrayList<InvoiceFile>();
-        if (attrs == null) {
+        if (attr == null) {
             return files;
         }
-        addAttrUrl(files, attrs, InvoiceFileType.XML, "xmlurl", "xmlUrl", "baiwangjs.xmlurl");
-        addAttrUrl(files, attrs, InvoiceFileType.OFD, "ofdurl", "ofdUrl");
-        addAttrUrl(files, attrs, InvoiceFileType.PDF, "pdf", "pdfUrl");
+        addAttrUrl(files, attr, InvoiceFileType.XML, "xmlurl", "xmlUrl", "baiwangjs.xmlurl");
+        addAttrUrl(files, attr, InvoiceFileType.OFD, "ofdurl", "ofdUrl");
+        addAttrUrl(files, attr, InvoiceFileType.PDF, "pdf", "pdfUrl");
         return files;
     }
 
@@ -341,7 +340,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
      * 3.3.15 红字确认单状态查询（同步，返回 hzqrxxztDm）。
      *
      * <p>文档 3.3.15 明确「不支持结果回调」，是查询确认状态的对症接口；
-     * 3.3.4 数电红冲结果查询保留为 V1/兼容路径，可由 {@code attrs.redQueryPath} 覆盖。
+     * 3.3.4 数电红冲结果查询保留为 V1/兼容路径，可由 {@code attr.redQueryPath} 覆盖。
      * 无确认单编号时退回 3.3.4，避免用空编号调用 3.3.15。</p>
      */
     @Override
@@ -513,10 +512,10 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
             return AuthResult.rejected(nullTo(login.getCode(), "AUTH_START_FAILED"),
                     firstNonBlank(login.getReason(), login.getMessage()));
         }
-        // 已登录：请求实人认证二维码。默认 3.4.6 同步；attrs.qrMode=ASYNC 走 3.4.5 异步
+        // 已登录：请求实人认证二维码。默认 3.4.6 同步；attr.qrMode=ASYNC 走 3.4.5 异步
         String ddlsh = BaiwangJsCodec.ddlsh(ctx.requireInvoice());
         boolean asyncQr = "ASYNC".equalsIgnoreCase(
-                params.getAttrs() == null ? null : params.getAttrs().get("qrMode"));
+                params.getAttr() == null ? null : params.getAttr().get("qrMode"));
         BaiwangJsResponse qr;
         if (asyncQr) {
             qr = gateway(params).call("qrCodeAsyncPath",
@@ -653,7 +652,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
     /**
      * 3.4.11 / 3.4.11(V2) 发票修复申请（异步，不支持结果回调）。
      *
-     * <p>V2 优先、V1 可通过 {@code attrs.apiVersion=V1} 切换，两个版本共用
+     * <p>V2 优先、V1 可通过 {@code attr.apiVersion=V1} 切换，两个版本共用
      * {@code repairPath} 覆盖键，不为版本单开方法。文档明确「不支持结果回调，
      * 请调用 3.4.12 或 3.4.13 查询修复结果」，故申请只返回受理状态，
      * 由 {@link #query(InvoiceContext, RepairRequest)} 跟进。</p>
@@ -697,7 +696,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
      * {@code code=-1} 失败或尚未修复到发票（可继续查询）、{@code 1003} 需要登录。
      *
      * <p>3.4.11 文档说明修复结果也可通过 3.4.13「按票号或时间查询」得到（BW-50）。
-     * 当 {@code attrs.repairResultMode=BATCH} 或 {@code request.extra.queryMode=BATCH}
+     * 当 {@code attr.repairResultMode=BATCH} 或 {@code request.extra.queryMode=BATCH}
      * 时改走 3.4.13，按票号/日期范围组装，复用同一套版式文件与票号归一逻辑。</p>
      */
     @Override
@@ -714,7 +713,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
 
         boolean batch = "BATCH".equalsIgnoreCase(firstNonBlank(
                 first(extra, "queryMode", "repairResultMode"),
-                params.getAttrs() == null ? null : params.getAttrs().get("repairResultMode")));
+                params.getAttr() == null ? null : params.getAttr().get("repairResultMode")));
         BaiwangJsResponse response;
         if (batch) {
             Map<String, Object> body = BaiwangJsCodec.queryBatchBody(params,
@@ -756,11 +755,11 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
 
     private BaiwangJsParams params(InvoiceContext ctx) {
         ChannelConfig config = ctx.getConfig();
-        if (config != null && config.getParams() instanceof BaiwangJsParams) {
-            return (BaiwangJsParams) config.getParams();
+        if (config != null && config instanceof BaiwangJsParams) {
+            return (BaiwangJsParams) config;
         }
         if (config != null) {
-            return (BaiwangJsParams) parseParams(config.getAttrs());
+            return (BaiwangJsParams) parseParams(config.getAttr());
         }
         throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
                 "百旺金穗云渠道配置缺失");
@@ -771,7 +770,7 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
             if (params == null || StringUtils.isBlank(params.getGatewayKey())
                     || StringUtils.isBlank(params.getGatewaySecret())) {
                 throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                        "百旺金穗云缺少 gatewayKey/gatewaySecret，请在 attrs 中配置网关密钥");
+                        "百旺金穗云缺少 gatewayKey/gatewaySecret，请在 attr 中配置网关密钥");
             }
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
                     "百旺金穗云缺少 qyId（企业唯一标识），请通过 3.1.1 接口查询后配置");
@@ -791,10 +790,10 @@ public class BaiwangJsChannelProvider implements InvoiceChannelProvider,
                 ? "RED-" + System.currentTimeMillis() : apply.getBizRedNo();
     }
 
-    private void addAttrUrl(List<InvoiceFile> files, Map<String, String> attrs,
+    private void addAttrUrl(List<InvoiceFile> files, Map<String, String> attr,
                             InvoiceFileType type, String... names) {
         for (String name : names) {
-            String url = attrs.get(name);
+            String url = attr.get(name);
             if (StringUtils.isNotBlank(url)) {
                 files.add(new InvoiceFile().setType(type).setUrl(url));
                 return;

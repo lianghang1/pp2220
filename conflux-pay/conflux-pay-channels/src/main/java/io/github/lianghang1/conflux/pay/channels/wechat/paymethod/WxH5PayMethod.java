@@ -44,7 +44,7 @@ public class WxH5PayMethod implements WechatPayMethod {
             request.setOutTradeNo(payment.getBizOrderNo());
             request.setTotalFee(payment.getAmount().intValue());
             request.setSpbillCreateIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));
-            request.setNotifyUrl(config.getNotifyUrl());
+            request.setNotifyUrl(StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl()));
             request.setTradeType("MWEB");
             WxPayMwebOrderResult result = WxJsapiPayMethod.wrap("H5 V2 下单", () ->
                     service.createOrder(WxPayConstants.TradeType.Specific.MWEB, request));
@@ -54,7 +54,7 @@ public class WxH5PayMethod implements WechatPayMethod {
         WxPayUnifiedOrderV3Request request = new WxPayUnifiedOrderV3Request();
         request.setOutTradeNo(payment.getBizOrderNo());
         request.setDescription(StringUtils.defaultIfBlank(payment.getSubject(), "conflux-pay"));
-        request.setNotifyUrl(config.getNotifyUrl());
+        request.setNotifyUrl(StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl()));
         request.setAmount(WxJsapiPayMethod.v3Amount(payment));
         WxPayUnifiedOrderV3Request.SceneInfo sceneInfo = new WxPayUnifiedOrderV3Request.SceneInfo();
         sceneInfo.setPayerClientIp(StringUtils.defaultIfBlank(payment.getClientIp(), "127.0.0.1"));

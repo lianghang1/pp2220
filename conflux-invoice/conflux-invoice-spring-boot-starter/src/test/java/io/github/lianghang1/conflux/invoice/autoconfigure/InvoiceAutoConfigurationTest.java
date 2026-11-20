@@ -25,13 +25,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(classes = InvoiceAutoConfigurationTest.TestApp.class,
         webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
-        "conflux.invoice.apps.demo.mock.seller-tax-no=91310000TEST000001",
-        "conflux.invoice.apps.demo.mock.notify-url=http://127.0.0.1/callback/mock",
-        "conflux.invoice.apps.demo.mock.sandbox=true",
-        "conflux.invoice.apps.demo.mock.attrs.appKey=demo-app-key",
-        "conflux.invoice.apps.demo.mock.attrs.appSecret=demo-secret",
-        "conflux.invoice.apps.demo.mock.attrs.issueOutcome=AUTH",
-        "conflux.invoice.apps.demo.mock.attrs.redConfirmOutcome=CONFIRMED"
+        "conflux.invoice.configs.demo.mock.seller-tax-no=91310000TEST000001",
+        "conflux.invoice.configs.demo.mock.notify-url=http://127.0.0.1/callback/mock",
+        "conflux.invoice.configs.demo.mock.sandbox=true",
+        "conflux.invoice.configs.demo.mock.attr.appKey=demo-app-key",
+        "conflux.invoice.configs.demo.mock.attr.appSecret=demo-secret",
+        "conflux.invoice.configs.demo.mock.attr.issueOutcome=AUTH",
+        "conflux.invoice.configs.demo.mock.attr.redConfirmOutcome=CONFIRMED"
 })
 class InvoiceAutoConfigurationTest {
     @Autowired
@@ -47,18 +47,18 @@ class InvoiceAutoConfigurationTest {
     }
 
     @Test
-    void propertiesConfigProviderShouldResolveBothDirections() {
+    void propertiesConfigProviderShouldResolveConfig() {
         assertEquals("demo", configProvider
-                .getByAccountKey("mock", "demo-app-key#91310000TEST000001").getAppId());
+                .getConfig("demo", "mock", "91310000TEST000001").getConfigId());
         assertEquals("AUTH", ((io.github.lianghang1.conflux.invoice.channels.mock.MockInvoiceParams)
-                configProvider.getConfig("demo", "mock", "91310000TEST000001")
-                        .getParams()).getIssueOutcome());
+                configProvider.getConfig("demo", "mock", "91310000TEST000001"))
+                .getIssueOutcome());
     }
 
     @Test
     void fullFlowThroughSpringBootContext() {
         InvoiceRequest request = new InvoiceRequest()
-                .setAppId("demo").setBizOrderNo("SB-1")
+                .setConfigId("demo").setBizOrderNo("SB-1")
                 .setSellerTaxNo("91310000TEST000001").setBuyerTitle("测试购方")
                 .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
                 .setItems(Collections.singletonList(new InvoiceItem()
@@ -70,7 +70,7 @@ class InvoiceAutoConfigurationTest {
         assertNotNull(first.getInvoice());
 
         InvoiceResult done = gateway.submitAuth(new AuthSubmission()
-                .setAppId("demo")
+                .setConfigId("demo")
                 .setSession(first.getAuthSession())
                 .setInvoice(first.getInvoice())
                 .setCaptcha("123456"));

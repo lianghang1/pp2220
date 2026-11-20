@@ -57,7 +57,7 @@ public class InvoiceController {
         return gateway.issue(request);
     }
 
-    /** 查单：传 appId + channelCode + 定位要素，或使用方回传 invoice 载体。 */
+    /** 查单：传 configId + channelCode + 定位要素，或使用方回传 invoice 载体。 */
     @PostMapping("/query")
     public InvoiceResult query(@RequestBody InvoiceQueryRequest request) {
         return gateway.query(request);
@@ -158,7 +158,10 @@ public class InvoiceController {
                     .setChannelCode(channelCode)
                     .setQueryParams(queryParams)
                     .setBody(body);
-            InvoiceCallbackEvent event = gateway.parseCallback(raw);
+            // 实际业务应查自己 DB（用回调里的业务单号）定位 configId 与销方税号，这里演示从查询参数取
+            String configId = queryParams == null ? null : queryParams.get("configId");
+            String sellerTaxNo = queryParams == null ? null : queryParams.get("sellerTaxNo");
+            InvoiceCallbackEvent event = gateway.parseCallback(configId, sellerTaxNo, raw);
             // 使用方在此按 event.getBizOrderNo() 定位自己的单据并推进业务，判重/金额校验自行完成
             return gateway.callbackReply(channelCode, true, "SUCCESS");
         } catch (Exception e) {

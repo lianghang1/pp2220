@@ -24,8 +24,8 @@ public class TransferRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
-    /** 使用方业务转账单号（appId 内唯一，必填） */
+    private String configId;
+    /** 使用方业务转账单号（configId 内唯一，必填） */
     private String bizTransferNo;
     /** 转账方式编码（必填） */
     private String method;
@@ -39,12 +39,14 @@ public class TransferRequest implements Serializable {
     private String currency;
     /** 转账备注/附言 */
     private String remark;
+    /** 异步通知地址（选填，按单覆盖渠道配置）：非空优先，留空回退配置 */
+    private String notifyUrl;
     /** 渠道附加参数（选填） */
     private Map<String, String> channelExtras;
 
     /** 参数校验：不满足抛 {@link GatewayErrorCode#BAD_REQUEST}。 */
     public void check() {
-        GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
+        GatewayAssert.notBlank(configId, CommonErrorCode.BAD_REQUEST, "configId 不能为空");
         GatewayAssert.notBlank(bizTransferNo, CommonErrorCode.BAD_REQUEST, "bizTransferNo 不能为空");
         GatewayAssert.notBlank(method, CommonErrorCode.BAD_REQUEST, "method 不能为空");
         GatewayAssert.notBlank(payeeAccount, CommonErrorCode.BAD_REQUEST, "payeeAccount 不能为空");

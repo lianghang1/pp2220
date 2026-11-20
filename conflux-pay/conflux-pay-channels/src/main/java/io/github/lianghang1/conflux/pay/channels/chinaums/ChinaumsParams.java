@@ -1,6 +1,6 @@
 package io.github.lianghang1.conflux.pay.channels.chinaums;
 
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * 银联商务天满渠道参数（OPEN-BODY-SIG 认证模式）。
  *
- * <p>声明式配置键（均放在渠道 {@code attrs} 下）：
+ * <p>声明式配置键（均放在渠道 {@code attr} 下）：
  * <ul>
  *   <li>{@code appId}（必填）产品 ID，由银联商务分配；</li>
  *   <li>{@code appKey}（必填）产品密钥；</li>
@@ -26,7 +26,7 @@ import java.util.Map;
  * @author lianghang
  */
 @Data
-public class ChinaumsParams implements ChannelParams {
+public class ChinaumsParams extends ChannelConfig {
 
     /** 生产网关前缀 */
     public static final String DEFAULT_GATEWAY = "https://api-mop.chinaums.com";
@@ -54,7 +54,7 @@ public class ChinaumsParams implements ChannelParams {
         return sandbox ? SANDBOX_GATEWAY : DEFAULT_GATEWAY;
     }
 
-    /** 从 attrs 构建；必填项缺失抛配置异常。 */
+    /** 从 attr 构建；必填项缺失抛配置异常。 */
     public static ChinaumsParams fromMap(Map<String, String> properties) {
         ChinaumsParams params = new ChinaumsParams();
         if (properties != null) {
@@ -72,8 +72,6 @@ public class ChinaumsParams implements ChannelParams {
         }
         return params;
     }
-
-    @Override
     public String channelAppId() {
         // 回调配置反查使用商户号（通知报文携带 mid）
         return mid;

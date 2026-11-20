@@ -17,5 +17,5 @@ public interface BillHandler {
     /**
      * 拉取指定应用、指定日期的渠道账单。
      */
-    BillSheet fetchBill(String appId, LocalDate billDate, ChannelConfig config);
+    BillSheet fetchBill(String configId, LocalDate billDate, ChannelConfig config);
 }

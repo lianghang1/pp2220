@@ -10,9 +10,7 @@ import com.github.binarywang.wxpay.bean.notify.WxPayRefundNotifyResult;
 import com.github.binarywang.wxpay.service.WxPayService;
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
@@ -44,19 +42,11 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
     }
 
     @Override
-    public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+    public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
         String body = raw.getBody();
         if (StringUtils.isBlank(body)) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "微信通知报文为空");
         }
-        String appId = raw.getQueryParams() == null ? null : raw.getQueryParams().get("appId");
-        String accountKey = ChannelAccountKey.resolve(raw, appId);
-        if (StringUtils.isBlank(accountKey)) {
-            throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "微信回调地址需携带 appId 或 accountKey 查询参数以定位渠道配置");
-        }
-        ChannelConfig config = configLookup.byAccountKey(accountKey);
-        WechatParams params = WechatClientHolder.paramsOf(config);
         WxPayService service = holder.service(config);
 
         if (body.trim().startsWith("<")) {
@@ -73,7 +63,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
             WxPayRefundNotifyResult.ReqInfo reqInfo = result.getReqInfo();
             return new CallbackEvent()
                     .setType(BizOrderType.REFUND)
-                    .setAppId(config.getAppId())
+                    .setConfigId(config.getConfigId())
                     .setBizOrderNo(reqInfo.getOutRefundNo())
                     .setChannelOrderNo(reqInfo.getRefundId())
                     .setSuccess("SUCCESS".equals(reqInfo.getRefundStatus()))
@@ -83,7 +73,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         WxPayOrderNotifyResult result = wrap("V2 支付通知", () -> service.parseOrderNotifyResult(body));
         CallbackEvent event = new CallbackEvent()
                 .setType(BizOrderType.PAYMENT)
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setBizOrderNo(result.getOutTradeNo())
                 .setChannelOrderNo(result.getTransactionId())
                 .setSuccess("SUCCESS".equals(result.getResultCode()))
@@ -116,7 +106,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         if (transferResult != null && StringUtils.isNotBlank(transferResult.getBatchStatus())) {
             return new CallbackEvent()
                     .setType(BizOrderType.TRANSFER)
-                    .setAppId(config.getAppId())
+                    .setConfigId(config.getConfigId())
                     .setBizOrderNo(transferResult.getOutBatchNo())
                     .setChannelOrderNo(transferResult.getBatchId())
                     .setSuccess("FINISH".equals(transferResult.getBatchStatus()))
@@ -131,7 +121,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         if (shareResult != null && StringUtils.isNotBlank(shareResult.getState())) {
             return new CallbackEvent()
                     .setType(BizOrderType.PROFIT_SHARE)
-                    .setAppId(config.getAppId())
+                    .setConfigId(config.getConfigId())
                     .setBizOrderNo(shareResult.getOutOrderNo())
                     .setChannelOrderNo(shareResult.getOrderId())
                     .setSuccess("FINISHED".equals(shareResult.getState()))
@@ -144,7 +134,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         if (paymentResult != null && StringUtils.isNotBlank(paymentResult.getTradeState())) {
             CallbackEvent event = new CallbackEvent()
                     .setType(BizOrderType.PAYMENT)
-                    .setAppId(config.getAppId())
+                    .setConfigId(config.getConfigId())
                     .setBizOrderNo(paymentResult.getOutTradeNo())
                     .setChannelOrderNo(paymentResult.getTransactionId())
                     .setSuccess("SUCCESS".equals(paymentResult.getTradeState()))
@@ -160,7 +150,7 @@ public class WechatCallbackHandler implements ChannelCallbackHandler {
         WxPayRefundNotifyV3Result.DecryptNotifyResult refundResult = refundNotify.getResult();
         return new CallbackEvent()
                 .setType(BizOrderType.REFUND)
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setBizOrderNo(refundResult.getOutRefundNo())
                 .setChannelOrderNo(refundResult.getRefundId())
                 .setSuccess("SUCCESS".equals(refundResult.getRefundStatus()))

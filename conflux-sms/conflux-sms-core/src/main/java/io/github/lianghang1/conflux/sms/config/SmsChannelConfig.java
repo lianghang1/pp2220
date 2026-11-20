@@ -1,46 +1,62 @@
 package io.github.lianghang1.conflux.sms.config;
 
-import java.util.Collections;
+import io.github.lianghang1.conflux.common.util.StringUtils;
+import lombok.Data;
+import lombok.experimental.Accessors;
+
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 短信渠道配置值对象：承载「appId + 渠道 + 配置键值」。
+ * 短信渠道配置（四域统一的自有配置模型）：公共凭证字段一等化 + 渠道个性 {@link #attr}。
  *
- * <p>与支付域 {@code ChannelConfig}、发票域 {@code ChannelConfig} 同层次的东西，
- * 只是短信没有自有渠道实现，{@code attrs} 的键名直接对齐 sms4j Config 字段
- * （统一凭证四件套 + 厂商特有字段）。由 {@link SmsConfigProvider} 产出，
- * 交给装载器构建 sms4j 的 SmsBlend。</p>
+ * <p>与支付域 {@code ChannelConfig}、发票域 {@code ChannelConfig} 同构：
+ * 框架理解的公共字段（配置标识、渠道编码、跨渠道同名同义的凭证字段）为一等字段；
+ * 厂商特有字段（如腾讯 sdkAppId、华为 sender、极光 signId）放 {@code attr}。
+ * <b>本对象不含任何 sms4j 官方类型</b>——装载期由 {@code SmsBlendRegistry} 把公共字段与
+ * attr 合并为官方 Config 的键值，官方配置对象的构建完全在框架内部完成。</p>
+ *
+ * <p>类名沿用 SmsChannelConfig 以避免与 sms4j 官方 {@code org.dromara.sms4j.provider.config.SmsConfig}
+ * 撞名；模型本身与支付/发票渠道配置完全对齐。</p>
  *
  * @author lianghang
  */
-public final class SmsChannelConfig {
+@Data
+@Accessors(chain = true)
+public class SmsChannelConfig implements Serializable {
 
-    private final String appId;
-    private final String channel;
-    private final Map<String, String> attrs;
+    private static final long serialVersionUID = 1L;
 
-    public SmsChannelConfig(String appId, String channel, Map<String, String> attrs) {
-        this.appId = appId;
-        this.channel = channel;
-        this.attrs = Collections.unmodifiableMap(
-                attrs == null ? new LinkedHashMap<String, String>() : new LinkedHashMap<String, String>(attrs));
+    private String configId;
+    /** 渠道编码（sms4j supplier，如 alibaba/tencent/huawei） */
+    private String channelCode;
+
+    // ---- 公共凭证字段：sms4j BaseConfig 中跨渠道同名同义的四件套 ----
+    private String accessKeyId;
+    private String accessKeySecret;
+    private String signature;
+    private String templateId;
+
+    /** 厂商特有配置（键名对齐 sms4j 官方 Config 字段） */
+    private Map<String, String> attr;
+
+    /** attr 打底，公共字段非空覆盖同名键（公共字段优先）。 */
+    public Map<String, String> mergedAttr() {
+        Map<String, String> merged = new LinkedHashMap<String, String>();
+        if (attr != null) {
+            merged.putAll(attr);
+        }
+        putIfNotBlank(merged, SmsConfigKeys.ACCESS_KEY_ID, accessKeyId);
+        putIfNotBlank(merged, SmsConfigKeys.ACCESS_KEY_SECRET, accessKeySecret);
+        putIfNotBlank(merged, SmsConfigKeys.SIGNATURE, signature);
+        putIfNotBlank(merged, SmsConfigKeys.TEMPLATE_ID, templateId);
+        return merged;
     }
 
-    public String getAppId() {
-        return appId;
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public Map<String, String> getAttrs() {
-        return attrs;
-    }
-
-    @Override
-    public String toString() {
-        return "SmsChannelConfig{appId='" + appId + "', channel='" + channel + "'}";
+    private static void putIfNotBlank(Map<String, String> map, String key, String value) {
+        if (!StringUtils.isBlank(value)) {
+            map.put(key, value);
+        }
     }
 }

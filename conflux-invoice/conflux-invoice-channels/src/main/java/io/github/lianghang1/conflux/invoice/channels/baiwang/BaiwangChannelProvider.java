@@ -22,7 +22,6 @@ import io.github.lianghang1.conflux.invoice.api.RepairRequest;
 import io.github.lianghang1.conflux.invoice.api.RepairResult;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceCallbackHandler;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceDeliverer;
@@ -92,7 +91,7 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
     // ==================== 配置解析 ====================
 
     @Override
-    public InvoiceChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         Map<String, String> props = properties == null
                 ? Collections.<String, String>emptyMap() : properties;
         boolean sandbox = Boolean.parseBoolean(props.get("sandbox"));
@@ -103,7 +102,6 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
                 .setUsername(first(props, "username", "user", "tenantAccount"))
                 .setPassword(first(props, "password", "pwd"))
                 .setAccessToken(first(props, "accessToken", "token"))
-                .setSellerTaxNo(first(props, "sellerTaxNo", "nsrsbh"))
                 .setSellerName(props.get("sellerName"))
                 .setInvoiceTerminalCode(first(props, "invoiceTerminalCode", "dlzh", "数字账号"))
                 .setDeviceType(first(props, "deviceType", "deviceCode"))
@@ -117,9 +115,10 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
                 .setCallbackUrl(first(props, "callBackUrl", "callbackUrl", "notifyUrl"))
                 .setServerUrl(firstNonBlank(props.get("serverUrl"), props.get("baseUrl"),
                         sandbox ? BaiwangSpec.SANDBOX_BASE_URL : BaiwangSpec.DEFAULT_BASE_URL))
-                .setSandbox(sandbox)
-                .setTimeoutMillis(parseLong(props.get("timeoutMillis"), 30000L))
-                .setAttrs(new LinkedHashMap<String, String>(props));
+                .setTimeoutMillis(parseLong(props.get("timeoutMillis"), 30000L));
+        params.setSellerTaxNo(first(props, "sellerTaxNo", "nsrsbh"));
+        params.setSandbox(sandbox);
+        params.setAttr(new LinkedHashMap<String, String>(props));
         params.setChannelAppId(firstNonBlank(params.getAppKey(), params.getSellerTaxNo()));
         return params;
     }
@@ -209,14 +208,14 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
 
     /**
      * 版式文件：优先查单接口（同步）取 xmlUrl/pdfUrl/ofdUrl；
-     * 查询失败降级使用回调落在 attrs 的文件地址；辅助查询从不阻断主流程。
+     * 查询失败降级使用回调落在 attr 的文件地址；辅助查询从不阻断主流程。
      */
     @Override
     public List<InvoiceFile> fetch(InvoiceContext ctx, Set<InvoiceFileType> types) {
         Invoice invoice = ctx.requireInvoice();
         List<InvoiceFile> files = fetchFromChannel(ctx, invoice);
         if (files.isEmpty()) {
-            files = filesFromAttrs(invoice);
+            files = filesFromAttr(invoice);
         }
         if (types == null || types.isEmpty()) {
             return files;
@@ -249,15 +248,15 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
         }
     }
 
-    private List<InvoiceFile> filesFromAttrs(Invoice invoice) {
-        Map<String, String> attrs = invoice.getAttrs();
+    private List<InvoiceFile> filesFromAttr(Invoice invoice) {
+        Map<String, String> attr = invoice.getAttr();
         List<InvoiceFile> files = new ArrayList<InvoiceFile>();
-        if (attrs == null) {
+        if (attr == null) {
             return files;
         }
-        addAttrUrl(files, InvoiceFileType.XML, attrs, "xmlUrl", "xmlurl", "baiwang.xmlUrl");
-        addAttrUrl(files, InvoiceFileType.OFD, attrs, "ofdUrl", "ofdurl");
-        addAttrUrl(files, InvoiceFileType.PDF, attrs, "pdfUrl", "pdf");
+        addAttrUrl(files, InvoiceFileType.XML, attr, "xmlUrl", "xmlurl", "baiwang.xmlUrl");
+        addAttrUrl(files, InvoiceFileType.OFD, attr, "ofdUrl", "ofdurl");
+        addAttrUrl(files, InvoiceFileType.PDF, attr, "pdfUrl", "pdf");
         return files;
     }
 
@@ -408,11 +407,11 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
 
     private BaiwangParams params(InvoiceContext ctx) {
         ChannelConfig config = ctx.getConfig();
-        if (config != null && config.getParams() instanceof BaiwangParams) {
-            return (BaiwangParams) config.getParams();
+        if (config != null && config instanceof BaiwangParams) {
+            return (BaiwangParams) config;
         }
         if (config != null) {
-            return (BaiwangParams) parseParams(config.getAttrs());
+            return (BaiwangParams) parseParams(config.getAttr());
         }
         throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "百望云渠道配置缺失");
     }
@@ -420,7 +419,7 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
     private void requireCredentials(BaiwangParams params) {
         if (!params.hasCredentials()) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                    "百望云缺少 appKey/appSecret/serverUrl，请在 attrs 中配置");
+                    "百望云缺少 appKey/appSecret/serverUrl，请在 attr 中配置");
         }
         if (!params.hasTokenSource()) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
@@ -429,9 +428,9 @@ public class BaiwangChannelProvider implements InvoiceChannelProvider,
     }
 
     private void addAttrUrl(List<InvoiceFile> files, InvoiceFileType type,
-                            Map<String, String> attrs, String... names) {
+                            Map<String, String> attr, String... names) {
         for (String name : names) {
-            String url = attrs.get(name);
+            String url = attr.get(name);
             if (StringUtils.isNotBlank(url)) {
                 files.add(new InvoiceFile().setType(type).setUrl(url));
                 return;

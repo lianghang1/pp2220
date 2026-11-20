@@ -23,7 +23,7 @@ public class RedIssueRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 指定渠道（为空取确认单载体的渠道） */
     private String channelCode;
     /** 渠道回调地址（可选） */
@@ -35,7 +35,7 @@ public class RedIssueRequest implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(redApply != null, "redApply 确认单载体不能为空");
         GatewayAssert.param(originalInvoice != null, "originalInvoice 原票载体不能为空");
     }

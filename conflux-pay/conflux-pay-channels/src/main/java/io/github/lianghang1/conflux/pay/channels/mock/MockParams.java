@@ -1,6 +1,6 @@
 package io.github.lianghang1.conflux.pay.channels.mock;
 
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 
 import java.util.Map;
 
@@ -12,7 +12,7 @@ import java.util.Map;
  *
  * @author lianghang
  */
-public class MockParams implements ChannelParams {
+public class MockParams extends ChannelConfig {
 
     /** 下单即成功的模拟模式 */
     public static final String OUTCOME_SUCCESS = "success";
@@ -36,8 +36,6 @@ public class MockParams implements ChannelParams {
         }
         return params;
     }
-
-    @Override
     public String channelAppId() {
         return appKey;
     }

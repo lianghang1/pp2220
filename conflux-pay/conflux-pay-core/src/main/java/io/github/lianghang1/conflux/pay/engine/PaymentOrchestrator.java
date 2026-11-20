@@ -46,7 +46,7 @@ class PaymentOrchestrator {
         Payment payment = buildPayment(request, method, channel);
         try {
             PaymentHandler handler = rt.registry.paymentHandler(channel);
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), channel);
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), channel);
             PaymentInvocation invocation = handler.createPayment(payment, config);
             if (StringUtils.isNotBlank(invocation.getChannelOrderNo())) {
                 payment.setChannelOrderNo(invocation.getChannelOrderNo());
@@ -77,7 +77,7 @@ class PaymentOrchestrator {
         Payment payment = locatePayment(request);
         try {
             PaymentHandler handler = rt.registry.paymentHandler(request.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
             PaymentSnapshot snapshot = handler.queryPayment(payment, config);
             applySnapshot(payment, snapshot);
         } catch (GatewayException e) {
@@ -92,14 +92,14 @@ class PaymentOrchestrator {
         Payment payment = locatePayment(request);
         try {
             PaymentHandler handler = rt.registry.paymentHandler(request.getChannelCode());
-            ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+            ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
             handler.closePayment(payment, config);
             payment.setState(PaymentState.CLOSED);
         } catch (GatewayException e) {
             // 渠道拒绝关单（如已支付）时复查一次，按渠道真实状态返回
             try {
                 PaymentHandler handler = rt.registry.paymentHandler(request.getChannelCode());
-                ChannelConfig config = rt.configProvider.getConfig(request.getAppId(), request.getChannelCode());
+                ChannelConfig config = rt.configProvider.getConfig(request.getConfigId(), request.getChannelCode());
                 PaymentSnapshot snapshot = handler.queryPayment(payment, config);
                 if (snapshot.getState() == PaymentState.SUCCEEDED) {
                     applySnapshot(payment, snapshot);
@@ -116,7 +116,7 @@ class PaymentOrchestrator {
     /** 按请求参数构建渠道交互载体（不落库）。 */
     private Payment locatePayment(PaymentQueryRequest request) {
         return new Payment()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizOrderNo(request.getBizOrderNo())
                 .setChannelCode(request.getChannelCode())
                 .setChannelOrderNo(request.getChannelOrderNo());
@@ -124,7 +124,7 @@ class PaymentOrchestrator {
 
     private Payment buildPayment(PaymentRequest request, PayMethod method, String channel) {
         return new Payment()
-                .setAppId(request.getAppId())
+                .setConfigId(request.getConfigId())
                 .setBizOrderNo(request.getBizOrderNo())
                 .setMethod(method.getCode())
                 .setChannelCode(channel)
@@ -133,6 +133,7 @@ class PaymentOrchestrator {
                 .setSubject(request.getSubject())
                 .setBody(request.getBody())
                 .setClientIp(request.getClientIp())
+                .setNotifyUrl(request.getNotifyUrl())
                 .setExtParams(request.getChannelExtras() == null ? null : JsonUtils.toJson(request.getChannelExtras()));
     }
 

@@ -26,8 +26,8 @@ public class PaymentRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
-    /** 使用方业务单号（appId 内唯一，必填） */
+    private String configId;
+    /** 使用方业务单号（configId 内唯一，必填） */
     private String bizOrderNo;
     /** 支付方式编码（必填，见 PayMethod 内置常量或自定义注册） */
     private String method;
@@ -43,12 +43,17 @@ public class PaymentRequest implements Serializable {
     private String body;
     /** 下单客户端 IP */
     private String clientIp;
+    /**
+     * 异步通知地址（选填，按单覆盖）：非空时覆盖渠道配置中的 notifyUrl，实现同一渠道
+     * 按订单动态指定回调地址；留空则回退到配置的 notifyUrl。
+     */
+    private String notifyUrl;
     /** 渠道附加参数（选填，如 JSAPI 方式的 openid；key 约定见各渠道文档） */
     private Map<String, String> channelExtras;
 
     /** 参数校验：不满足抛 {@link GatewayErrorCode#BAD_REQUEST}。 */
     public void check() {
-        GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
+        GatewayAssert.notBlank(configId, CommonErrorCode.BAD_REQUEST, "configId 不能为空");
         GatewayAssert.notBlank(bizOrderNo, CommonErrorCode.BAD_REQUEST, "bizOrderNo 不能为空");
         GatewayAssert.notBlank(method, CommonErrorCode.BAD_REQUEST, "method 不能为空");
         GatewayAssert.notNull(amount, CommonErrorCode.BAD_REQUEST, "amount 不能为空");

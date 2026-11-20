@@ -23,7 +23,7 @@ class RefundFlowTest {
 
     private RefundRequest request(String bizRefundNo) {
         return new RefundRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizRefundNo(bizRefundNo)
                 .setChannelCode(TestChannelProvider.CODE)
                 .setBizOrderNo("ORDER-" + bizRefundNo)
@@ -52,7 +52,7 @@ class RefundFlowTest {
         harness.channelProvider.channelRefundStates.put("RF-2", RefundState.SUCCEEDED);
 
         RefundResult result = harness.gateway.queryRefund(new RefundQueryRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizRefundNo("RF-2")
                 .setChannelCode(TestChannelProvider.CODE));
 

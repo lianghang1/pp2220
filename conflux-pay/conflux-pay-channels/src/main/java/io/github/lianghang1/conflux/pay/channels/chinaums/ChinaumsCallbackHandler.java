@@ -5,8 +5,6 @@ import io.github.lianghang1.conflux.common.exception.GatewayException;
 import io.github.lianghang1.conflux.common.util.StringUtils;
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
@@ -38,22 +36,15 @@ public class ChinaumsCallbackHandler implements ChannelCallbackHandler {
     }
 
     @Override
-    public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+    public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
         Map<String, String> form = raw.getFormParams();
         if (form == null || form.isEmpty()) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "天满通知报文为空");
         }
-        String mid = form.get("mid");
         String merOrderId = form.get("merOrderId");
         if (StringUtils.isBlank(merOrderId)) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "天满通知缺少 merOrderId");
         }
-        String accountKey = ChannelAccountKey.resolve(raw, mid);
-        if (StringUtils.isBlank(accountKey)) {
-            throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "天满回调需携带 mid 或 accountKey 查询参数以定位渠道配置");
-        }
-        ChannelConfig config = configLookup.byAccountKey(accountKey);
 
         // 主动查单：不信任通知内容，以签名查询获取权威状态
         Map<String, Object> business = new LinkedHashMap<String, Object>();
@@ -64,7 +55,7 @@ public class ChinaumsCallbackHandler implements ChannelCallbackHandler {
 
         CallbackEvent event = new CallbackEvent()
                 .setType(BizOrderType.PAYMENT)
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setBizOrderNo(merOrderId)
                 .setChannelOrderNo(ChinaumsClient.text(root, "targetOrderId"))
                 .setSuccess(state == PaymentState.SUCCEEDED)

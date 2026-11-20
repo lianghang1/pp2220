@@ -7,7 +7,6 @@ import io.github.lianghang1.conflux.sms.config.SmsConfigProvider;
 import io.github.lianghang1.conflux.sms.support.InMemorySmsConfigProvider;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,10 +29,10 @@ class SmsConfigProviderContractTest {
         final int[] calls = {0};
         SmsConfigProvider provider = new SmsConfigProvider() {
             @Override
-            public SmsChannelConfig getConfig(String appId, String channel) {
+            public SmsChannelConfig getConfig(String configId, String channelCode) {
                 calls[0]++;
                 // 未知渠道：ensureLoaded 会抛 CHANNEL_NOT_FOUND，但 getConfig 已被调用
-                return new SmsChannelConfig(appId, channel, Collections.<String, String>emptyMap());
+                return new SmsChannelConfig().setConfigId(configId).setChannelCode(channelCode);
             }
         };
         SmsGateway gateway = SmsGateway.builder().configProvider(provider).build();

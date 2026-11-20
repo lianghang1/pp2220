@@ -1,7 +1,7 @@
 package io.github.lianghang1.conflux.pay.channels.alipay;
 
 import io.github.lianghang1.conflux.pay.channel.ChannelCode;
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
+import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
 import io.github.lianghang1.conflux.pay.channel.PayMethod;
 
@@ -40,7 +40,7 @@ public class AlipayChannelProvider implements ChannelProvider {
     }
 
     @Override
-    public ChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         return AlipayParams.fromMap(properties);
     }
 

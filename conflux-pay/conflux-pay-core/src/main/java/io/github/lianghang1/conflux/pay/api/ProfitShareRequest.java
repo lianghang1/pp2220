@@ -28,8 +28,8 @@ public class ProfitShareRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
-    /** 使用方业务分账单号（appId 内唯一，必填） */
+    private String configId;
+    /** 使用方业务分账单号（configId 内唯一，必填） */
     private String bizShareNo;
     /** 渠道编码（必填，须与原支付单一致） */
     private String channelCode;
@@ -44,7 +44,7 @@ public class ProfitShareRequest implements Serializable {
 
     /** 参数校验：不满足抛 {@link GatewayErrorCode#BAD_REQUEST}。 */
     public void check() {
-        GatewayAssert.notBlank(appId, CommonErrorCode.BAD_REQUEST, "appId 不能为空");
+        GatewayAssert.notBlank(configId, CommonErrorCode.BAD_REQUEST, "configId 不能为空");
         GatewayAssert.notBlank(bizShareNo, CommonErrorCode.BAD_REQUEST, "bizShareNo 不能为空");
         GatewayAssert.notBlank(channelCode, CommonErrorCode.BAD_REQUEST, "channelCode 不能为空");
         GatewayAssert.notBlank(channelOrderNo, CommonErrorCode.BAD_REQUEST, "channelOrderNo 不能为空");

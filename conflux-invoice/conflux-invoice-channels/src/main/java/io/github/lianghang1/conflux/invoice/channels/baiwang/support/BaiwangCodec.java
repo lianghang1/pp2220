@@ -375,10 +375,10 @@ public final class BaiwangCodec {
 
     // ==================== 工具 ====================
 
-    /** 票种 → 文档 invoiceTypeCode，可由 attrs.fplxdm.&lt;票种&gt; 覆盖。 */
+    /** 票种 → 文档 invoiceTypeCode，可由 attr.fplxdm.&lt;票种&gt; 覆盖。 */
     public static String invoiceTypeCode(BaiwangParams params, InvoiceType type) {
-        if (params != null && params.getAttrs() != null && type != null) {
-            String override = params.getAttrs().get("fplxdm." + type.name());
+        if (params != null && params.getAttr() != null && type != null) {
+            String override = params.getAttr().get("fplxdm." + type.name());
             if (StringUtils.isNotBlank(override)) {
                 return override;
             }

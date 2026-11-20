@@ -44,7 +44,7 @@ class CallbackFlowTest {
 
     @Test
     void callbackShouldReturnNormalizedEvent() {
-        CallbackEvent event = harness.gateway.parseCallback(
+        CallbackEvent event = harness.gateway.parseCallback("app1",
                 callbackRequest("CB-1", "CH-CB-1", true, 8800L));
 
         assertThat(event.getType()).isEqualTo(BizOrderType.PAYMENT);
@@ -58,14 +58,14 @@ class CallbackFlowTest {
     void invalidSignatureShouldBeRejected() {
         ChannelCallbackRequest tampered = callbackRequest("CB-3", "CH-CB-3", true, 8800L)
                 .setHeaders(new LinkedHashMap<String, String>());
-        assertThatThrownBy(() -> harness.gateway.parseCallback(tampered))
+        assertThatThrownBy(() -> harness.gateway.parseCallback("app1", tampered))
                 .isInstanceOfSatisfying(GatewayException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(GatewayErrorCode.SIGN_INVALID));
     }
 
     @Test
     void missingChannelCodeShouldBeRejected() {
-        assertThatThrownBy(() -> harness.gateway.parseCallback(new ChannelCallbackRequest()))
+        assertThatThrownBy(() -> harness.gateway.parseCallback("app1", new ChannelCallbackRequest()))
                 .isInstanceOf(GatewayException.class);
     }
 

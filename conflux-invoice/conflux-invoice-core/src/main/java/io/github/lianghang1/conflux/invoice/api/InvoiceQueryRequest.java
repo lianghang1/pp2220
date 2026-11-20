@@ -23,7 +23,7 @@ public class InvoiceQueryRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用方应用标识（必填） */
-    private String appId;
+    private String configId;
     /** 渠道编码（必填） */
     private String channelCode;
     /** 使用方业务单号（渠道商户单号） */
@@ -39,7 +39,7 @@ public class InvoiceQueryRequest implements Serializable {
 
     /** 参数校验。 */
     public void check() {
-        GatewayAssert.param(appId != null && appId.trim().length() > 0, "appId 不能为空");
+        GatewayAssert.param(configId != null && configId.trim().length() > 0, "configId 不能为空");
         GatewayAssert.param(channelCode != null && channelCode.trim().length() > 0, "channelCode 不能为空");
     }
 }

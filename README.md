@@ -1,6 +1,6 @@
 # Conflux
 
-可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付**、**数电发票** 与 **短信** 三个能力域。
+可嵌入的无状态渠道聚合 SDK（**JDK 8+ / Spring Boot 2.7.x**），把各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。目前包含 **支付**、**数电发票**、**短信** 与 **文件** 四个能力域。
 
 > **定位**：Conflux 不是独立运行的中间件，而是给成熟应用直接引入的 SDK。它只做一件事——统一渠道差异；**不持有台账、不做幂等/CAS、不维护状态机、不落库、不通知下游**。落库、判重、状态推进、下游通知、定时任务全部由使用方在自己的业务链里完成。
 
@@ -14,7 +14,7 @@
 
 ## 模块构成
 
-`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-sms`（core / spring-boot-starter，内部全量委托 sms4j 原始包）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。支付/发票的 core 与 channels、短信的 core 均零 Spring 依赖，各 starter 提供 Boot 自动装配。
+`conflux-pay`（core 内核 / channels 渠道实现 / spring-boot-starter / example）、`conflux-invoice`（同构四件套）、`conflux-sms`（core / spring-boot-starter，内部全量委托 sms4j 原始包）、`conflux-file`（core / spring-boot-starter，内部全量委托 x-file-storage 原始包）、`conflux-common`（公共工具 / 异常 / HTTP 传输）。支付/发票的 core 与 channels、短信与文件的 core 均零 Spring 依赖，各 starter 提供 Boot 自动装配。
 
 ---
 
@@ -35,7 +35,7 @@
 | chinaums | 微信/支付宝/云闪付 × APP/H5/小程序/公众号 + C扫B主扫 | ✓ | — | — | — | 回调触发主动查单 |
 | mock | 二维码模拟 | ✓ | ✓ | ✓ | — | 自定义头 |
 
-**多账户回调路由**：同一渠道可配置多个账户，服务商模式用 `accountKey`（`channelAppId#subMchNo`）在回调 URL 上定位账户；装载期账户键冲突立即启动失败，不静默覆盖。
+**回调配置定位**：验签仍在框架，但配置定位权在使用方——业务按自己的订单号查库得到 `configId`（发票再加 `sellerTaxNo`）后显式传入 `parseCallback(configId, request)`，框架据此取配置验签；不再从回调报文隐式反查账户键。
 
 ### 快速开始（支付）
 
@@ -48,9 +48,9 @@
 ```
 
 ```yaml
-conflux.pay.apps.demo.mock:
+conflux.pay.configs.demo.mock:
   notifyUrl: http://127.0.0.1:8088/callback/mock
-  attrs:
+  attr:
     appKey: demo-app-key
     payOutcome: paying
 ```
@@ -60,20 +60,21 @@ conflux.pay.apps.demo.mock:
 ```java
 // 下单：bizOrderNo 由使用方生成，作为渠道商户单号
 PaymentResult pay = paymentGateway.createPayment(new PaymentRequest()
-        .setAppId("demo").setBizOrderNo("ORDER_001")
+        .setConfigId("demo").setBizOrderNo("ORDER_001")
         .setMethod(PayMethod.WECHAT_NATIVE.getCode())
         .setAmount(9900L).setSubject("订单支付"));
 // state=PAYING → 取 pay.getPayPayload() 拉起支付；state=SUCCEEDED → 即时扣款完成
 // 渠道单号 channelOrderNo 由使用方自己保存（SDK 不存）
+// 回调地址默认取渠道配置 notifyUrl；支付/退款/转账请求均可 .setNotifyUrl("https://.../callback/ORDER_001") 按单覆盖（请求优先、配置兜底）
 
 // 主动查单（最终态也可来自回调）
 PaymentResult snapshot = paymentGateway.queryPayment(new PaymentQueryRequest()
-        .setAppId("demo").setBizOrderNo("ORDER_001")
+        .setConfigId("demo").setBizOrderNo("ORDER_001")
         .setChannelCode(ChannelCode.WECHAT).setChannelOrderNo(channelOrderNo));
 
 // 回调只验签 + 归一；判重/金额校验/状态推进由使用方完成
-CallbackEvent event = paymentGateway.parseCallback(callbackRequest);
-// ... 使用方按 event.getBizOrderNo() 定位订单，判重、校验金额、推进状态 ...
+CallbackEvent event = paymentGateway.parseCallback(configId, callbackRequest);
+// configId 由使用方按渠道单号查自己 DB 得到；按 event.getBizOrderNo() 定位订单，判重、校验金额、推进状态 ...
 return paymentGateway.callbackSuccessReply(channelCode);
 ```
 
@@ -102,13 +103,13 @@ return paymentGateway.callbackSuccessReply(channelCode);
 ```yaml
 conflux.invoice:
   mock-enabled: true          # 默认注册 mock 渠道，零凭据启动
-  apps:
+  configs:
     demo:
       mock:
         seller-tax-no: "91310000MOCK000001"
-        notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock?accountKey=demo-app-key%2391310000MOCK000001"
+        notify-url: "http://127.0.0.1:8080/api/invoices/callback/mock"
         tier: SERVICE_API
-        attrs:
+        attr:
           appKey: demo-app-key
           appSecret: demo-secret
           issueOutcome: AUTH       # AUTH / ASYNC / SUCCESS / FAIL
@@ -119,7 +120,7 @@ conflux.invoice:
 
 ```java
 InvoiceResult r = invoiceGateway.issue(new InvoiceRequest()
-        .setAppId("demo").setBizOrderNo("INV_001")
+        .setConfigId("demo").setBizOrderNo("INV_001")
         .setSellerTaxNo("91310000MOCK000001").setBuyerTitle("购方企业")
         .setInvoiceType(InvoiceType.DIGITAL_VAT_GENERAL)
         .setItems(items).setAmount(new BigDecimal("1000.00")));
@@ -127,19 +128,19 @@ InvoiceResult r = invoiceGateway.issue(new InvoiceRequest()
 if (r.getState() == InvoiceState.WAITING_AUTH) {
     // 引导用户完成短信/扫码授权，随后回传会话与发票载体
     InvoiceResult done = invoiceGateway.submitAuth(new AuthSubmission()
-            .setAppId("demo").setSession(r.getAuthSession())
+            .setConfigId("demo").setSession(r.getAuthSession())
             .setInvoice(r.getInvoice()).setCaptcha("123456"));
     // done.getInvoice() 由使用方保存，红冲/交付要用
 }
 
 // 两段红冲：申请确认单 → 查确认 → 开红票（载体全程由使用方回传）
 RedApply apply = invoiceGateway.applyRed(new RedApplyRequest()
-        .setAppId("demo").setBizRedNo("RED_001").setOriginalInvoice(invoice));
+        .setConfigId("demo").setBizRedNo("RED_001").setOriginalInvoice(invoice));
 RedApply confirmed = invoiceGateway.queryRedApply(new RedApplyQueryRequest()
-        .setAppId("demo").setRedApply(apply));
+        .setConfigId("demo").setRedApply(apply));
 if (confirmed.getState() == RedApplyState.CONFIRMED) {
     InvoiceResult red = invoiceGateway.issueRed(new RedIssueRequest()
-            .setAppId("demo").setRedApply(confirmed).setOriginalInvoice(invoice));
+            .setConfigId("demo").setRedApply(confirmed).setOriginalInvoice(invoice));
 }
 // 也可用快捷红冲一次覆盖全流程：invoiceGateway.quickRed(...)，用 outcome 分流
 ```
@@ -154,15 +155,15 @@ if (confirmed.getState() == RedApplyState.CONFIRMED) {
 
 短信域内部**全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter），我们只保留两层：
 
-- **配置装载**：由 `SmsConfigProvider` SPI（对齐支付/发票的同名契约）提供配置——starter 默认实现读 `conflux.sms.apps.<appId>.<channel>`，装载期由 sms4j 官方 Factory 构造厂商 Config 并注册进 `SmsFactory`；发送时每次从 provider 读取，凭证变更可重建客户端，接 DB / 配置中心只需自定义该接口；
-- **出口门面**：`SmsGateway.send(appId, channel, request)` 从 `SmsFactory` 取出 `SmsBlend` 发送，归一 `SmsResponse`。
+- **配置装载**：由 `SmsConfigProvider` SPI（对齐支付/发票的同名契约）提供配置——starter 默认实现读 `conflux.sms.configs.<configId>.<channelCode>`，装载期由 sms4j 官方 Factory 构造厂商 Config 并注册进 `SmsFactory`；发送时每次从 provider 读取，凭证变更可重建客户端，接 DB / 配置中心只需自定义该接口；
+- **出口门面**：`SmsGateway.send(configId, channelCode, request)` 从 `SmsFactory` 取出 `SmsBlend` 发送，归一 `SmsResponse`。
 
 渠道的配置对象与发送能力**全部来自 sms4j**，我们不含任何渠道实现代码。`channel` 直接采用 sms4j 的供应商标识（`alibaba`/`tencent`/`huawei`…），因此 **sms4j 支持的 22 家厂商无需新增代码即可使用**；发送即终态，SDK 不持有台账、不判重、不做频率控制。core 零 Spring 依赖，纯 Java / MVC 项目同样可用。
 
 ```yaml
 conflux:
   sms:
-    apps:
+    configs:
       demo:
         alibaba:                   # sms4j 供应商标识
           # 统一键（sms4j BaseConfig 公共字段，跨渠道同名同义）
@@ -170,12 +171,12 @@ conflux:
           access-key-secret: xxx
           signature: 你的签名
           template-id: SMS_xxx
-          attrs:                   # 厂商特有键，键名与 sms4j Config 字段一致
+          attr:                   # 厂商特有键，键名与 sms4j Config 字段一致
             template-name: code
             region-id: cn-hangzhou
 ```
 
-统一键在装载期下沉合并进配置表（统一键优先、attrs 兜底），再由 hutool BeanUtil 按 sms4j Config 字段名填充；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attrs`，键名用 sms4j Config 的字段名即可。
+公共凭证四件套（accessKeyId/accessKeySecret/signature/templateId）是自有 `SmsChannelConfig` 的一等字段；装载期由 `mergedAttr()` 合并（公共字段优先、attr 兜底），再由 sms4j 官方 Factory 按字段名构建厂商 Config。厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attr`，键名用 sms4j Config 的字段名即可；不暴露 sms4j 官方配置类。
 
 内置 22 家渠道开箱即用（标识见 sms4j 官方清单）。接入清单外的厂商完全走 sms4j [官方自定义扩展](https://sms4j.com/doc3/custom.html)：按文档实现 `SmsBlend`/`SupplierConfig`/`BaseProviderFactory` 三个接口，把 Factory 实例交给 `SmsChannelProvider.of(factory)` 声明即可，不走我们自己的渠道实现、无需改框架代码：
 
@@ -183,7 +184,7 @@ conflux:
 BaseProviderFactory myFactory = new MyProviderFactory();   // sms4j 官方自定义三接口实现
 SmsGateway gateway = SmsGateway.builder()
         .configProvider(provider)
-        .channel(SmsChannelProvider.of(myFactory))          // 与内置渠道同一注册路径
+        .channel(SmsChannelProvider.of(myFactory))          // 仅自定义渠道需要声明；内置渠道自动发现
         .build();
 ```
 
@@ -197,11 +198,12 @@ SmsSendResult r = smsGateway.send("demo", "alibaba",
 
 ```java
 SmsConfigProvider provider = new InMemorySmsConfigProvider()
-        .register("demo", "alibaba", cfg);          // cfg: accessKeyId/accessKeySecret/signature/templateId…
+        .register("demo", "alibaba",                 // configId / channelCode
+                  "accessKeyId", "accessKeySecret", "signature", "templateId",
+                  null);                              // 厂商特有键放 attr
 SmsGateway gateway = SmsGateway.builder()
         .configProvider(provider)
-        .channel(SmsChannelProvider.of("alibaba"))  // 声明渠道，与支付/发票同构
-        .build();
+        .build();                                    // 内置渠道由 sms4j 自动发现，无需 .channel()
 SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 ```
 
@@ -209,31 +211,71 @@ SmsSendResult r = gateway.send("demo", "alibaba", request);  // 出口发送
 
 ```java
 SmsConfigProvider dbProvider = new SmsConfigProvider() {
-    public SmsChannelConfig getConfig(String appId, String channel) { /* 查库 */ ... }
+    public SmsChannelConfig getConfig(String configId, String channelCode) { /* 查库 */ ... }
 };
-SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider)
-        .channel(SmsChannelProvider.of("alibaba")).build();
+SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider).build();
 ```
 
 依赖：`conflux-sms-spring-boot-starter`（Boot）或 `conflux-sms-core`（纯 Java/MVC，经 core 传递引入 sms4j 原始包）。sms4j 版本在 BOM 单源管理。
 
-### 三域对外契约一致
+## 能力域四：文件（conflux-file）
 
-支付、发票、短信三个能力域的**框架用法同一套范式**（业务字段各不相同，但外层契约一致）：
+文件域内部**全量委托 [x-file-storage](https://x-file-storage.xuyanwu.cn/) 原始包**（`x-file-storage-core`，不用它的 starter），我们只保留两层：
 
-| 契约 | 支付 | 发票 | 短信 |
-|---|---|---|---|
-| 门面 | `PaymentGateway` | `InvoiceGateway` | `SmsGateway` |
-| 构建 | `builder()` | `builder()` | `builder()` |
-| 配置源 SPI | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` |
-| 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` |
-| Builder 注入 | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） |
-| 声明渠道 | `.channel(provider)` | `.channel(provider)` | `.channel(SmsChannelProvider)` |
-| 注册渠道 | `registerChannel(provider)` | `registerChannel(provider)` | `registerChannel(SmsChannelProvider)` |
-| 已注册渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
-| 配置结构 | `conflux.pay.apps.*` | `conflux.invoice.apps.*` | `conflux.sms.apps.*`（均含 `attrs`） |
+- **配置装载**：由 `FileConfigProvider` SPI（对齐其他域的同名契约）提供配置——starter 默认实现读 `conflux.file.configs.<configId>.<channelCode>`，value 直接是 x-file-storage 官方 `FileStorageProperties`（各平台段由 Spring Boot 原生绑定），内核整体交给官方 `FileStorageServiceBuilder.create(props).useDefault().build()` 构建，**不逐平台解析任何字段、不维护平台清单**；每次调用从 provider 读取，配置变更可重建 service。
+- **出口门面**：`FileGateway` 按「configId + channelCode」取出官方 `FileStorageService` 调用原生方法，返回官方原始结果对象（`FileInfo` / `Downloader` / Pretreatment 等），不另造结果对象。
 
-三域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。三域对外形态完全一致：`builder().channel(provider)` 声明渠道、`gateway.registerChannel(provider)` 增补、`registeredChannels()` 查看。差异仅在 Provider 内容——支付/发票的 Provider 内含渠道实现 handler，短信的 `SmsChannelProvider` 只承载一个 sms4j 原生 Factory 实例（内置清单或用户按 sms4j 文档自定义的），渠道实现始终在 sms4j 原始包。
+平台的配置对象与实现**全部来自 x-file-storage 原始包**，我们不含任何存储平台实现代码。`<platform>` 直接采用 x-file-storage 的**平台实例标识**（如 `aliyun-oss-1`，是实例名不是类型名），因此 **x-file-storage 支持的 30+ 存储平台无需新增框架代码即可使用**；各平台 SDK（阿里云 OSS、MinIO 等）由使用方按需引入。
+
+```yaml
+conflux:
+  file:
+    configs:
+      demo:
+        local-1:                   # channelCode（内部映射为 x-file-storage 的 platform 实例标识）
+          local:                   # 官方 FileStorageProperties 的平台段（aliyunOss/minio/local…）
+            - platform: local-1
+              base-path: /data/files
+              domain: http://localhost/file/
+```
+
+门面只暴露最小可用方法 + 已放开的两组，进阶能力一律走原生出口，不重做对方已有功能：
+
+```java
+FileGateway gateway = FileGateway.builder().configProvider(cp).build();
+
+FileInfo info = gateway.upload("demo", "local-1", bytes, "a.jpg");   // 上传
+byte[] data = gateway.download("demo", "local-1", info).bytes();     // 下载
+boolean ok   = gateway.exists("demo", "local-1", info);              // 存在性
+gateway.delete("demo", "local-1", info);                             // 删除
+String url   = gateway.generatePresignedUrl("demo", "local-1", info, new Date()); // 预签名(放开B)
+gateway.copy("demo", "local-1", info);                               // 复制(放开C)
+gateway.move("demo", "local-1", info);                               // 移动(放开C)
+FileStorageService nativeSvc = gateway.nativeService("demo", "local-1"); // 原生出口：分片/ACL/元数据/列举/图片处理…
+```
+
+**FileRecorder 边界**：我们**不实现、不托管** `FileRecorder`、不落库；门面一律以 `FileInfo` 为入参/返回，不暴露 `getFileInfoByUrl` 及一切 `url → 元信息` 反查方法（这些方法依赖 DB 记录，官方默认 `DefaultFileRecorder` 下会抛明确异常）。需要按 url 查询的使用方请自行实现 `FileRecorder`，再走 `nativeService()` 原生能力。
+
+接入清单外的自定义平台走 x-file-storage [官方扩展](https://x-file-storage.xuyanwu.cn/)：按其文档实现 `FileStorage`（可选 `FileStorageClientFactory`），把实例交给 `FileChannelProvider.of(fileStorage)` 声明即可，内置与自定义经同一个 `addFileStorage(...)` 注入、无需改框架代码。依赖：`conflux-file-spring-boot-starter`（Boot）或 `conflux-file-core`（纯 Java/MVC，经 core 传递引入 x-file-storage 原始包）。x-file-storage 版本在 BOM 单源管理。
+
+### 四域对外契约一致
+
+支付、发票、短信、文件四个能力域的**框架用法同一套范式**（业务字段各不相同，但外层契约一致，详见 [framework-contract.md](docs/framework-contract.md)）：
+
+| 契约 | 支付 | 发票 | 短信 | 文件 |
+|---|---|---|---|---|
+| 门面 | `PaymentGateway` | `InvoiceGateway` | `SmsGateway` | `FileGateway` |
+| 构建 | `builder()` | `builder()` | `builder()` | `builder()` |
+| 配置源 SPI | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` | `FileConfigProvider` |
+| 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` | `InMemoryFileConfigProvider` |
+| Builder 注入 | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） | `.configProvider(...)`（必填） |
+| 内置渠道 | `build()` 自动注册 | 同 | SDK 自动发现 | 配置驱动构建 |
+| 自定义渠道 | `.channel(provider)` | `.channel(provider)` | `.channel(SmsChannelProvider)` | `.channel(FileChannelProvider)` |
+| 注册渠道 | `registerChannel(provider)` | `registerChannel(provider)` | `registerChannel(SmsChannelProvider)` | `registerChannel(FileChannelProvider)` |
+| 已注册渠道 | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` | `registeredChannels()` |
+| 配置结构 | `conflux.pay.configs.*` | `conflux.invoice.configs.*` | `conflux.sms.configs.*` | `conflux.file.configs.*` |
+
+四域的配置源均**每次调用读取**：凭证变更可被感知并重建客户端。内置渠道由 `builder().build()`（支付/发票经 SPI 清单）自动全量注册，用户零 `.channel()`；仅框架未内置的自定义渠道才用 `.channel(provider)` 声明，`gateway.registerChannel(provider)` 运行期增补，`registeredChannels()` 查看。差异仅在业务维度与 Provider 内容——属已锁定的差异白名单。短信/文件的渠道实现始终在第三方原始包（sms4j / x-file-storage），Provider 只承载其实例。
 
 ---
 
@@ -243,8 +285,8 @@ SmsGateway gateway = SmsGateway.builder().configProvider(dbProvider)
 
 | 运行环境 | 接入方式 | 引入模块 | 配置来源 |
 |---|---|---|---|
-| Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` / `conflux-sms-spring-boot-starter` | `application.yml` 或自实现配置源 |
-| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | 支付 `conflux-pay-core` + `conflux-pay-channels`、发票 `conflux-invoice-core` + `conflux-invoice-channels`、短信仅 `conflux-sms-core`（内部已含 sms4j） | 任意来源：内存 / DB / 配置中心 / properties |
+| Spring Boot | starter 自动装配（推荐） | `conflux-pay-spring-boot-starter` / `conflux-invoice-spring-boot-starter` / `conflux-sms-spring-boot-starter` / `conflux-file-spring-boot-starter` | `application.yml` 或自实现配置源 |
+| Spring MVC / 传统 Spring / 纯 Java | 纯 jar 手动组装 | 支付 `conflux-pay-core` + `conflux-pay-channels`、发票 `conflux-invoice-core` + `conflux-invoice-channels`、短信仅 `conflux-sms-core`（含 sms4j）、文件仅 `conflux-file-core`（含 x-file-storage） | 任意来源：内存 / DB / 配置中心 / properties |
 
 starter 依赖 `spring-boot-autoconfigure`，仅适用于 Spring Boot；MVC 项目按上表引入对应的 core（+ channels），不要引入 starter。
 
@@ -254,13 +296,12 @@ Spring Boot 配置例（支付，发票见下节）：
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       wechat:
         notifyUrl: https://your.host/pay/callback/wechat
         sandbox: false
-        # subMchNo: "1900000000"   # 服务商模式特约商户号（可选）
-        attrs:                     # 渠道个性键，键名由各渠道定义
+        attr:                     # 渠道个性键，键名由各渠道定义（服务商模式 subMchNo 也放这里）
           merchantId: "1900000001"
           appId: "wx8888888888888888"
           apiV3Key: "your-32-bytes-apiV3-key-aaaaaaaaaaaa"
@@ -272,15 +313,15 @@ conflux.pay:
 
 ```yaml
 conflux.pay:
-  apps:
+  configs:
     demo:
       chinaums:
-        notifyUrl: https://your.host/pay/callback/chinaums   # 通知需能定位 mid（或用 ?accountKey=）
+        notifyUrl: https://your.host/pay/callback/chinaums
         sandbox: false                    # true 切 test-api-open.chinaums.com
-        attrs:
+        attr:
           appId: "天满产品ID"
           appKey: "天满产品密钥"
-          mid: "898340149000005"           # 商户号，同时作为回调配置反查键
+          mid: "898340149000005"           # 商户号
           tid: "88880001"                  # 终端号
           subAppId: "wx8888888888888888"   # 微信渠道下单所需，非微信渠道可省
 ```
@@ -292,18 +333,16 @@ Spring MVC 纯 jar 装配例：
 ```java
 @Bean
 public PaymentGateway paymentGateway() {
+    // 内置渠道（微信/支付宝/…）由 build() 经 SPI 自动注册，无需 .channel()
+    Map<String, String> attr = new LinkedHashMap<String, String>();
+    attr.put("merchantId", "1900000001");
+    attr.put("appId", "wx8888888888888888");
+    attr.put("apiV3Key", "your-32-bytes-apiV3-key-aaaaaaaaaaaa");
     return PaymentGateway.builder()
-            .channel(new WechatChannelProvider())
-            .channel(new AlipayChannelProvider())
-            // 内置内存配置；也可换成自实现 ChannelConfigProvider，从 DB/配置中心读
             .configProvider(new InMemoryChannelConfigProvider()
-                    .register(new ChannelConfig()
-                            .setAppId("demo").setChannelCode("WECHAT")
-                            .setNotifyUrl("https://your.host/pay/callback/wechat")
-                            .setParams(WechatParams.fromMap(Map.of(
-                                    "merchantId", "1900000001",
-                                    "appId", "wx8888888888888888",
-                                    "apiV3Key", "your-32-bytes-apiV3-key-aaaaaaaaaaaa")))))
+                    .register(WechatParams.fromMap(attr)
+                            .setConfigId("demo").setChannelCode("WECHAT")
+                            .setNotifyUrl("https://your.host/pay/callback/wechat")))
             .build();
 }
 ```
@@ -331,7 +370,7 @@ public PaymentGateway paymentGateway() {
 ## 设计约定
 
 - **错误码**：1xxx 通用 / 2xxx 支付 / 3xxx 发票
-- **账户键**：支付 `channelAppId#subMchNo`、发票 `channelAppId#sellerTaxNo`；回调 URL 带 `?accountKey=...`（`#` 转义为 `%23`），装载期冲突 fail-fast
+- **回调配置定位**：验签在框架，配置定位在使用方——业务查自己 DB 得到 `configId`（发票再加 `sellerTaxNo`）显式传入 `parseCallback`，不隐式反查账户键
 - **渠道实现无状态**：运行态数据一律从请求/调用上下文取得
 - **全栈 JDK 8**：不使用 JDK 9+ API，兼容老运行环境
 
@@ -341,13 +380,13 @@ public PaymentGateway paymentGateway() {
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **262 个用例全绿**。
+当前全量 **314 个用例全绿**。
 
 ## 文档索引
 
-- [docs/framework-contract.md](docs/framework-contract.md) — **三域框架统一契约**：图纸 / 规范 / 检查清单，新增能力或渠道必须严格执行
-- [docs/api-reference.md](docs/api-reference.md) — **API 参考**：三个网关的全部方法、出入参字段、枚举取值
+- [docs/framework-contract.md](docs/framework-contract.md) — **四域框架统一契约**：图纸 / 规范 / 检查清单，新增能力或渠道必须严格执行
+- [docs/api-reference.md](docs/api-reference.md) — **API 参考**：四个网关的全部方法、出入参字段、枚举取值
 - [docs/pay-integration.md](docs/pay-integration.md) — 支付域接入指南（两种引入形态、核心调用、回调接入、自定义渠道）
-- [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表与服务商模式回调路由
+- [docs/config-keys.md](docs/config-keys.md) — 支付渠道配置键对照表（配置按 `configId` 显式定位）
 - [docs/integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单
 - [docs/invoice-platforms.md](docs/invoice-platforms.md) — 发票平台核对清单与接入说明

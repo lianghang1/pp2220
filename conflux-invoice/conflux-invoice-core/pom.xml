@@ -14,7 +14,7 @@
     <artifactId>conflux-invoice-core</artifactId>
     <packaging>jar</packaging>
     <name>conflux-invoice-core</name>
-    <description>发票内核：统一单据模型、可挂起状态机、渠道 SPI（能力组合）、AccountKey/ChannelInstance、
+    <description>发票内核：统一单据模型、可挂起状态机、渠道 SPI（能力组合）、ChannelInstance、
         会话端口、通道分级、持久化 SPI、编排引擎（回调/查单/核对共用状态机）。零 Spring 依赖。</description>
 
     <dependencies>

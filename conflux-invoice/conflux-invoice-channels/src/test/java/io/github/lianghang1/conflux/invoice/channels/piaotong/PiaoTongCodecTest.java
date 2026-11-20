@@ -67,19 +67,19 @@ class PiaoTongCodecTest {
         Invoice invoice = new Invoice().setInvoiceCode("123456789012")
                 .setInvoiceNo("12345678");
         assertEquals("12345678901212345678", PiaoTongCodec.electronicNo(invoice));
-        Map<String, String> attrs = new HashMap<String, String>();
-        attrs.put("electronicInvoiceNo", "20990000000000000099");
-        invoice.setAttrs(attrs);
+        Map<String, String> attr = new HashMap<String, String>();
+        attr.put("electronicInvoiceNo", "20990000000000000099");
+        invoice.setAttr(attr);
         assertEquals("20990000000000000099", PiaoTongCodec.electronicNo(invoice));
     }
 
     @Test
     void issueBody_coreFields() {
         Invoice invoice = invoice();
-        Map<String, String> attrs = new HashMap<String, String>();
-        attrs.put("takerEmail", "buyer@test.com");
-        attrs.put("buyerMobile", "13800000000");
-        invoice.setAttrs(attrs);
+        Map<String, String> attr = new HashMap<String, String>();
+        attr.put("takerEmail", "buyer@test.com");
+        attr.put("buyerMobile", "13800000000");
+        invoice.setAttr(attr);
         Map<String, Object> body = PiaoTongCodec.issueBody(invoice,
                 "911100000000000000", "ABCD20240108000000+10");
         assertEquals("911100000000000000", body.get("taxpayerNum"));

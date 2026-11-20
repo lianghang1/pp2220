@@ -29,7 +29,7 @@ class TransferProfitShareFlowTest {
     @Test
     void createTransferShouldReturnChannelResult() {
         TransferResult result = harness.gateway.createTransfer(new TransferRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizTransferNo("TR-1")
                 .setMethod(TestChannelProvider.METHOD_TRANS)
                 .setPayeeAccount("account-001")
@@ -46,7 +46,7 @@ class TransferProfitShareFlowTest {
         harness.channelProvider.channelTransferStates.put("TR-2", TransferState.SUCCEEDED);
 
         TransferResult result = harness.gateway.queryTransfer(new TransferQueryRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizTransferNo("TR-2")
                 .setChannelCode(TestChannelProvider.CODE));
 
@@ -56,7 +56,7 @@ class TransferProfitShareFlowTest {
     @Test
     void createProfitShareShouldReturnChannelResult() {
         ProfitShareResult result = harness.gateway.createProfitShare(new ProfitShareRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizShareNo("PS-1")
                 .setChannelCode(TestChannelProvider.CODE)
                 .setBizOrderNo("ORDER-1")
@@ -73,7 +73,7 @@ class TransferProfitShareFlowTest {
         harness.channelProvider.channelShareStates.put("PS-2", ProfitShareState.FINISHED);
 
         ProfitShareResult result = harness.gateway.queryProfitShare(new ProfitShareQueryRequest()
-                .setAppId(GatewayTestHarness.APP_ID)
+                .setConfigId(GatewayTestHarness.APP_ID)
                 .setBizShareNo("PS-2")
                 .setChannelCode(TestChannelProvider.CODE));
 

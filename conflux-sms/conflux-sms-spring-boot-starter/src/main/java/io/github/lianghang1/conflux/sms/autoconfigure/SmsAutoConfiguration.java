@@ -26,7 +26,7 @@ import java.util.List;
 @EnableConfigurationProperties(SmsProperties.class)
 public class SmsAutoConfiguration {
 
-    /** 默认配置提供者：读 conflux.sms.apps.*；使用方自定义同类型 Bean 可覆盖。 */
+    /** 默认配置提供者：读 conflux.sms.configs.*；使用方自定义同类型 Bean 可覆盖。 */
     @Bean
     @ConditionalOnMissingBean(SmsConfigProvider.class)
     public SmsConfigProvider smsConfigProvider(SmsProperties properties) {

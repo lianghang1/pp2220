@@ -1,8 +1,7 @@
 package io.github.lianghang1.conflux.pay.autoconfigure;
 
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
+import io.github.lianghang1.conflux.pay.channel.BuiltinChannels;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
-import io.github.lianghang1.conflux.pay.channel.ChannelParams;
 import io.github.lianghang1.conflux.pay.channel.ChannelProvider;
 import io.github.lianghang1.conflux.pay.config.ChannelConfigProvider;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
@@ -11,22 +10,17 @@ import io.github.lianghang1.conflux.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 基于配置文件的默认 {@link ChannelConfigProvider}：
- * 启动期把 {@code conflux.pay.apps.<appId>.<channel>} 的键值对
- * 经各渠道的 {@code parseParams} 解析为渠道参数对象，并建立
- * 「appId+渠道」与「渠道账户键」两个方向的索引。
+ * 启动期把 {@code conflux.pay.configs.<configId>.<channelCode>} 的键值对
+ * 经各渠道的 {@code parseParams} 解析为渠道参数对象，建立 configId+渠道 索引。
  *
- * <p>渠道未实现 {@code parseParams}（返回 null）或配置的渠道未注册时，
- * 对应配置项跳过并告警——该渠道需使用方自行实现配置提供者。</p>
- *
- * <p><b>账户键唯一性</b>：回调反查索引的键由 {@link ChannelAccountKey#of(String, String)}
- * 生成（普通商户 = 渠道侧应用标识；服务商模式 = 应用标识#特约商户号）。
- * 两个配置生成相同账户键时立即抛 {@link GatewayErrorCode#CONFIG_CONFLICT} 使启动失败，
- * 绝不静默覆盖——否则回调会归到错误的 appId 或用错验签密钥，且极难排查。</p>
+ * <p>配置定位权在使用方：正向调用与回调均按 configId + channelCode 取配置，
+ * 框架不再从回调报文隐式反查账户键。</p>
  *
  * @author lianghang
  */
@@ -36,10 +30,8 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
     private final PayGatewayProperties properties;
     private final List<ChannelProvider> providers;
 
-    /** appId+渠道 → 配置（下单/退款/查单/对账等正向链路）。 */
-    private final Map<String, ChannelConfig> byApp = new HashMap<String, ChannelConfig>();
-    /** 渠道编码+账户键 → 配置（回调验签链路，账户键全局唯一）。 */
-    private final Map<String, ChannelConfig> byAccountKey = new HashMap<String, ChannelConfig>();
+    /** configId+渠道 → 配置。 */
+    private final Map<String, ChannelConfig> byConfig = new HashMap<String, ChannelConfig>();
 
     public PropertiesChannelConfigProvider(PayGatewayProperties properties, List<ChannelProvider> providers) {
         this.properties = properties;
@@ -49,13 +41,19 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
 
     private void buildIndexes() {
         Map<String, ChannelProvider> providerByCode = new HashMap<String, ChannelProvider>();
-        for (ChannelProvider provider : providers) {
+        // 内置渠道（SPI 清单）先入表，自定义渠道后入表覆盖——与 registry 的"自定义优先"一致
+        for (ChannelProvider provider : BuiltinChannels.all()) {
             providerByCode.put(provider.channelCode(), provider);
         }
-        for (Map.Entry<String, Map<String, PayGatewayProperties.ChannelProperties>> appEntry
-                : properties.getApps().entrySet()) {
-            String appId = appEntry.getKey();
-            Map<String, PayGatewayProperties.ChannelProperties> channels = appEntry.getValue();
+        if (providers != null) {
+            for (ChannelProvider provider : providers) {
+                providerByCode.put(provider.channelCode(), provider);
+            }
+        }
+        for (Map.Entry<String, Map<String, PayGatewayProperties.ChannelProperties>> configEntry
+                : properties.getConfigs().entrySet()) {
+            String configId = configEntry.getKey();
+            Map<String, PayGatewayProperties.ChannelProperties> channels = configEntry.getValue();
             if (channels == null) {
                 continue;
             }
@@ -66,70 +64,44 @@ public class PropertiesChannelConfigProvider implements ChannelConfigProvider {
                         ? new PayGatewayProperties.ChannelProperties() : channelEntry.getValue();
                 ChannelProvider provider = providerByCode.get(channelCode);
                 if (provider == null) {
-                    log.warn("渠道[{}]未注册，跳过应用[{}]的该渠道配置", channelCode, appId);
+                    log.warn("渠道[{}]未注册，跳过配置[{}]的该渠道配置", channelCode, configId);
                     continue;
                 }
-                ChannelParams params = provider.parseParams(channelProps.getAttrs());
-                if (params == null) {
-                    log.warn("渠道[{}]不支持声明式配置，跳过应用[{}]的该渠道配置", channelCode, appId);
+                ChannelConfig config = provider.parseParams(channelProps.getAttr());
+                if (config == null) {
+                    log.warn("渠道[{}]不支持声明式配置，跳过配置[{}]的该渠道配置", channelCode, configId);
                     continue;
                 }
-                String accountKey = ChannelAccountKey.of(params.channelAppId(), channelProps.getSubMchNo());
-                ChannelConfig config = new ChannelConfig()
-                        .setAppId(appId)
+                // 统一键 + 个性 attr 收拢到渠道 config 的 attr；subMchNo 为渠道个性键，下沉进 attr（getSubMchNo 从 attr 派生）
+                Map<String, String> mergedAttr = new LinkedHashMap<String, String>();
+                if (channelProps.getAttr() != null) {
+                    mergedAttr.putAll(channelProps.getAttr());
+                }
+                if (StringUtils.isNotBlank(channelProps.getSubMchNo())) {
+                    mergedAttr.put("subMchNo", channelProps.getSubMchNo());
+                }
+                config.setAttr(mergedAttr)
+                        .setConfigId(configId)
                         .setChannelCode(channelCode)
                         .setNotifyUrl(channelProps.getNotifyUrl())
-                        .setSandbox(channelProps.isSandbox())
-                        .setSubMchNo(channelProps.getSubMchNo())
-                        .setAccountKey(accountKey)
-                        .setParams(params);
-                byApp.put(appKey(appId, channelCode), config);
-                if (StringUtils.isBlank(accountKey)) {
-                    log.warn("渠道[{}]应用[{}]未声明渠道侧应用标识，回调需使用方自行路由", channelCode, appId);
-                    continue;
-                }
-                String key = appKey(channelCode, accountKey);
-                ChannelConfig existing = byAccountKey.putIfAbsent(key, config);
-                if (existing != null) {
-                    throw new GatewayException(GatewayErrorCode.CONFIG_CONFLICT,
-                            "渠道账户标识冲突，无法唯一定位回调配置: channel={}, accountKey={}, "
-                                    + "appId={} 与 appId={} 生成了相同标识；"
-                                    + "服务商模式请为各特约商户配置不同的 subMchNo，"
-                                    + "并在回调地址携带 accountKey 查询参数",
-                            channelCode, accountKey, existing.getAppId(), appId);
-                }
+                        .setSandbox(channelProps.isSandbox());
+                byConfig.put(appKey(configId, channelCode), config);
             }
         }
-        log.info("渠道配置装载完成: appChannelConfigs={}, uniqueAccountKeys={}",
-                byApp.size(), byAccountKey.size());
-        if (byAccountKey.size() != byApp.size()) {
-            log.warn("有 {} 个配置未生成回调反查键（缺少 channelAppId 或被跳过），"
-                            + "这些渠道的回调需使用方自行路由",
-                    byApp.size() - byAccountKey.size());
-        }
+        log.info("渠道配置装载完成: configChannelConfigs={}", byConfig.size());
     }
 
     @Override
-    public ChannelConfig getConfig(String appId, String channelCode) {
-        ChannelConfig config = byApp.get(appKey(appId, channelCode));
+    public ChannelConfig getConfig(String configId, String channelCode) {
+        ChannelConfig config = byConfig.get(appKey(configId, channelCode));
         if (config == null) {
             throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "渠道配置缺失: appId={}, channel={}", appId, channelCode);
+                    "渠道配置缺失: configId={}, channel={}", configId, channelCode);
         }
         return config;
     }
 
-    @Override
-    public ChannelConfig getByAccountKey(String channelCode, String accountKey) {
-        ChannelConfig config = byAccountKey.get(appKey(channelCode, accountKey));
-        if (config == null) {
-            throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                    "渠道账户标识无对应配置: channel={}, accountKey={}", channelCode, accountKey);
-        }
-        return config;
-    }
-
-    private String appKey(String left, String right) {
-        return left + "::" + right;
+    private String appKey(String configId, String channelCode) {
+        return configId + "::" + channelCode;
     }
 }

@@ -17,7 +17,6 @@ import io.github.lianghang1.conflux.invoice.api.RedApplyResult;
 import io.github.lianghang1.conflux.invoice.channel.AuthSessionHandler;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceCallbackHandler;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceFileFetcher;
@@ -81,7 +80,7 @@ public class MockInvoiceChannelProvider implements InvoiceChannelProvider,
     }
 
     @Override
-    public InvoiceChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         Map<String, String> props = properties == null
                 ? Collections.<String, String>emptyMap() : properties;
         MockInvoiceParams params = new MockInvoiceParams();
@@ -247,8 +246,8 @@ public class MockInvoiceChannelProvider implements InvoiceChannelProvider,
     @Override
     public InvoiceCallbackEvent parse(InvoiceCallbackRequest raw, ChannelConfig config) {
         String body = raw.getBody() == null ? "" : raw.getBody();
-        MockInvoiceParams params = config.getParams() instanceof MockInvoiceParams
-                ? (MockInvoiceParams) config.getParams() : new MockInvoiceParams();
+        MockInvoiceParams params = config instanceof MockInvoiceParams
+                ? (MockInvoiceParams) config : new MockInvoiceParams();
         String sign = raw.getQueryParams() == null ? null : raw.getQueryParams().get("sign");
         if (StringUtils.isNotBlank(sign)) {
             String expected = SignUtil.hmacSha256Hex(body, params.getAppSecret());
@@ -261,8 +260,6 @@ public class MockInvoiceChannelProvider implements InvoiceChannelProvider,
             throw new GatewayException(InvoiceErrorCode.CALLBACK_PARSE_FAILED, "mock 回调报文不是合法 JSON");
         }
         InvoiceCallbackEvent event = new InvoiceCallbackEvent()
-                .setAccountKey(raw.getQueryParams() == null ? null
-                        : raw.getQueryParams().get("accountKey"))
                 .setInvoiceId(text(root, "invoiceId"))
                 .setRedApplyId(text(root, "redApplyId"))
                 .setChannelOrderNo(text(root, "channelOrderNo", "reqId"))
@@ -301,8 +298,8 @@ public class MockInvoiceChannelProvider implements InvoiceChannelProvider,
 
     private MockInvoiceParams params(InvoiceContext ctx) {
         ChannelConfig config = ctx.getConfig();
-        if (config != null && config.getParams() instanceof MockInvoiceParams) {
-            return (MockInvoiceParams) config.getParams();
+        if (config != null && config instanceof MockInvoiceParams) {
+            return (MockInvoiceParams) config;
         }
         return new MockInvoiceParams();
     }

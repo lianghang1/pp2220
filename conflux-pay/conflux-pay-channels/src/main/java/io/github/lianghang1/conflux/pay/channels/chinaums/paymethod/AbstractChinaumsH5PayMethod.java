@@ -38,8 +38,9 @@ public abstract class AbstractChinaumsH5PayMethod implements ChinaumsPayMethod {
         business.put("merOrderId", payment.getBizOrderNo());
         business.put("totalAmount", payment.getAmount());
         business.put("instMid", instMid());
-        if (StringUtils.isNotBlank(config.getNotifyUrl())) {
-            business.put("notifyUrl", config.getNotifyUrl());
+        String notifyUrl = StringUtils.defaultIfBlank(payment.getNotifyUrl(), config.getNotifyUrl());
+        if (StringUtils.isNotBlank(notifyUrl)) {
+            business.put("notifyUrl", notifyUrl);
         }
         if (StringUtils.isNotBlank(payment.getSubject())) {
             business.put("orderDesc", payment.getSubject());

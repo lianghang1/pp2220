@@ -149,7 +149,7 @@ class ChinaumsChannelTest {
 
     @Test
     void buildGetUrlShouldContainSignedQuery() {
-        ChannelConfig config = new ChannelConfig().setParams(params());
+        ChannelConfig config = params();
         Map<String, Object> business = new HashMap<String, Object>();
         business.put("merOrderId", "327M20220419111222");
         business.put("totalAmount", 1L);

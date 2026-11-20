@@ -8,7 +8,6 @@ import io.github.lianghang1.conflux.invoice.api.InvoiceCallbackRequest;
 import io.github.lianghang1.conflux.invoice.api.InvoiceResult;
 import io.github.lianghang1.conflux.invoice.channel.ChannelConfig;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceCallbackHandler;
-import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelParams;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceContext;
 import io.github.lianghang1.conflux.invoice.channel.InvoiceIssuer;
@@ -63,7 +62,7 @@ public class NuonuoChannelProvider implements InvoiceChannelProvider,
     // ==================== 配置解析 ====================
 
     @Override
-    public InvoiceChannelParams parseParams(Map<String, String> properties) {
+    public ChannelConfig parseParams(Map<String, String> properties) {
         Map<String, String> props = properties == null
                 ? Collections.<String, String>emptyMap() : properties;
         boolean sandbox = Boolean.parseBoolean(props.get("sandbox"));
@@ -71,7 +70,6 @@ public class NuonuoChannelProvider implements InvoiceChannelProvider,
                 .setAppKey(first(props, "appKey", "clientId"))
                 .setAppSecret(first(props, "appSecret", "clientSecret"))
                 .setAccessToken(first(props, "accessToken", "token"))
-                .setSellerTaxNo(first(props, "sellerTaxNo", "salerTaxNum", "taxnum", "nsrsbh"))
                 .setSellerName(props.get("sellerName"))
                 .setDrawer(first(props, "drawer", "clerk", "kpr"))
                 .setSellerPhone(props.get("sellerPhone"))
@@ -81,10 +79,11 @@ public class NuonuoChannelProvider implements InvoiceChannelProvider,
                 .setGateway(firstNonBlank(props.get("gateway"), props.get("gatewayUrl"),
                         props.get("baseUrl"), sandbox
                                 ? NuonuoSpec.SANDBOX_GATEWAY : NuonuoSpec.DEFAULT_GATEWAY))
-                .setSandbox(sandbox)
                 .setTokenJsonPath(props.get("tokenJsonPath"))
-                .setTimeoutMillis(parseInt(props.get("timeoutMillis"), 30000))
-                .setAttrs(new LinkedHashMap<String, String>(props));
+                .setTimeoutMillis(parseInt(props.get("timeoutMillis"), 30000));
+        params.setSellerTaxNo(first(props, "sellerTaxNo", "salerTaxNum", "taxnum", "nsrsbh"));
+        params.setSandbox(sandbox);
+        params.setAttr(new LinkedHashMap<String, String>(props));
         params.setChannelAppId(firstNonBlank(params.getAppKey(), params.getSellerTaxNo()));
         return params;
     }
@@ -157,11 +156,11 @@ public class NuonuoChannelProvider implements InvoiceChannelProvider,
 
     private NuonuoParams params(InvoiceContext ctx) {
         ChannelConfig config = ctx.getConfig();
-        if (config != null && config.getParams() instanceof NuonuoParams) {
-            return (NuonuoParams) config.getParams();
+        if (config != null && config instanceof NuonuoParams) {
+            return (NuonuoParams) config;
         }
         if (config != null) {
-            return (NuonuoParams) parseParams(config.getAttrs());
+            return (NuonuoParams) parseParams(config.getAttr());
         }
         throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING, "诺诺渠道配置缺失");
     }
@@ -169,7 +168,7 @@ public class NuonuoChannelProvider implements InvoiceChannelProvider,
     private void requireCredentials(NuonuoParams params) {
         if (!params.hasCredentials()) {
             throw new GatewayException(InvoiceErrorCode.CONFIG_MISSING,
-                    "诺诺缺少 appKey/appSecret，请在 attrs 中配置");
+                    "诺诺缺少 appKey/appSecret，请在 attr 中配置");
         }
     }
 

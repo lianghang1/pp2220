@@ -9,8 +9,7 @@ import java.util.Map;
 /**
  * 渠道回调原始报文（验签前）。
  *
- * <p>与支付回调同理：加密/签名报文解开前拿不到商户号，账户定位只能依赖
- * 回调地址上的 {@code accountKey} 查询参数（见 {@code InvoiceAccountKey}）。</p>
+ * <p>回调验签由框架负责；配置定位由使用方按 configId（+ sellerTaxNo）查库后显式传入。</p>
  *
  * @author lianghang
  */

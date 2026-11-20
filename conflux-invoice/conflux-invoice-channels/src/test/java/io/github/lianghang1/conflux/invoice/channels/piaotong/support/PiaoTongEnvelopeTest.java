@@ -36,8 +36,8 @@ class PiaoTongEnvelopeTest {
                 .setPrivateKey(Base64.getEncoder().encodeToString(
                         pair.getPrivate().getEncoded()))
                 .setPublicKey(Base64.getEncoder().encodeToString(
-                        pair.getPublic().getEncoded()))
-                .setSellerTaxNo("911100000000000000");
+                        pair.getPublic().getEncoded()));
+        params.setSellerTaxNo("911100000000000000");
     }
 
     @Test

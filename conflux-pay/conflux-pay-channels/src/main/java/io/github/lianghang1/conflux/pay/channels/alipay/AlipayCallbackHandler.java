@@ -3,9 +3,7 @@ package io.github.lianghang1.conflux.pay.channels.alipay;
 import com.alipay.api.internal.util.AlipaySignature;
 import io.github.lianghang1.conflux.pay.api.CallbackEvent;
 import io.github.lianghang1.conflux.pay.api.ChannelCallbackRequest;
-import io.github.lianghang1.conflux.pay.channel.CallbackConfigLookup;
 import io.github.lianghang1.conflux.pay.channel.ChannelCallbackHandler;
-import io.github.lianghang1.conflux.pay.channel.ChannelAccountKey;
 import io.github.lianghang1.conflux.pay.channel.ChannelConfig;
 import io.github.lianghang1.conflux.pay.exception.GatewayErrorCode;
 import io.github.lianghang1.conflux.common.exception.GatewayException;
@@ -39,17 +37,12 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
     }
 
     @Override
-    public CallbackEvent parseCallback(ChannelCallbackRequest raw, CallbackConfigLookup configLookup) {
+    public CallbackEvent parseCallback(ChannelCallbackRequest raw, ChannelConfig config) {
         Map<String, String> params = raw.getFormParams() == null || raw.getFormParams().isEmpty()
                 ? raw.getQueryParams() : raw.getFormParams();
         if (params == null || params.isEmpty()) {
             throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "支付宝通知缺少表单参数");
         }
-        String appId = params.get("app_id");
-        if (StringUtils.isBlank(appId)) {
-            throw new GatewayException(GatewayErrorCode.CALLBACK_PARSE_FAILED, "支付宝通知缺少 app_id");
-        }
-        ChannelConfig config = configLookup.byAccountKey(ChannelAccountKey.resolve(raw, appId));
         AlipayParams alipayParams = AlipayClientHolder.paramsOf(config);
 
         boolean verified = wrapVerify(params, alipayParams);
@@ -66,7 +59,7 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
             String outBizNo = biz.get("out_biz_no") == null ? null : String.valueOf(biz.get("out_biz_no"));
             return new CallbackEvent()
                     .setType(BizOrderType.TRANSFER)
-                    .setAppId(config.getAppId())
+                    .setConfigId(config.getConfigId())
                     .setBizOrderNo(outBizNo)
                     .setChannelOrderNo(biz.get("order_id") == null
                             ? null : String.valueOf(biz.get("order_id")))
@@ -76,7 +69,7 @@ public class AlipayCallbackHandler implements ChannelCallbackHandler {
 
         CallbackEvent event = new CallbackEvent()
                 .setType(BizOrderType.PAYMENT)
-                .setAppId(config.getAppId())
+                .setConfigId(config.getConfigId())
                 .setBizOrderNo(params.get("out_trade_no"))
                 .setChannelOrderNo(params.get("trade_no"))
                 .setSuccess("TRADE_SUCCESS".equals(params.get("trade_status"))

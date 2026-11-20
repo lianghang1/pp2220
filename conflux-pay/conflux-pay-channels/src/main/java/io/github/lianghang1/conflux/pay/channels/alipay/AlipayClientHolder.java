@@ -46,11 +46,11 @@ public class AlipayClientHolder {
     }
 
     public static AlipayParams paramsOf(ChannelConfig config) {
-        if (config.getParams() instanceof AlipayParams) {
-            return (AlipayParams) config.getParams();
+        if (config instanceof AlipayParams) {
+            return (AlipayParams) config;
         }
         throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                "支付宝渠道参数类型不匹配: {}", config.getParams() == null ? "null" : config.getParams().getClass().getName());
+                "支付宝渠道参数类型不匹配: {}", config == null ? "null" : config.getClass().getName());
     }
 
     /** 统一接口调用包装：SDK 异常与业务失败（subCode 非空）收敛为网关渠道异常；ISV 授权令牌非空时自动携带。 */

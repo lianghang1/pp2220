@@ -1,10 +1,6 @@
 package io.github.lianghang1.conflux.invoice.autoconfigure;
 
 import io.github.lianghang1.conflux.invoice.channel.InvoiceChannelProvider;
-import io.github.lianghang1.conflux.invoice.channels.baiwang.BaiwangChannelProvider;
-import io.github.lianghang1.conflux.invoice.channels.baiwangjs.BaiwangJsChannelProvider;
-import io.github.lianghang1.conflux.invoice.channels.mock.MockInvoiceChannelProvider;
-import io.github.lianghang1.conflux.invoice.channels.nuonuo.NuonuoChannelProvider;
 import io.github.lianghang1.conflux.invoice.config.InvoiceConfigProvider;
 import io.github.lianghang1.conflux.invoice.config.InvoiceFileOptions;
 import io.github.lianghang1.conflux.invoice.engine.InvoiceGateway;
@@ -12,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
@@ -20,10 +15,11 @@ import java.time.Clock;
 import java.util.List;
 
 /**
- * 发票网关自动装配：渠道注册、配置提供者与网关门面。
+ * 发票网关自动装配：配置提供者 + 网关门面。
  *
- * <p>SDK 为无状态渠道聚合层，无需使用方注册任何存储 Bean；
- * 渠道、配置提供者均可被使用方同类型 Bean 覆盖。REST 渠道默认全部注册。</p>
+ * <p>内置渠道实现由 core 的 {@code builder().build()} 经 SPI 全量自动注册
+ * （引入 channels 依赖即生效，可选依赖缺失的渠道自动跳过），starter 不再逐个声明内置渠道
+ * Bean、也不循环注册。使用方仅需声明自定义渠道 Bean（框架未内置的实现）。</p>
  *
  * @author lianghang
  */
@@ -31,40 +27,6 @@ import java.util.List;
 @AutoConfiguration
 @EnableConfigurationProperties(InvoiceProperties.class)
 public class InvoiceAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean(MockInvoiceChannelProvider.class)
-    @ConditionalOnProperty(prefix = "conflux.invoice", name = "mock-enabled",
-            havingValue = "true", matchIfMissing = true)
-    public MockInvoiceChannelProvider mockInvoiceChannelProvider() {
-        return new MockInvoiceChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(BaiwangJsChannelProvider.class)
-    public BaiwangJsChannelProvider baiwangJsChannelProvider() {
-        return new BaiwangJsChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(
-            io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider.class)
-    public io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider
-            piaotongChannelProvider() {
-        return new io.github.lianghang1.conflux.invoice.channels.piaotong.PiaoTongChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(BaiwangChannelProvider.class)
-    public BaiwangChannelProvider baiwangChannelProvider() {
-        return new BaiwangChannelProvider();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(NuonuoChannelProvider.class)
-    public NuonuoChannelProvider nuonuoChannelProvider() {
-        return new NuonuoChannelProvider();
-    }
 
     @Bean
     @ConditionalOnMissingBean(InvoiceConfigProvider.class)
@@ -93,8 +55,11 @@ public class InvoiceAutoConfiguration {
         InvoiceGateway.Builder builder = InvoiceGateway.builder()
                 .configProvider(provider)
                 .fileOptions(fileOptions);
-        for (InvoiceChannelProvider channelProvider : providers) {
-            builder.channel(channelProvider);
+        // 仅注册使用方自定义的渠道实现（内置渠道由 builder.build() 经 SPI 自动注册）
+        if (providers != null) {
+            for (InvoiceChannelProvider channelProvider : providers) {
+                builder.channel(channelProvider);
+            }
         }
         Clock customClock = clock.getIfAvailable();
         if (customClock != null) {
