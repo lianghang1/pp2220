@@ -36,7 +36,7 @@ conflux:
         # 以官方公开文档为准；默认 V2，切 V1 只需把 apiVersion 改为 V1。
         # 整段默认注释：取消注释 + 填真实凭据 + enabled 改 true 即可启用；
         # 未启用时不影响上面 mock 渠道的零凭据启动。
-        # 字段与路径的完整说明见 docs/invoice-platforms.md 第 3.4 节。
+        # 字段与路径的完整说明见 docs/reference/invoice-platforms.md 第 3.4 节。
         # ------------------------------------------------------------------
         # baiwangjs:
         #   # 销方税号：多实例路由键的一段
@@ -78,7 +78,7 @@ conflux:
         #     # ---- A/B 档新增模式开关 ----
         #     # qrMode: "ASYNC"                # 实人认证二维码走 3.4.5 异步（默认 3.4.6 同步）
         #     # repairResultMode: "BATCH"      # 修复结果改走 3.4.13 按票号/时间查询（默认 3.4.12）
-        #     # ---- A/B 档新增路径覆盖键（默认值见 docs/invoice-platforms.md 3.2 表）----
+        #     # ---- A/B 档新增路径覆盖键（默认值见 docs/reference/invoice-platforms.md 3.2 表）----
         #     # uniqueSignPath: "/cloud/queryUniqueSign"
         #     # redIssuePath: "/cloud/doElecRedInvoice"
         #     # redStatusPath: "/cloud/queryHzqrdzt"
@@ -122,7 +122,7 @@ conflux:
         # ------------------------------------------------------------------
         # 票通云（piaotong）专属适配器配置模板
         # 以《票通数电发票接口文档 3.2.0》为准；凭据均由票通分配。
-        # 字段与路径的完整说明见 docs/invoice-platforms.md 第 4 节。
+        # 字段与路径的完整说明见 docs/reference/invoice-platforms.md 第 4 节。
         # ------------------------------------------------------------------
         # piaotong:
         #   seller-tax-no: "91310000XXXXXXXXXX"
@@ -158,7 +158,7 @@ conflux:
         # 诺诺网（nuonuo）官方 SDK 适配器配置模板
         # 基于官方 SDK（com.nuonuo:open-sdk）：签名/报文/HTTP 全由 SDK 完成。
         # 目前支持蓝字开票、发票结果查询、开票结果回调；红冲/交付等未暴露。
-        # 字段与能力边界见 docs/invoice-platforms.md 第 4.1 节。
+        # 字段与能力边界见 docs/reference/invoice-platforms.md 第 4.1 节。
         # ------------------------------------------------------------------
         # nuonuo:
         #   seller-tax-no: "91310000XXXXXXXXXX"    # 销方税号（自用型应用开票 salerTaxNum）

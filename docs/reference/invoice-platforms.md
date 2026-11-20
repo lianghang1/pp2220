@@ -429,7 +429,7 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
    不暴露「假装能用」的渠道，也不返回伪造的成功。
 5. 用纯函数级单测覆盖配置解析、报文组装、状态映射、回调解析与应答（不发真实网络请求）；
    真机联调需真实商户凭证，作为接入收尾的外部依赖。
-6. 在 `docs/invoice-platforms.md` 补齐该平台的协议、能力边界、配置键与易踩坑点，并更新 README 支持现状表。
+6. 在 `docs/reference/invoice-platforms.md` 补齐该平台的协议、能力边界、配置键与易踩坑点，并更新 README 支持现状表。
 
 ## 6. 通用底座约定
 
