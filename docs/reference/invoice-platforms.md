@@ -441,4 +441,4 @@ example 的 `InvoiceController` 提供了 `/api/invoices/files/bytes`、`/api/in
 - `ErrorCode` 三段分层（1xxx / 2xxx / 3xxx）；
 - 无状态聚合：框架零台账、零状态机，判重/落库/状态推进全部交由使用方。
 
-挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲等发票域能力的说明，详见 [README](../README.md)。
+挂起态语义、授权会话载体、通道分级、XML 法定原件判定、两段红冲等发票域能力的说明，详见 [发票域使用指南](../guides/invoice.md)。

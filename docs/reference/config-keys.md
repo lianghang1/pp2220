@@ -71,7 +71,7 @@
 ### chinaums（银联商务天满）
 
 > 认证采用 OPEN-BODY-SIG（无状态逐请求签名），回调采用「触发主动查单确认」，
-> 详见 [pay-integration.md](pay-integration.md)。
+> 详见 [支付域使用指南](../guides/pay.md)。
 
 | 键 | 必填 | 说明 |
 |---|---|---|

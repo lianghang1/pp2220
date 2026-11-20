@@ -285,7 +285,8 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 ## 四、相关文档
 
-- API 参考：[api-reference.md](api-reference.md)
-- 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md) §3.4/§4.5/§6（发票）、README「能力域三：短信」
-- 接入流程：[pay-integration.md](pay-integration.md)
+- 通用入门：[getting-started.md](getting-started.md)
+- 使用指南：[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md)
+- API 参考：[reference/api-reference.md](reference/api-reference.md)
+- 配置键：[reference/config-keys.md](reference/config-keys.md)（支付）、[reference/invoice-platforms.md](reference/invoice-platforms.md)（发票）
 - 联调清单：[integration-checklist.md](integration-checklist.md)
