@@ -437,9 +437,9 @@ class InvoiceOrchestrator {
                         .setAuthSession(session);
             }
             case SUCCEEDED: {
-                assertAmountMatch(invoice, outcome);
+                // 状态、金额等一律以渠道返回为准：框架不设结果门禁（不因金额不符或
+                // 版式文件缺失而否决）。金额校验、判重、状态推进由使用方完成。
                 // 版式文件固化是纯工具能力：失败仅告警、不影响渠道返回的状态。
-                // 渠道说成功即成功，框架不因拿不到 XML/PDF 而否决开票结果。
                 List<InvoiceFile> files = materializeFiles(outcome.getFiles(), invoice.getInvoiceId(), true);
                 if (outcome.getInvoiceNo() != null) {
                     invoice.setInvoiceNo(outcome.getInvoiceNo());
@@ -518,16 +518,6 @@ class InvoiceOrchestrator {
                 .setExpireTime(challenge.getExpireTime() == null ? session.getExpireTime() : challenge.getExpireTime())
                 .setPayload(challenge.getExtra() == null ? session.getPayload() : challenge.getExtra())
                 .setState(AuthSessionState.PENDING);
-    }
-
-    private void assertAmountMatch(Invoice invoice, InvoiceResult outcome) {
-        if (outcome.getAmount() == null || invoice.getAmount() == null) {
-            return;
-        }
-        if (outcome.getAmount().subtract(invoice.getAmount()).abs().compareTo(AMOUNT_TOLERANCE) > 0) {
-            throw new GatewayException(InvoiceErrorCode.AMOUNT_MISMATCH,
-                    "渠道回传金额[{}]与请求金额[{}]不一致", outcome.getAmount(), invoice.getAmount());
-        }
     }
 
     /** 红冲确认单场景：按 configId + 渠道正向定位配置。 */

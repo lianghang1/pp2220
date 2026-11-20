@@ -10,8 +10,9 @@ import io.github.lianghang1.conflux.common.exception.ErrorCode;
  * {@link #CHANNEL_CALL_FAILED} 并携带渠道原始错误信息。</p>
  *
  * <p>发票相较支付多出三类语义：授权会话（32xx，扫脸/短信/扫码会过期）、
- * 红字确认单（33xx，两段长事务）、版式文件（34xx，固化失败/链接失效等；文件以渠道返回为准，
- * 框架不设"必须有 XML 才成功"的门禁）。</p>
+ * 红字确认单（33xx，两段长事务）、版式文件（34xx，固化失败/链接失效等）。
+ * 单据状态与金额一律以渠道返回为准，框架不设结果门禁（不因缺 XML、金额不符等否决成功）；
+ * 金额校验、判重、状态推进由使用方完成。</p>
  *
  * @author lianghang
  */
@@ -20,7 +21,6 @@ public enum InvoiceErrorCode implements ErrorCode {
     // ---- 单据 30xx ----
     INVOICE_NOT_FOUND(3001, "发票单据不存在", 404),
     STATE_ILLEGAL(3003, "发票当前状态不允许该操作", 409),
-    AMOUNT_MISMATCH(3004, "渠道回传金额与请求金额不一致", 409),
     ITEM_REQUIRED(3005, "发票明细行不能为空", 400),
     TAX_NO_REQUIRED(3006, "缺少销方纳税人识别号", 400),
     BUYER_REQUIRED(3007, "缺少购方名称", 400),
