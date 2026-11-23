@@ -9,6 +9,7 @@ import com.sfi.conflux.common.util.JsonUtils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -55,7 +56,7 @@ public class DingMiniAuthChannel extends AbstractDingFreeLoginChannel {
             String accessKey = config.getClientId();
             String appSecret = config.getClientSecret();
             String timestamp = String.valueOf(System.currentTimeMillis());
-            String signature = hmacSha256(timestamp + "\n" + appSecret, appSecret);
+            String signature = dingSignature(appSecret, timestamp);
 
             String url = USERINFO_URL
                     + "?accessKey=" + DingSupport.enc(accessKey)
@@ -88,19 +89,15 @@ public class DingMiniAuthChannel extends AbstractDingFreeLoginChannel {
         }
     }
 
-    /** HmacSHA256(data, key) → 十六进制小写串（钉钉签名协议） */
-    static String hmacSha256(String data, String key) throws Exception {
+    /**
+     * 钉钉免登签名（与官方文档及 JustAuth 一致）：
+     * HmacSHA256(密钥=appSecret, 数据=timestamp) → 标准 Base64。
+     * 结果由调用方在拼 URL 时做 urlEncode（签名含 + / = 等特殊字符），此处不重复编码。
+     */
+    static String dingSignature(String appSecret, String timestamp) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(key.getBytes("UTF-8"), "HmacSHA256"));
-        byte[] bytes = mac.doFinal(data.getBytes("UTF-8"));
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            String hex = Integer.toHexString(b & 0xff);
-            if (hex.length() == 1) {
-                sb.append('0');
-            }
-            sb.append(hex);
-        }
-        return sb.toString();
+        mac.init(new SecretKeySpec(appSecret.getBytes("UTF-8"), "HmacSHA256"));
+        byte[] bytes = mac.doFinal(timestamp.getBytes("UTF-8"));
+        return Base64.getEncoder().encodeToString(bytes);
     }
 }

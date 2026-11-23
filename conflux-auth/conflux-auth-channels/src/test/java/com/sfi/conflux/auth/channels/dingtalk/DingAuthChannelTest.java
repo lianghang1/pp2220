@@ -142,11 +142,34 @@ class DingAuthChannelTest {
     }
 
     @Test
-    void dingtalk_mini_HmacSHA256签名向量正确() throws Exception {
-        // 官方: HmacSHA256(timestamp + "\n" + appSecret, appSecret)
-        String sig = DingMiniAuthChannel.hmacSha256("123\nsecret", "secret");
-        assertThat(sig).isNotEmpty();
-        assertThat(sig).matches("[0-9a-f]{64}");
+    void dingtalk_mini_请求URL含accessKey与timestamp与signature且signature已urlEncode() {
+        org.mockito.ArgumentCaptor<String> urlCap = org.mockito.ArgumentCaptor.forClass(String.class);
+        DingHttpClient http = mock(DingHttpClient.class);
+        when(http.postJson(contains("/sns/getuserinfo_bycode"), nullable(Map.class), anyString()))
+                .thenReturn("{\"errcode\":0,\"user_info\":{\"openid\":\"o\",\"unionid\":\"u\",\"nick\":\"n\"}}");
+
+        DingMiniAuthChannel channel = new DingMiniAuthChannel(http);
+        channel.setStateCache(new InMemoryStateCache());
+        Map<String, String> params = new HashMap<String, String>();
+        params.put("authCode", "c");
+        channel.exchange(baseConfig(), new AuthCallbackRequest(params));
+
+        org.mockito.Mockito.verify(http).postJson(urlCap.capture(), nullable(Map.class), anyString());
+        String url = urlCap.getValue();
+        assertThat(url).contains("accessKey=ding123");
+        assertThat(url).contains("&timestamp=");
+        // signature 值中的 Base64 特殊字符应被 urlEncode（+ -> %2B/%20, = -> %3D, / -> %2F），
+        // 断言 signature 段内不残留裸 = / +
+        String sigValue = url.substring(url.indexOf("&signature=") + "&signature=".length());
+        assertThat(sigValue).doesNotContain("=").doesNotContain("/").doesNotContain("+");
+    }
+
+    @Test
+    void dingtalk_mini_签名向量与官方一致() throws Exception {
+        // 官方规范: HmacSHA256(密钥=appSecret, 数据=timestamp) -> 标准 Base64
+        // 该期望值由 Python hmac 独立计算: base64(hmac.new(b'secret', b'1234567890', sha256))
+        String sig = DingMiniAuthChannel.dingSignature("secret", "1234567890");
+        assertThat(sig).isEqualTo("Bgs+chJF8gBA3xW2542Tm7B7l571zTPfLMBiCBwOp2c=");
     }
 
     @Test
