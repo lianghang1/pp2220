@@ -1,1 +1,1 @@
-io.github.lianghang1.conflux.sms.autoconfigure.SmsAutoConfiguration
+com.sfi.conflux.sms.autoconfigure.SmsAutoConfiguration

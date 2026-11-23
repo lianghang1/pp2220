@@ -6,10 +6,10 @@
 
 | 门面 | 全限定名 | 获取方式 |
 |---|---|---|
-| 支付 | `io.github.lianghang1.conflux.pay.engine.PaymentGateway` | Spring 注入，或 `PaymentGateway.builder()....build()` |
-| 发票 | `io.github.lianghang1.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
-| 短信 | `io.github.lianghang1.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
-| 文件 | `io.github.lianghang1.conflux.file.engine.FileGateway` | Spring 注入，或 `FileGateway.builder()....build()` |
+| 支付 | `com.sfi.conflux.pay.engine.PaymentGateway` | Spring 注入，或 `PaymentGateway.builder()....build()` |
+| 发票 | `com.sfi.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
+| 短信 | `com.sfi.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
+| 文件 | `com.sfi.conflux.file.engine.FileGateway` | Spring 注入，或 `FileGateway.builder()....build()` |
 
 金额单位：支付 = 分（`Long`），发票 = 元（`BigDecimal`）。
 
@@ -98,7 +98,7 @@
 
 不同渠道、不同支付方式在下单成功后返回给使用方的"唤起要素"形态不同：有的给二维码码值，
 有的给跳转链接，有的给 JSAPI/APP 参数，付款码类甚至没有唤起参数（下单即扣款）。
-SDK 用统一的 `PayPayload`（`io.github.lianghang1.conflux.pay.api.PayPayload`，仅 `type` + `content` 两字段）
+SDK 用统一的 `PayPayload`（`com.sfi.conflux.pay.api.PayPayload`，仅 `type` + `content` 两字段）
 承载这些差异——使用方只需按 `type` 分支处理，无需为每种渠道写不同的返回解析：
 
 | `PayPayloadType`（`*.model`） | `content` 语义 | 使用方动作 | 典型支付方式 |

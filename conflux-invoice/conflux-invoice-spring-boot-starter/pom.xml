@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.lianghang1</groupId>
+        <groupId>com.sfi.conflux</groupId>
         <artifactId>conflux-invoice</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -19,15 +19,15 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.lianghang1</groupId>
+            <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.github.lianghang1</groupId>
+            <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-invoice-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.github.lianghang1</groupId>
+            <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-invoice-channels</artifactId>
         </dependency>
 

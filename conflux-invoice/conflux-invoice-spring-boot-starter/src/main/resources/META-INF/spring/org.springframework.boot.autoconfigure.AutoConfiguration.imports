@@ -1,1 +1,1 @@
-io.github.lianghang1.conflux.invoice.autoconfigure.InvoiceAutoConfiguration
+com.sfi.conflux.invoice.autoconfigure.InvoiceAutoConfiguration

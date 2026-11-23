@@ -1,1 +1,1 @@
-io.github.lianghang1.conflux.pay.autoconfigure.PayGatewayAutoConfiguration
+com.sfi.conflux.pay.autoconfigure.PayGatewayAutoConfiguration

@@ -8,7 +8,7 @@
 
 ```xml
 <dependency>
-    <groupId>io.github.lianghang1</groupId>
+    <groupId>com.sfi.conflux</groupId>
     <artifactId>conflux-file-spring-boot-starter</artifactId>
     <version>请替换为实际版本</version>
 </dependency>

@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.lianghang1</groupId>
+    <groupId>com.sfi.conflux</groupId>
     <artifactId>conflux-common</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>conflux-common</name>
     <description>Conflux 公共基座：通用工具、异常体系（ErrorCode 契约 + 1xxx 通用错误码）、
@@ -26,9 +26,9 @@
         <dependencies>
             <!-- 共享依赖版本 single source：版本统一经 BOM -->
             <dependency>
-                <groupId>io.github.lianghang1</groupId>
+                <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-dependencies</artifactId>
-                <version>1.0.0</version>
+                <version>1.0.0-SNAPSHOT</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

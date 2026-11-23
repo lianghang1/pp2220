@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.lianghang1</groupId>
+    <groupId>com.sfi.conflux</groupId>
     <artifactId>conflux-sms</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -26,30 +26,30 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <spring-boot.version>2.7.18</spring-boot.version>
-        <conflux-common.version>1.0.0</conflux-common.version>
+        <conflux-common.version>1.0.0-SNAPSHOT</conflux-common.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.github.lianghang1</groupId>
+                <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-dependencies</artifactId>
-                <version>1.0.0</version>
+                <version>1.0.0-SNAPSHOT</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>io.github.lianghang1</groupId>
+                <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-common</artifactId>
                 <version>${conflux-common.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.lianghang1</groupId>
+                <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-sms-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.lianghang1</groupId>
+                <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-sms-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
