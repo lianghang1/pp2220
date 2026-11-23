@@ -1,6 +1,12 @@
 package com.sfi.conflux.auth.channels;
 
 import com.sfi.conflux.auth.channel.AuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingAdminAuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingH5InternalAuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingH5IsvAuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingMiniAuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingQrAuthChannel;
+import com.sfi.conflux.auth.channels.dingtalk.DingWebAuthChannel;
 import com.sfi.conflux.auth.channels.wechat.WechatMiniAuthChannel;
 import com.sfi.conflux.auth.channels.wechat.WechatMpAuthChannel;
 import com.sfi.conflux.auth.channels.wechat.WechatOpenAuthChannel;
@@ -16,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 登录域内置渠道清单（编译期固化）：微信全家桶 7 种形态。
+ * 登录域内置渠道清单（编译期固化）：微信全家桶 7 种 + 钉钉全家桶 6 种形态。
  *
  * <p>由 Java SPI 暴露给 core 的 {@code AuthGateway.Builder}，引入 channels jar 即自动注册。
  * 每构建一个 Provider 都 try-catch 容错——某渠道的可选 SDK 缺失时跳过，不影响其他渠道。
@@ -55,6 +61,26 @@ public class BuiltinAuthChannelRegistrarImpl implements BuiltinAuthChannelRegist
         });
         add(channels, WecomThirdAuthChannel.CHANNEL_CODE, new ChannelFactory() {
             public AuthChannel create() { return new WecomThirdAuthChannel(); }
+        });
+
+        // 钉钉全家桶 6 种（标准 OAuth2 + 容器内免登薄适配，无第三方 SDK）
+        add(channels, DingQrAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingQrAuthChannel(); }
+        });
+        add(channels, DingWebAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingWebAuthChannel(); }
+        });
+        add(channels, DingH5InternalAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingH5InternalAuthChannel(); }
+        });
+        add(channels, DingH5IsvAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingH5IsvAuthChannel(); }
+        });
+        add(channels, DingMiniAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingMiniAuthChannel(); }
+        });
+        add(channels, DingAdminAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new DingAdminAuthChannel(); }
         });
 
         return channels;
