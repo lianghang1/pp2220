@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * 基于配置文件的文件配置提供者（默认实现）：与支付域 {@code PropertiesChannelConfigProvider}、
- * 发票域 {@code PropertiesInvoiceConfigProvider}、短信域 {@code PropertiesSmsConfigProvider}
+ * 发票域 {@code PropertiesInvoiceConfigProvider}、通知域 {@code PropertiesNotificationConfigProvider}
  * 同构，按 {@code conflux.file.configs.<configId>.<channelCode>} 读取配置。
  *
  * <p>每个平台实例的 value 直接是官方 {@link FileStorageProperties}（由 Spring Boot 绑定），

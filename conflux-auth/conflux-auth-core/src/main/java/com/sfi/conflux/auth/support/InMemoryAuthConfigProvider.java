@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 登录配置提供者内存实现：与支付域 {@code InMemoryChannelConfigProvider}、
- * 短信域 {@code InMemorySmsConfigProvider} 同构的注册入口。
+ * 通知域 {@code InMemoryNotificationConfigProvider} 同构的注册入口。
  *
  * <p>主要供纯 Java / MVC 场景与单测使用；Spring Boot 场景由 starter 提供基于
  * 配置文件的实现。注册即覆盖（配置变更时重新 register 同一 configId+渠道即可）。</p>

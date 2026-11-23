@@ -8,7 +8,7 @@
 > 各域业务方法名、业务参数、能力 handler 数量属于业务差异，不在统一范围内——
 > 「统一」不等于「五域业务字段都相同」。
 
-> 文件域定位：与短信域同属「薄门面委托第三方 SDK」型——内部全量委托
+> 文件域定位：与通知域同属「薄门面委托第三方 SDK」型——内部全量委托
 > [x-file-storage](https://x-file-storage.xuyanwu.cn/) 原始包（`x-file-storage-core`，
 > 非其 starter），我们只做配置装载与出口门面，不写任何存储平台实现、不重做对方已有能力。
 
@@ -20,7 +20,7 @@
 
 | 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
-| 门面类名 | `PaymentGateway` | `InvoiceGateway` | `SmsGateway` | `FileGateway` | `AuthGateway` | 一律 `XxxGateway` |
+| 门面类名 | `PaymentGateway` | `InvoiceGateway` | `NotificationGateway` | `FileGateway` | `AuthGateway` | 一律 `XxxGateway` |
 | 创建 | `builder()` | `builder()` | `builder()` | `builder()` | `builder()` | 一律静态 `builder()` |
 | 配置源注入 | `.configProvider(cp)` | 同 | 同 | 同 | 同 | 同名，且**必填** |
 | 构建校验 | 缺 `configProvider` 抛 `CONFIG_MISSING` | 同 | 同 | 同 | 同 | `build()` 必须校验非空 |
@@ -34,10 +34,10 @@
 
 | 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
-| SPI 命名 | `ChannelConfigProvider` | `InvoiceConfigProvider` | `SmsConfigProvider` | `FileConfigProvider` | `AuthConfigProvider` | 一律 `XxxConfigProvider` |
+| SPI 命名 | `ChannelConfigProvider` | `InvoiceConfigProvider` | `NotificationConfigProvider` | `FileConfigProvider` | `AuthConfigProvider` | 一律 `XxxConfigProvider` |
 | 正向取配置 | `getConfig(configId, channelCode, …)` | 同（多 `sellerTaxNo`） | 同 | 同 | 同 | 一律按 configId 定位，方法名一律 `getConfig`；维度差异见白名单 |
-| 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemorySmsConfigProvider` | `InMemoryFileConfigProvider` | `InMemoryAuthConfigProvider` | 一律 `InMemoryXxxConfigProvider` |
-| Properties 实现 | `PropertiesChannelConfigProvider` | `PropertiesInvoiceConfigProvider` | `PropertiesSmsConfigProvider` | `PropertiesFileConfigProvider` | `PropertiesAuthConfigProvider` | starter 默认实现，同名同构 |
+| 内存实现 | `InMemoryChannelConfigProvider` | `InMemoryInvoiceConfigProvider` | `InMemoryNotificationConfigProvider` | `InMemoryFileConfigProvider` | `InMemoryAuthConfigProvider` | 一律 `InMemoryXxxConfigProvider` |
+| Properties 实现 | `PropertiesChannelConfigProvider` | `PropertiesInvoiceConfigProvider` | `PropertiesNotificationConfigProvider` | `PropertiesFileConfigProvider` | `PropertiesAuthConfigProvider` | starter 默认实现，同名同构 |
 | 读取时机 | 每次调用读取 | 同 | 同 | 同 | 同 | 凭证变更可被感知、客户端可重建 |
 | 查无配置 | 抛 `CONFIG_MISSING` | 同 | 同 | 同 | 同 | 错误语义一致 |
 
@@ -75,12 +75,12 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 |---|---|---|---|
 | 支付 | `ChannelConfig` ← 各渠道 `XxxParams extends` | configId / channelCode / notifyUrl / sandbox | 渠道凭证（merchantId、渠道 appId、apiV3Key、下沉的 subMchNo…） |
 | 发票 | `ChannelConfig` ← 各渠道 Params extends | configId / channelCode / sellerTaxNo / notifyUrl / sandbox / tier / priority / enabled | 渠道凭证（appKey、drawer、销方名称/电话/地址/银行账号…） |
-| 短信 | `SmsChannelConfig`（自有，不含官方类） | configId / channelCode / accessKeyId / accessKeySecret / signature / templateId（= sms4j BaseConfig 公共凭证） | 厂商特有字段（regionId/sdkAppId/sender…） |
+| 短信 | `NotificationConfig`（自有，不含官方类） | configId / channelCode / accessKeyId / accessKeySecret / signature / templateId（= sms4j BaseConfig 公共凭证） | 厂商特有字段（regionId/sdkAppId/sender…） |
 | 文件 | `FileChannelConfig`（自有） | configId / channelCode（内部映射官方 platform） | 官方平台配置字段（承载于官方 `FileStorageProperties`，整体交官方 builder） |
 | 登录 | `AuthConfig`（自有，不含官方类） | configId / channelCode / clientId / clientSecret / redirectUri / scope（OAuth 公共字段） | 平台特有字段（私钥/证书/corpId/端点版本等，参数名不写死） |
 
 - 支付/发票：各渠道 `XxxParams extends ChannelConfig`，公共字段在基类、渠道字段在子类。
-- 短信：自有 `SmsChannelConfig`，公共凭证四件套一等化，`mergedAttr()` 合并后由装载器填充官方 Config，**不含 sms4j 官方类**。
+- 短信：自有 `NotificationConfig`，公共凭证四件套一等化，`mergedAttr()` 合并后由装载器填充官方 Config，**不含 sms4j 官方类**。
 - 文件：`FileChannelConfig` 暴露自有 `channelCode`，内部映射官方 platform；平台配置整体交给官方 `FileStorageServiceBuilder`，不逐字段解析。
 - **禁止**：外壳对象 + 强类型 `params` 两层模型已拆除；渠道真实 appId 等 SDK 字段保留原样，不受 configId 改名影响。
 
@@ -94,13 +94,13 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 - 短信公共字段取 sms4j `BaseConfig` 中跨渠道同名同义的凭证四件套（accessKeyId/accessKeySecret/signature/templateId），一等化声明。
 - 同一语义字段只存一处：公共字段一等化，禁止在 `attr`、外壳、`params` 里复制副本。
-- 公共字段权威：公共字段与 `attr` 同名时，**公共字段覆盖 `attr`**（如 `SmsChannelConfig.mergedAttr()`）。
+- 公共字段权威：公共字段与 `attr` 同名时，**公共字段覆盖 `attr`**（如 `NotificationConfig.mergedAttr()`）。
 
 #### C3 映射契约：统一映射器 + 渠道自有构建
 
 - 公共基建：`ConfigMapper`（common 层，基于已有 Jackson `ObjectMapper`）提供 `fill/fromMap/normalize`；**不引入 hutool**。
 - 支付/发票：各渠道 `XxxParams.fromMap(attr)` 负责把 attr 映射为强类型配置并做必填校验（渠道自有逻辑，含 equals 供客户端缓存复用）；starter 的 `Properties*` 把公共字段与 attr 一并装入。
-- 短信：自有 `SmsChannelConfig` 一等字段 + `mergedAttr()`，装载器用官方 Factory 构建厂商 Config。
+- 短信：自有 `NotificationConfig` 一等字段 + `mergedAttr()`，装载器用官方 Factory 构建厂商 Config。
 - 文件：`FileProperties` 由 Spring Boot 原生绑定到官方 `FileStorageProperties`，整体交官方 builder。
 - 委托 SDK 域内部用官方原始包构建配置对象（sms4j 官方 Factory / x-file-storage 官方 builder），不重做对方能力。
 
@@ -124,7 +124,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 #### C6 委托 SDK 域的对齐方式
 
-- **自有配置，不含官方类**：短信用 `SmsChannelConfig`、文件用 `FileChannelConfig`，用户不接触官方 Config 类。
+- **自有配置，不含官方类**：短信用 `NotificationConfig`、文件用 `FileChannelConfig`，用户不接触官方 Config 类。
 - **装载对齐**：短信把一等凭证 + attr 合并后由官方 Factory 构建厂商 Config；文件把官方 `FileStorageProperties` 整体交官方 builder。
 - **门面/SPI 对齐**：与五域共用 1.1/1.2 的门面与配置源契约。
 
@@ -134,7 +134,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 |---|---|---|---|
 | 支付 | `ChannelConfig` ← `XxxParams extends` | `XxxParams.fromMap` + starter 公共字段 | configId/channelCode/notifyUrl/sandbox |
 | 发票 | `ChannelConfig` ← 渠道 Params extends | 渠道 fromMap + starter 公共字段 | configId/channelCode/sellerTaxNo/notifyUrl/sandbox/tier/priority |
-| 短信 | `SmsChannelConfig`（自有） | `mergedAttr()` → sms4j 官方 Factory | configId/channelCode/accessKeyId/accessKeySecret/signature/templateId |
+| 短信 | `NotificationConfig`（自有） | `mergedAttr()` → sms4j 官方 Factory | configId/channelCode/accessKeyId/accessKeySecret/signature/templateId |
 | 文件 | `FileChannelConfig`（自有） | 官方 `FileStorageServiceBuilder` | configId/channelCode（→ 官方 platform） |
 | 登录 | `AuthConfig`（自有） | starter `PropertiesAuthConfigProvider` / 纯 Java 直接构造 | configId/channelCode/clientId/clientSecret/redirectUri/scope |
 
@@ -156,7 +156,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 | 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
-| 装配类命名 | `PayGatewayAutoConfiguration` | `InvoiceAutoConfiguration` | `SmsAutoConfiguration` | `FileAutoConfiguration` | `AuthAutoConfiguration` | 一律 `XxxAutoConfiguration`（支付历史名保留） |
+| 装配类命名 | `PayGatewayAutoConfiguration` | `InvoiceAutoConfiguration` | `NotificationAutoConfiguration` | `FileAutoConfiguration` | `AuthAutoConfiguration` | 一律 `XxxAutoConfiguration`（支付历史名保留） |
 | 配置源 Bean | `@ConditionalOnMissingBean` 默认 Properties 实现 | 同 | 同 | 同 | 同 | 可被同类型 Bean 覆盖 |
 | 门面 Bean | `@ConditionalOnMissingBean(PaymentGateway)` | 同 | 同 | `@ConditionalOnMissingBean(FileGateway)` | `@ConditionalOnMissingBean(AuthGateway)` | 可被同类型 Bean 覆盖 |
 | 配置源注入 | `ObjectProvider` + 缺失抛异常 | 同 | 同 | 同 | 同 | 五域统一 fail-fast |
@@ -263,7 +263,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - [ ] 优先确认 sms4j 是否已内置；内置则仅加配置即可，零框架代码
 - [ ] sms4j 清单外渠道：按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现 `SmsBlend` / `SupplierConfig` / `BaseProviderFactory`
 - [ ] 用 `SmsChannelProvider.of(factory)` 声明，**不写我们自己的渠道实现**
-- [ ] 自有 `SmsChannelConfig` 一等凭证字段（accessKeyId/accessKeySecret/signature/templateId），厂商特有字段放 `attr`（C2）
+- [ ] 自有 `NotificationConfig` 一等凭证字段（accessKeyId/accessKeySecret/signature/templateId），厂商特有字段放 `attr`（C2）
 - [ ] 公共字段与 `attr` 经 `mergedAttr()` 合并，由 sms4j 官方 Factory 构建厂商 Config（内部用官方包）
 - [ ] 内置与自定义走同一 `ProviderFactoryHolder` 原生注册路径
 
@@ -291,7 +291,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 ## 四、相关文档
 
 - 通用入门：[getting-started.md](getting-started.md)
-- 使用指南：[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) · [登录](guides/auth.md)
+- 使用指南：[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)
 - API 参考：[reference/api-reference.md](reference/api-reference.md)
 - 配置键：[reference/config-keys.md](reference/config-keys.md)（支付）、[reference/invoice-platforms.md](reference/invoice-platforms.md)（发票）
 - 联调清单：[integration-checklist.md](integration-checklist.md)

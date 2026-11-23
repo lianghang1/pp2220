@@ -8,13 +8,13 @@
 |---|---|---|
 | 支付 | `com.sfi.conflux.pay.engine.PaymentGateway` | Spring 注入，或 `PaymentGateway.builder()....build()` |
 | 发票 | `com.sfi.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
-| 短信 | `com.sfi.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
+| 短信 | `com.sfi.conflux.notify.engine.NotificationGateway` | Spring 注入，或 `NotificationGateway.builder()....build()` |
 | 文件 | `com.sfi.conflux.file.engine.FileGateway` | Spring 注入，或 `FileGateway.builder()....build()` |
 | 登录 | `com.sfi.conflux.auth.engine.AuthGateway` | Spring 注入，或 `AuthGateway.builder()....build()` |
 
 金额单位：支付 = 分（`Long`），发票 = 元（`BigDecimal`）。
 
-五域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（`ChannelConfigProvider` / `InvoiceConfigProvider` / `SmsConfigProvider` / `FileConfigProvider` / `AuthConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载自定义渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。**内置渠道由 `build()` 自动全量注册，用户零 `.channel()`；`.channel(...)` 仅作自定义渠道扩展口，同编码覆盖内置。** 差异仅在支付/发票/登录有自有渠道 SPI（登录为 `AuthChannel`），短信/文件渠道实现全在第三方原始包（sms4j / x-file-storage）。
+五域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（`ChannelConfigProvider` / `InvoiceConfigProvider` / `NotificationConfigProvider` / `FileConfigProvider` / `AuthConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载自定义渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。**内置渠道由 `build()` 自动全量注册，用户零 `.channel()`；`.channel(...)` 仅作自定义渠道扩展口，同编码覆盖内置。** 差异仅在支付/发票/登录有自有渠道 SPI（登录为 `AuthChannel`），短信/文件渠道实现全在第三方原始包（sms4j / x-file-storage）。
 
 ## 一、支付 API（PaymentGateway）
 
@@ -204,7 +204,7 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `ChannelTier` | `DIRECT_TAX` `SERVICE_API` `WEB_PORTAL` |
 | `InvoiceFileType` | `XML` `OFD` `PDF` `IMAGE` |
 
-## 三、短信 API（SmsGateway）
+## 三、短信 API（NotificationGateway）
 
 短信渠道实现全量委托 sms4j 原始包（api/core/provider），门面只做配置装载与出口归一。`channelCode` 直接用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码自动发现。
 
@@ -212,12 +212,12 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
-| `send` | `String configId, String channelCode, SmsSendRequest` | `SmsSendResult` | 发送短信，内部从 SmsConfigProvider 读配置并确保装载后发送 |
+| `send` | `String configId, String channelCode, NotificationSendRequest` | `NotificationSendResult` | 发送短信，内部从 NotificationConfigProvider 读配置并确保装载后发送 |
 | `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义渠道（与支付/发票同构），把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder` |
 | `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`SmsGateway.Builder` 方法：`.configProvider(SmsConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（仅声明自定义渠道，可多次调用；内置渠道由 sms4j 自动发现，无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
+`NotificationGateway.Builder` 方法：`.configProvider(NotificationConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（仅声明自定义渠道，可多次调用；内置渠道由 sms4j 自动发现，无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
 
 `SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
 
@@ -225,13 +225,13 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 | 类型 | 字段 |
 |---|---|
-| `SmsSendRequest` | `bizId` `phone` `content` `params`（模板变量，非空时走 Map 重载，否则走文本重载） |
-| `SmsSendResult` | `success` `bizId` `configId` `channel`（sms4j supplier 标识） `raw`（sms4j 原始返回） `error` |
-| `SmsChannelConfig` | `configId` `channelCode` `accessKeyId` `accessKeySecret` `signature` `templateId` `attr`（厂商特有键，键名对齐 sms4j Config 字段） |
+| `NotificationSendRequest` | `bizId` `phone` `content` `params`（模板变量，非空时走 Map 重载，否则走文本重载） |
+| `NotificationSendResult` | `success` `bizId` `configId` `channel`（sms4j supplier 标识） `raw`（sms4j 原始返回） `error` |
+| `NotificationConfig` | `configId` `channelCode` `accessKeyId` `accessKeySecret` `signature` `templateId` `attr`（厂商特有键，键名对齐 sms4j Config 字段） |
 
-`SmsChannelConfig` 是短信域自有配置对象，**不暴露 sms4j 官方配置类**：公共凭证四件套（accessKeyId/accessKeySecret/signature/templateId）为一等字段，厂商特有键放 `attr`，装载期由 `mergedAttr()` 合并（公共字段优先）后交给 sms4j 官方 Factory 构建厂商 Config。
+`NotificationConfig` 是通知域自有配置对象，**不暴露 sms4j 官方配置类**：公共凭证四件套（accessKeyId/accessKeySecret/signature/templateId）为一等字段，厂商特有键放 `attr`，装载期由 `mergedAttr()` 合并（公共字段优先）后交给 sms4j 官方 Factory 构建厂商 Config。
 
-配置源 SPI：`SmsConfigProvider.getConfig(configId, channelCode)` 返回 `SmsChannelConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemorySmsConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesSmsConfigProvider`（读 `conflux.sms.configs.<configId>.<channelCode>`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
+配置源 SPI：`NotificationConfigProvider.getConfig(configId, channelCode)` 返回 `NotificationConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemoryNotificationConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesNotificationConfigProvider`（读 `conflux.notify.configs.<configId>.<channelCode>`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
 
 ## 四、文件 API（FileGateway）
 
@@ -307,6 +307,6 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 ## 七、相关文档
 
 - **五域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](../framework-contract.md) —— 新增能力或渠道必须严格执行
-- 使用指南：[支付](../guides/pay.md) · [发票](../guides/invoice.md) · [短信](../guides/sms.md) · [文件](../guides/file.md) · [登录](../guides/auth.md)
+- 使用指南：[支付](../guides/pay.md) · [发票](../guides/invoice.md) · [短信](../guides/notify.md) · [文件](../guides/file.md) · [登录](../guides/auth.md)
 - 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md)（发票）
 - 平台核对与协议细节：[invoice-platforms.md](invoice-platforms.md)

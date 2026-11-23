@@ -4,7 +4,7 @@ import org.dromara.x.file.storage.core.platform.FileStorage;
 
 /**
  * 文件渠道声明对象：与支付域 {@code ChannelProvider}、发票域 {@code InvoiceChannelProvider}、
- * 短信域 {@code SmsChannelProvider} 处于同一层——承载一个 x-file-storage 原生
+ * 通知域 {@code SmsChannelProvider} 处于同一层——承载一个 x-file-storage 原生
  * {@link FileStorage} 实例。
  *
  * <p>平台的实现（{@code FileStorage} / 可选 {@code FileStorageClientFactory}）全部按

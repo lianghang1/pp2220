@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 支付 `conflux-pay` | `PaymentGateway` | 下单/查单/关单、退款、转账、分账、账单、回调验签 | [guides/pay.md](docs/guides/pay.md) |
 | 数电发票 `conflux-invoice` | `InvoiceGateway` | 蓝字开票、授权、红冲、查单、交付、版式文件 | [guides/invoice.md](docs/guides/invoice.md) |
-| 短信 `conflux-sms` | `SmsGateway` | 发送短信（内部委托 sms4j，22 家厂商开箱即用） | [guides/sms.md](docs/guides/sms.md) |
+| 通知 `conflux-notify` | `NotificationGateway` | 发送短信 + IM 推送（短信委托 sms4j，22 家厂商开箱即用） | [guides/notify.md](docs/guides/notify.md) |
 | 文件 `conflux-file` | `FileGateway` | 上传/下载/删除/预签名（内部委托 x-file-storage，30+ 平台） | [guides/file.md](docs/guides/file.md) |
 
 ## 各域渠道与平台
@@ -21,7 +21,7 @@
 |---|---|---|
 | 支付 | 框架自研适配，6 个内置渠道 | [guides/pay.md § 内置渠道能力矩阵](docs/guides/pay.md#内置渠道能力矩阵) |
 | 发票 | 框架自研适配，5 个内置平台 | [reference/invoice-platforms.md](docs/reference/invoice-platforms.md) |
-| 短信 | sms4j 官方厂商（22 家） | [guides/sms.md](docs/guides/sms.md) |
+| 通知 | sms4j 官方厂商（22 家，短信） | [guides/notify.md](docs/guides/notify.md) |
 | 文件 | x-file-storage 官方平台（30+） | [guides/file.md](docs/guides/file.md) |
 
 ## 五条核心约定
@@ -69,7 +69,7 @@ PaymentResult pay = paymentGateway.createPayment(new PaymentRequest()
 | `conflux-common` | 公共工具 / 异常 / HTTP 传输 / 配置映射 | 无 |
 | `conflux-pay`（core / channels / starter / example） | 支付域 | core·channels 无；starter 需 Boot |
 | `conflux-invoice`（core / channels / starter / example） | 发票域 | core·channels 无；starter 需 Boot |
-| `conflux-sms`（core / starter） | 短信域，内部委托 sms4j 原始包 | core 无；starter 需 Boot |
+| `conflux-notify`（core / starter） | 通知域，内部委托 sms4j 原始包 | core 无；starter 需 Boot |
 | `conflux-file`（core / starter） | 文件域，内部委托 x-file-storage 原始包 | core 无；starter 需 Boot |
 
 Spring Boot 用 starter 自动装配；Spring MVC / 传统 Spring / 纯 Java 引入对应 core（+ channels）手动 `builder()` 组装，配置来源不限配置文件。详见 [getting-started.md](docs/getting-started.md)。
@@ -78,7 +78,7 @@ Spring Boot 用 starter 自动装配；Spring MVC / 传统 Spring / 纯 Java 引
 
 **使用者入口**
 - [getting-started.md](docs/getting-started.md) — 通用入门：三种引入形态、配置模型、回调定位、四域共性
-- 四域使用指南：[支付](docs/guides/pay.md) · [发票](docs/guides/invoice.md) · [短信](docs/guides/sms.md) · [文件](docs/guides/file.md)
+- 四域使用指南：[支付](docs/guides/pay.md) · [发票](docs/guides/invoice.md) · [通知](docs/guides/notify.md) · [文件](docs/guides/file.md)
 
 **参考手册**
 - [reference/api-reference.md](docs/reference/api-reference.md) — 四域 API 方法 / 出入参字段 / 枚举速查

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-notify</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-notify-core</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-notify-core</name>
+    <description>短信内核：统一发送模型 + 配置装载 + 出口门面，内部委托 sms4j 原始包（零 Spring 依赖）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-common</artifactId>
+        </dependency>
+        <!-- sms4j 原始包（非 starter）：渠道配置对象与发送能力全部由它提供，纯 Java 项目可用 -->
+        <dependency>
+            <groupId>org.dromara.sms4j</groupId>
+            <artifactId>sms4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.dromara.sms4j</groupId>
+            <artifactId>sms4j-provider</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

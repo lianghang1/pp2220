@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 文件渠道配置提供者内存实现：与支付域 {@code InMemoryChannelConfigProvider}、
- * 发票域 {@code InMemoryInvoiceConfigProvider}、短信域 {@code InMemorySmsConfigProvider}
+ * 发票域 {@code InMemoryInvoiceConfigProvider}、通知域 {@code InMemoryNotificationConfigProvider}
  * 同构的注册入口。
  *
  * <p>主要供纯 jar 场景与单测使用；Spring Boot 场景由 starter 提供基于配置文件的实现。

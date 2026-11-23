@@ -5,8 +5,8 @@ import org.dromara.x.file.storage.core.FileStorageProperties;
 /**
  * 文件渠道配置值对象：承载「configId + 渠道编码 + x-file-storage 官方平台配置」。
  *
- * <p>与支付域 {@code ChannelConfig}、发票域 {@code ChannelConfig}、短信域
- * {@code SmsChannelConfig} 同层次，由 {@link FileConfigProvider} 产出，交给装载器
+ * <p>与支付域 {@code ChannelConfig}、发票域 {@code ChannelConfig}、通知域
+ * {@code NotificationConfig} 同层次，由 {@link FileConfigProvider} 产出，交给装载器
  * 构建官方 {@code FileStorageService}。</p>
  *
  * <p><b>为什么不照搬 {@code attr: Map&lt;String,String&gt;}：</b> x-file-storage 没有像

@@ -7,7 +7,7 @@ import java.util.List;
  * 文件渠道配置提供者 SPI：按应用与渠道编码换取配置。
  *
  * <p>与支付域 {@code ChannelConfigProvider}、发票域 {@code InvoiceConfigProvider}、
- * 短信域 {@code SmsConfigProvider} 完全同构：starter 提供基于配置文件的默认实现；
+ * 通知域 {@code NotificationConfigProvider} 完全同构：starter 提供基于配置文件的默认实现；
  * 使用方也可自行实现（如从数据库/配置中心读取），每次调用都重新读取，配置变更
  * 可被装载层感知并重建 {@code FileStorageService}。</p>
  *

@@ -1,6 +1,6 @@
 # 通用入门
 
-本文讲五域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [使用指南](guides/pay.md)（[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) · [登录](guides/auth.md)）。
+本文讲五域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [使用指南](guides/pay.md)（[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)）。
 
 ## 1. 核心约定（先读）
 
@@ -50,7 +50,7 @@ gateway.registeredChannels();        // 查看已注册渠道编码
 - **configId**：框架侧配置定位键（**不是**渠道真实 appId，避免与微信/支付宝的 `appId` 混淆）。
 - **channelCode**：对外渠道编码；短信/文件内部再映射为第三方 SDK 的供应商标识 / 平台实例名。
 - **公共字段一等化 + `attr`**：跨渠道同名的公共字段（如 `notifyUrl`、`sandbox`，短信的凭证四件套）为配置对象一等字段；渠道个性键统一放 `attr`（**单数**）。
-- 配置对象：支付/发票为 `ChannelConfig` 基类 + 各渠道 `XxxParams extends ChannelConfig`；短信为 `SmsChannelConfig`；文件为 `FileChannelConfig`。
+- 配置对象：支付/发票为 `ChannelConfig` 基类 + 各渠道 `XxxParams extends ChannelConfig`；短信为 `NotificationConfig`；文件为 `FileChannelConfig`。
 
 两种形态共用同一套模型——yml 由 starter 的 `PropertiesXxxConfigProvider` 映射到配置对象，纯 Java 用 `XxxParams.fromMap(attr)` 装配（JDK 8 用 `LinkedHashMap`，没有 `Map.of`）。
 
@@ -83,4 +83,4 @@ SDK 不介入业务链路，不判重、不推进状态、不通知下游。
 
 ---
 
-**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) · [登录](guides/auth.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。
+**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。

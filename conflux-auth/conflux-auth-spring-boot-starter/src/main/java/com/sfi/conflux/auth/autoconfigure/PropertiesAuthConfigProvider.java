@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * 基于配置文件的登录配置提供者（默认实现）：与支付域 {@code PropertiesChannelConfigProvider}、
- * 短信域 {@code PropertiesSmsConfigProvider} 同构，按
+ * 通知域 {@code PropertiesNotificationConfigProvider} 同构，按
  * {@code conflux.auth.configs.<configId>.<channelCode>} 读取配置。
  *
  * <p>OAuth 公共字段为外层一等字段，平台特有键按平台约定声明在 attr；

@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 登录网关 starter 配置（{@code conflux.auth.*}）。
  *
- * <p>与支付/短信域同构的「configId → 渠道编码 → 配置」结构：第一层 key 为 configId，
+ * <p>与支付/通知域同构的「configId → 渠道编码 → 配置」结构：第一层 key 为 configId，
  * 第二层 key 为渠道编码（wechat_open / alipay_web / dingtalk_qr …）。OAuth 公共字段
  * （clientId/clientSecret/redirectUri/scope）提到外层一等字段，平台特有键（私钥、
  * 证书、corpId、agentId、端点版本等）按平台 SDK 字段名放在 attr。</p>
