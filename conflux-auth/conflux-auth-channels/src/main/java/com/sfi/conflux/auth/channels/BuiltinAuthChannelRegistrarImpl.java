@@ -1,6 +1,11 @@
 package com.sfi.conflux.auth.channels;
 
 import com.sfi.conflux.auth.channel.AuthChannel;
+import com.sfi.conflux.auth.channels.feishu.FeishuAppAuthChannel;
+import com.sfi.conflux.auth.channels.feishu.FeishuInAppAuthChannel;
+import com.sfi.conflux.auth.channels.feishu.FeishuMiniAuthChannel;
+import com.sfi.conflux.auth.channels.feishu.FeishuQrAuthChannel;
+import com.sfi.conflux.auth.channels.feishu.FeishuWebAuthChannel;
 import com.sfi.conflux.auth.channels.dingtalk.DingAdminAuthChannel;
 import com.sfi.conflux.auth.channels.dingtalk.DingH5InternalAuthChannel;
 import com.sfi.conflux.auth.channels.dingtalk.DingH5IsvAuthChannel;
@@ -22,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 登录域内置渠道清单（编译期固化）：微信全家桶 7 种 + 钉钉全家桶 6 种形态。
+ * 登录域内置渠道清单（编译期固化）：微信 7 种 + 钉钉 6 种 + 飞书 5 种形态。
  *
  * <p>由 Java SPI 暴露给 core 的 {@code AuthGateway.Builder}，引入 channels jar 即自动注册。
  * 每构建一个 Provider 都 try-catch 容错——某渠道的可选 SDK 缺失时跳过，不影响其他渠道。
@@ -81,6 +86,23 @@ public class BuiltinAuthChannelRegistrarImpl implements BuiltinAuthChannelRegist
         });
         add(channels, DingAdminAuthChannel.CHANNEL_CODE, new ChannelFactory() {
             public AuthChannel create() { return new DingAdminAuthChannel(); }
+        });
+
+        // 飞书全家桶 5 种（标准 OAuth2 授权码 + 小程序 code2session 薄适配，无第三方 SDK）
+        add(channels, FeishuWebAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new FeishuWebAuthChannel(); }
+        });
+        add(channels, FeishuQrAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new FeishuQrAuthChannel(); }
+        });
+        add(channels, FeishuAppAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new FeishuAppAuthChannel(); }
+        });
+        add(channels, FeishuInAppAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new FeishuInAppAuthChannel(); }
+        });
+        add(channels, FeishuMiniAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new FeishuMiniAuthChannel(); }
         });
 
         return channels;
