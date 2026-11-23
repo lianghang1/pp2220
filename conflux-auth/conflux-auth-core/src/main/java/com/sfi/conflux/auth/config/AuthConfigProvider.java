@@ -13,8 +13,8 @@ import java.util.Map;
  */
 public interface AuthConfigProvider {
 
-    /** 按 configId + channelCode 取配置 */
-    AuthConfig get(String configId, String channelCode);
+    /** 按 configId + channelCode 取配置（与四域 getConfig 契约同名） */
+    AuthConfig getConfig(String configId, String channelCode);
 
     /**
      * 全部配置（可选覆盖）：返回空表示不预热。

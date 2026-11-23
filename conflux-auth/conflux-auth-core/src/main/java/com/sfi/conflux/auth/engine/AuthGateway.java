@@ -56,7 +56,7 @@ public class AuthGateway {
     /** 带自定义参数（扫码样式、scope 覆盖、业务透传 state 上下文等） */
     public AuthorizeResult authorize(String configId, String channelCode, AuthorizeOption option) {
         AuthChannel channel = requireChannel(channelCode);
-        AuthConfig config = configProvider.get(configId, channelCode);
+        AuthConfig config = configProvider.getConfig(configId, channelCode);
         if (config == null) {
             throw AuthErrorCode.CONFIG_MISSING.of("未找到配置: configId=" + configId + ", channelCode=" + channelCode);
         }
@@ -66,7 +66,7 @@ public class AuthGateway {
     /** 回调换身份：显式传 configId + channelCode 定位，门面只转发 */
     public AuthResult<AuthUser> parseCallback(String configId, String channelCode, AuthCallbackRequest request) {
         AuthChannel channel = requireChannel(channelCode);
-        AuthConfig config = configProvider.get(configId, channelCode);
+        AuthConfig config = configProvider.getConfig(configId, channelCode);
         if (config == null) {
             return AuthResult.fail("CONFIG_MISSING", "未找到配置: configId=" + configId + ", channelCode=" + channelCode);
         }

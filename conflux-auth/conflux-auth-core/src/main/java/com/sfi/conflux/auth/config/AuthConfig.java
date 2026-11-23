@@ -9,6 +9,10 @@ import java.util.Map;
  */
 public class AuthConfig {
 
+    /** 框架定位键：配置维度 configId + 渠道编码 channelCode（公共字段一等化，对齐四域 C1/C5） */
+    private String configId;
+    private String channelCode;
+
     private String clientId;
     private String clientSecret;
     private String redirectUri;
@@ -16,6 +20,24 @@ public class AuthConfig {
 
     /** 平台特有：私钥、证书、corpId、agentId 等，参数名不写死 */
     private Map<String, String> attr;
+
+    public String getConfigId() {
+        return configId;
+    }
+
+    public AuthConfig setConfigId(String configId) {
+        this.configId = configId;
+        return this;
+    }
+
+    public String getChannelCode() {
+        return channelCode;
+    }
+
+    public AuthConfig setChannelCode(String channelCode) {
+        this.channelCode = channelCode;
+        return this;
+    }
 
     public String getClientId() {
         return clientId;

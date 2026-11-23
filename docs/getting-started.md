@@ -1,6 +1,6 @@
 # 通用入门
 
-本文讲四域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [四域使用指南](guides/pay.md)。
+本文讲五域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [使用指南](guides/pay.md)（[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) · [登录](guides/auth.md)）。
 
 ## 1. 核心约定（先读）
 
@@ -14,7 +14,7 @@
 
 ## 2. 三种引入形态
 
-四域完全同构，任选其一：
+五域完全同构，任选其一：
 
 | 环境 | 引入模块 | 装配方式 | 配置来源 |
 |---|---|---|---|
@@ -28,7 +28,7 @@
 
 > **"SPI"与"自动装配"不是一回事**：本项目 SPI 指扩展点接口（自定义渠道 `XxxChannelProvider`、自定义配置源 `XxxConfigProvider`），三种环境完全一致；Boot 自动装配只是省去手写 `@Bean`，不改变扩展能力。
 
-## 3. 门面契约（四域一致）
+## 3. 门面契约（五域一致）
 
 ```java
 XxxGateway gateway = XxxGateway.builder()
@@ -43,7 +43,7 @@ gateway.registeredChannels();        // 查看已注册渠道编码
 - `.channel(provider)` **仅用于自定义渠道扩展口**——框架未内置、或想用同编码覆盖内置时使用。
 - 配置源每次调用读取，凭证变更可重建客户端——接 DB / 配置中心只需自定义对应的 `XxxConfigProvider`。
 
-## 4. 配置模型（四域一致）
+## 4. 配置模型（五域一致）
 
 配置路径统一为 `conflux.<域>.configs.<configId>.<channelCode>`：
 
@@ -69,7 +69,9 @@ PaymentGateway gateway = PaymentGateway.builder()
         .build();
 ```
 
-## 5. 回调接入（四域一致）
+## 5. 回调接入（四域一致；登录域为换身份，见其指南）
+
+> 登录域的两步是 `authorize`（生成授权入口）+ `parseCallback`（回调换身份），后者不验签、不落库，只做票据交换与身份归一——与其余四域的"验签+归一"语义不同，详见 [登录指南](guides/auth.md)。
 
 1. 暴露一个回调端点（多渠道可共用）。
 2. 从报文取业务单号，查自己的库得到 `configId`（发票再加 `sellerTaxNo`）。
@@ -81,4 +83,4 @@ SDK 不介入业务链路，不判重、不推进状态、不通知下游。
 
 ---
 
-**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。
+**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/sms.md) · [文件](guides/file.md) · [登录](guides/auth.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。

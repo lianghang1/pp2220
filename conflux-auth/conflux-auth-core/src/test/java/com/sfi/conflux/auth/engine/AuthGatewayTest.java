@@ -58,7 +58,7 @@ class AuthGatewayTest {
     private AuthConfigProvider singleConfig() {
         return new AuthConfigProvider() {
             @Override
-            public AuthConfig get(String configId, String channelCode) {
+            public AuthConfig getConfig(String configId, String channelCode) {
                 return new AuthConfig().setClientId("cid").setClientSecret("sec");
             }
         };

@@ -17,6 +17,7 @@
     <modules>
         <module>conflux-auth-core</module>
         <module>conflux-auth-channels</module>
+        <module>conflux-auth-spring-boot-starter</module>
     </modules>
 
     <properties>

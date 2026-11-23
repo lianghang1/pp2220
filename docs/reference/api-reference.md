@@ -1,8 +1,8 @@
 # API 参考
 
-统一入口是四个门面类，四域对外契约同构，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。支付/发票的请求/结果类位于 `*.api` 包、状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）；文件域门面直接返回 x-file-storage 官方原始类型。
+统一入口是五个门面类，五域对外契约同构，双形态（Spring Boot 注入 / 纯 jar `builder()`）方法完全相同。支付/发票的请求/结果类位于 `*.api` 包、状态枚举位于 `*.model` 包，链式 setter（`@Accessors(chain=true)`）；文件域门面直接返回 x-file-storage 官方原始类型；登录域统一身份模型为 `AuthUser`。
 
-四域配置的框架定位键统一为 `configId`（发票另需 `sellerTaxNo`），渠道统一用 `channelCode`，渠道个性配置统一放 `attr`。回调验签仍在框架，但配置定位由使用方按自己的订单查库得到 `configId` 后显式传入，框架不再从报文隐式反查账户键。
+五域配置的框架定位键统一为 `configId`（发票另需 `sellerTaxNo`），渠道统一用 `channelCode`，渠道个性配置统一放 `attr`。回调验签仍在框架（登录域为换身份），但配置定位由使用方按自己的订单查库得到 `configId` 后显式传入，框架不再从报文隐式反查账户键。
 
 | 门面 | 全限定名 | 获取方式 |
 |---|---|---|
@@ -10,10 +10,11 @@
 | 发票 | `com.sfi.conflux.invoice.engine.InvoiceGateway` | Spring 注入，或 `InvoiceGateway.builder()....build()` |
 | 短信 | `com.sfi.conflux.sms.engine.SmsGateway` | Spring 注入，或 `SmsGateway.builder()....build()` |
 | 文件 | `com.sfi.conflux.file.engine.FileGateway` | Spring 注入，或 `FileGateway.builder()....build()` |
+| 登录 | `com.sfi.conflux.auth.engine.AuthGateway` | Spring 注入，或 `AuthGateway.builder()....build()` |
 
 金额单位：支付 = 分（`Long`），发票 = 元（`BigDecimal`）。
 
-四域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（`ChannelConfigProvider` / `InvoiceConfigProvider` / `SmsConfigProvider` / `FileConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载自定义渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。**内置渠道由 `build()` 自动全量注册，用户零 `.channel()`；`.channel(...)` 仅作自定义渠道扩展口，同编码覆盖内置。** 差异仅在支付/发票有自有 `ChannelProvider` SPI，短信/文件渠道实现全在第三方原始包（sms4j / x-file-storage）。
+五域门面的框架契约一致：均经 `builder()` 构建、`builder().configProvider(...)` 注入配置源（`ChannelConfigProvider` / `InvoiceConfigProvider` / `SmsConfigProvider` / `FileConfigProvider` / `AuthConfigProvider`，均可自定义 DB / 配置中心实现）、`registerChannel(...)` 装载自定义渠道、`registeredChannels()` 查看已装载渠道，配置源每次调用读取、凭证变更可重建客户端。**内置渠道由 `build()` 自动全量注册，用户零 `.channel()`；`.channel(...)` 仅作自定义渠道扩展口，同编码覆盖内置。** 差异仅在支付/发票/登录有自有渠道 SPI（登录为 `AuthChannel`），短信/文件渠道实现全在第三方原始包（sms4j / x-file-storage）。
 
 ## 一、支付 API（PaymentGateway）
 
@@ -263,19 +264,49 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 平台配置 value 直接是官方 `FileStorageProperties`，各平台段由 Spring Boot 原生绑定，内核整体交给官方 builder，**不逐平台解析字段**。文件域**不实现、不托管** `FileRecorder`、不落库：门面一律以 `FileInfo` 为入参/返回，不暴露 `getFileInfoByUrl` 及一切 `url → 元信息` 反查方法（这些方法依赖 DB 记录，官方默认 `DefaultFileRecorder` 下抛明确异常）。需要按 url 查询请自实现 `FileRecorder`，再走 `nativeService()` 原生能力。
 
-## 五、构建器（纯 jar 场景）
+## 五、登录 API（AuthGateway）
 
-| 门面 Builder 方法 | 支付 | 发票 | 短信 | 文件 | 说明 |
-|---|---|---|---|---|---|
-| `.channel(Provider)` | ✓ | ✓ | ✓ | ✓ | **仅自定义渠道扩展口**，可多次调用，同编码覆盖内置；内置渠道由 `build()` 自动注册、用户零调用；短信传 `SmsChannelProvider`、文件传 `FileChannelProvider`（承载第三方原生实例，实现在 sms4j / x-file-storage） |
-| `.configProvider(...)` | ✓ 必填 | ✓ 必填 | ✓ 必填 | ✓ 必填 | 配置提供者，必填、每次调用读取 |
-| `.clock(Clock)` | ✓ | ✓ | — | — | 注入时钟（测试用） |
-| `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | — | 版式文件固化选项 |
-| `.build()` | ✓ | ✓ | ✓ | ✓ | 构建网关 |
+登录域门面只做路由，业务方法为「生成授权入口」+「回调换身份」两步；24 种形态（微信/支付宝/钉钉/飞书）共用同一套 API，差异在 `channelCode` 与配置。
 
-## 六、相关文档
+### 5.1 方法清单
 
-- **四域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](../framework-contract.md) —— 新增能力或渠道必须严格执行
-- 使用指南：[支付](../guides/pay.md) · [发票](../guides/invoice.md) · [短信](../guides/sms.md) · [文件](../guides/file.md)
+| 方法 | 参数 | 返回 | 说明 |
+|---|---|---|---|
+| `authorize` | `String configId, String channelCode` | `AuthorizeResult` | 生成授权入口（网页 URL / 扫码二维码 / 小程序 JSAPI 参数） |
+| `authorize` | `String configId, String channelCode, AuthorizeOption option` | `AuthorizeResult` | 带平台特有参数、state 透传上下文、过期秒数覆盖 |
+| `parseCallback` | `String configId, String channelCode, AuthCallbackRequest request` | `AuthResult<AuthUser>` | 回调换身份：票据交换 + 身份归一，门面只转发 |
+| `registerChannel` | `AuthChannel` | `void` | 增补自定义渠道（同编码覆盖内置） |
+| `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合（含 24 个内置形态） |
+
+`AuthGateway.Builder` 方法：`.configProvider(AuthConfigProvider)`（**必填**，缺则抛 `CONFIG_MISSING`）、`.stateCache(StateCache)`（可选，默认内存实现）、`.channel(AuthChannel)`（仅自定义渠道）、`.build()`（经 SPI 自动注册 24 个内置形态）。
+
+### 5.2 请求/结果与配置
+
+| 类型 | 关键字段 |
+|---|---|
+| `AuthorizeResult` | `authorizeUrl` / `qrCodeUrl` / `jsApiParams`（按形态填充，调用方按字段有无判断） |
+| `AuthCallbackRequest` | `params`（原始参数全量）、`headers` / `httpMethod` / `rawBody`（验签用）；`param(name)` / `firstParam(names...)` 按名取值 |
+| `AuthResult<AuthUser>` | `success` / `errorCode`（字符串）/ `errorMsg` / `data` |
+| `AuthUser` | `openId` / `unionId` / `channelCode` / `nickName` / `avatar` 等（各平台归一，小程序等形态部分字段可空） |
+| `AuthConfig` | `configId` / `channelCode` / `clientId` / `clientSecret` / `redirectUri` / `scope`（一等字段）+ `attr`（平台特有键） |
+| 配置源 SPI | `AuthConfigProvider.getConfig(configId, channelCode)`，查不到抛 `GatewayException(CONFIG_MISSING)`；内存 `InMemoryAuthConfigProvider`、starter 的 `PropertiesAuthConfigProvider`（读 `conflux.auth.configs.<configId>.<channelCode>`） |
+
+门面不验签、不判重、不落库；state 链路（生成/写缓存/取出即删）在 `AbstractAuthChannel` 闭环，票据交换与验签由各渠道委托底层 SDK / 标准协议完成。错误码：`AuthErrorCode`（6xxx 段，框架级抛异常）；渠道侧失败以字符串码（如 `WECHAT_OAUTH_ERROR`、`ILLEGAL_STATE`）在 `AuthResult.errorCode` 表达。
+
+## 六、构建器（纯 jar 场景）
+
+| 门面 Builder 方法 | 支付 | 发票 | 短信 | 文件 | 登录 | 说明 |
+|---|---|---|---|---|---|---|
+| `.channel(Provider)` | ✓ | ✓ | ✓ | ✓ | ✓ | **仅自定义渠道扩展口**，可多次调用，同编码覆盖内置；内置渠道由 `build()` 自动注册、用户零调用；短信传 `SmsChannelProvider`、文件传 `FileChannelProvider`（第三方原生实例）、登录传 `AuthChannel` |
+| `.configProvider(...)` | ✓ 必填 | ✓ 必填 | ✓ 必填 | ✓ 必填 | ✓ 必填 | 配置提供者，必填、每次调用读取 |
+| `.clock(Clock)` | ✓ | ✓ | — | — | — | 注入时钟（测试用） |
+| `.fileOptions(InvoiceFileOptions)` | — | ✓ | — | — | — | 版式文件固化选项 |
+| `.stateCache(StateCache)` | — | — | — | — | ✓ | 登录域专属：state 缓存 SPI（默认内存，集群可注入分布式实现） |
+| `.build()` | ✓ | ✓ | ✓ | ✓ | ✓ | 构建网关 |
+
+## 七、相关文档
+
+- **五域框架统一契约（图纸/规范/检查清单）**：[framework-contract.md](../framework-contract.md) —— 新增能力或渠道必须严格执行
+- 使用指南：[支付](../guides/pay.md) · [发票](../guides/invoice.md) · [短信](../guides/sms.md) · [文件](../guides/file.md) · [登录](../guides/auth.md)
 - 配置键：[config-keys.md](config-keys.md)（支付）、[invoice-platforms.md](invoice-platforms.md)（发票）
 - 平台核对与协议细节：[invoice-platforms.md](invoice-platforms.md)
