@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.sfi.conflux</groupId>
+    <artifactId>conflux-auth</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>conflux-auth</name>
+    <description>Conflux 第三方登录能力域父 pom：独立版本号与技术栈（JDK 8）。
+        统一门面 + 渠道 SPI，底层委托 wxjava / 各平台官方 SDK / 标准 OAuth2 薄适配；
+        门面纯路由、零 Redis 依赖、state 缓存走 SPI。与 pay / invoice / sms / file 域同构。
+        仅作为 conflux-auth-* 子模块的 parent，版本与其他域互不影响。</description>
+
+    <modules>
+        <module>conflux-auth-core</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <conflux-common.version>1.0.0-SNAPSHOT</conflux-common.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-dependencies</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-common</artifactId>
+                <version>${conflux-common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-auth-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.10.1</version>
+                    <configuration>
+                        <source>1.8</source>
+                        <target>1.8</target>
+                        <encoding>UTF-8</encoding>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.22.2</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

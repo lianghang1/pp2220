@@ -19,5 +19,6 @@
         <module>conflux-invoice</module>
         <module>conflux-sms</module>
         <module>conflux-file</module>
+        <module>conflux-auth</module>
     </modules>
 </project>

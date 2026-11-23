@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-auth</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-auth-core</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-auth-core</name>
+    <description>登录内核：统一门面 + 渠道 SPI + state 缓存 SPI + 统一身份模型。
+        门面纯路由，state 链路在渠道基类闭环，验签与身份交换由 provider 委托底层 SDK。
+        零 Spring 依赖、零 Redis 依赖，纯 Java 项目可用。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
