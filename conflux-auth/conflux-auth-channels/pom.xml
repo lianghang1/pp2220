@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-auth</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-auth-channels</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-auth-channels</name>
+    <description>第三方登录渠道实现：微信（开放平台扫码/公众号/小程序/企业微信）、支付宝、钉钉、飞书，
+        按包隔离。微信委托 wxjava，其余为官方 SDK 或标准 OAuth2 薄适配。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-auth-core</artifactId>
+        </dependency>
+        <!-- wxjava 登录模块：版本由 conflux-dependencies 单源管控，与支付域 weixin-java-pay 同版本 -->
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-mp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-miniapp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-cp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

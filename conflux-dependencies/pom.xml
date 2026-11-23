@@ -28,7 +28,8 @@
         <pdfbox.version>2.0.31</pdfbox.version>
 
         <!-- 渠道 SDK 类 -->
-        <weixin-java-pay.version>4.7.2.B</weixin-java-pay.version>
+        <!-- wxjava 各模块版本必须一致（pay/mp/miniapp/cp/open 同属 4.x），统一单源管控 -->
+        <weixin-java.version>4.7.2.B</weixin-java.version>
         <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
         <!-- 百望云 BOPSDK：中央仓库不发布，需 install:install-file 到私服/本地仓库 -->
         <baiwang-bopsdk.version>3.4.871</baiwang-bopsdk.version>
@@ -67,11 +68,27 @@
                 <artifactId>pdfbox</artifactId>
                 <version>${pdfbox.version}</version>
             </dependency>
-            <!-- 渠道 SDK 类：当前仅支付域使用，但属第三方 jar，版本同样单源管控 -->
+            <!-- 渠道 SDK 类：wxjava 各模块版本单源管控，支付域与登录域共用同一版本 -->
             <dependency>
                 <groupId>com.github.binarywang</groupId>
                 <artifactId>weixin-java-pay</artifactId>
-                <version>${weixin-java-pay.version}</version>
+                <version>${weixin-java.version}</version>
+            </dependency>
+            <!-- wxjava 登录模块：公众号/开放平台扫码(mp)、小程序(miniapp)、企业微信(cp) -->
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-mp</artifactId>
+                <version>${weixin-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-miniapp</artifactId>
+                <version>${weixin-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-cp</artifactId>
+                <version>${weixin-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.alipay.sdk</groupId>

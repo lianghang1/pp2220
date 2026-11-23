@@ -16,6 +16,7 @@
 
     <modules>
         <module>conflux-auth-core</module>
+        <module>conflux-auth-channels</module>
     </modules>
 
     <properties>
@@ -44,6 +45,11 @@
             <dependency>
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-auth-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-auth-channels</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
