@@ -35,7 +35,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- 共享依赖版本 single source：spring-boot/okhttp/guava/pdfbox 全部经此 BOM -->
+            <!-- 共享依赖版本 single source：spring-boot/okhttp/pdfbox 全部经此 BOM -->
             <dependency>
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-dependencies</artifactId>
