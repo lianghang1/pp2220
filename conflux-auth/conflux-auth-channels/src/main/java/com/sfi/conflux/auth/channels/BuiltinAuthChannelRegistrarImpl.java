@@ -1,6 +1,12 @@
 package com.sfi.conflux.auth.channels;
 
 import com.sfi.conflux.auth.channel.AuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliAppAuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliH5AuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliH5InAppAuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliH5JsapiAuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliMiniAuthChannel;
+import com.sfi.conflux.auth.channels.alipay.AliWebAuthChannel;
 import com.sfi.conflux.auth.channels.feishu.FeishuAppAuthChannel;
 import com.sfi.conflux.auth.channels.feishu.FeishuInAppAuthChannel;
 import com.sfi.conflux.auth.channels.feishu.FeishuMiniAuthChannel;
@@ -27,11 +33,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 登录域内置渠道清单（编译期固化）：微信 7 种 + 钉钉 6 种 + 飞书 5 种形态。
+ * 登录域内置渠道清单（编译期固化）：微信 7 + 钉钉 6 + 飞书 5 + 支付宝 6 = 24 种形态。
  *
  * <p>由 Java SPI 暴露给 core 的 {@code AuthGateway.Builder}，引入 channels jar 即自动注册。
- * 每构建一个 Provider 都 try-catch 容错——某渠道的可选 SDK 缺失时跳过，不影响其他渠道。
- * 后续支付宝、钉钉、飞书在此按同样方式追加。</p>
+ * 每构建一个 Provider 都 try-catch 容错——某渠道的可选 SDK 缺失时跳过，不影响其他渠道。</p>
  *
  * @author lianghang
  */
@@ -103,6 +108,26 @@ public class BuiltinAuthChannelRegistrarImpl implements BuiltinAuthChannelRegist
         });
         add(channels, FeishuMiniAuthChannel.CHANNEL_CODE, new ChannelFactory() {
             public AuthChannel create() { return new FeishuMiniAuthChannel(); }
+        });
+
+        // 支付宝全家桶 6 种（官方 alipay-sdk-java，RSA2 公钥/证书双模式）
+        add(channels, AliWebAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliWebAuthChannel(); }
+        });
+        add(channels, AliH5AuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliH5AuthChannel(); }
+        });
+        add(channels, AliH5JsapiAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliH5JsapiAuthChannel(); }
+        });
+        add(channels, AliH5InAppAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliH5InAppAuthChannel(); }
+        });
+        add(channels, AliAppAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliAppAuthChannel(); }
+        });
+        add(channels, AliMiniAuthChannel.CHANNEL_CODE, new ChannelFactory() {
+            public AuthChannel create() { return new AliMiniAuthChannel(); }
         });
 
         return channels;

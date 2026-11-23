@@ -39,6 +39,11 @@
             <groupId>com.github.binarywang</groupId>
             <artifactId>weixin-java-cp</artifactId>
         </dependency>
+        <!-- 支付宝登录：复用支付域已有的 alipay-sdk-java（RSA2 签名/验签交给官方 SDK），版本由 conflux-dependencies 单源管控 -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
