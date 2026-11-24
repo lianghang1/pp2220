@@ -4,40 +4,46 @@ import com.sfi.conflux.common.exception.GatewayException;
 import com.sfi.conflux.common.util.StringUtils;
 import com.sfi.conflux.notify.api.NotificationSendRequest;
 import com.sfi.conflux.notify.api.NotificationSendResult;
+import com.sfi.conflux.notify.channel.NotificationChannel;
 import com.sfi.conflux.notify.channel.SmsChannelProvider;
 import com.sfi.conflux.notify.config.NotificationConfig;
 import com.sfi.conflux.notify.config.NotificationConfigProvider;
 import com.sfi.conflux.notify.exception.NotificationErrorCode;
-import org.dromara.sms4j.api.SmsBlend;
-import org.dromara.sms4j.api.entity.SmsResponse;
 
-import java.util.LinkedHashMap;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 聚合短信网关门面：统一短信 API 的唯一出口，双形态共享——
+ * 聚合通知网关门面：统一消息发送 API 的唯一出口，双形态共享——
  * 纯 jar 经 {@link #builder()} 手动组装，Spring Boot 由 starter 装配为单例 Bean。
  *
- * <p>与支付/发票门面对齐的对外契约：{@link Builder#configProvider(NotificationConfigProvider)}
- * 注入配置源（文件/DB/配置中心均可），{@link #registerChannel(SmsChannelProvider)}
- * 声明渠道，{@link #registeredChannels()} 查看已声明渠道。发送时每次从
- * {@code NotificationConfigProvider} 读取配置，凭证变更可被装载层感知并重建客户端。</p>
+ * <p>与登录域 {@code AuthGateway} 同构的「门面只路由」范式：内部一张
+ * {@code Map<channelCode, NotificationChannel>} 渠道表，{@link #send} 只做三件事——
+ * 按 configId+channelCode 读配置、找到渠道、转发。渠道实现（短信 sms4j / 未来的微信、飞书等）
+ * 各自封装 SDK 调用与结果归一，新增渠道不改门面 API。</p>
  *
- * <p>内部完全委托 sms4j 原始包：{@link SmsBlendRegistry} 负责配置装载，
- * 本门面按「configId + 渠道」取出 {@link SmsBlend} 发送，把 {@link SmsResponse}
- * 归一为 {@link NotificationSendResult}。SDK 无状态：不持有台账、不判重、不做频率控制。</p>
+ * <p>与支付/发票门面对齐的对外契约：{@link Builder#configProvider(NotificationConfigProvider)}
+ * 注入配置源，{@link #registerChannel(NotificationChannel)} 声明渠道，
+ * {@link #registeredChannels()} 查看已装载渠道。每次发送都从配置源读取，凭证变更可被装载层感知并重建。</p>
+ *
+ * <p>短信渠道由 {@link Sms4jChannel} 委托 sms4j 原始包：{@link SmsBlendRegistry} 负责配置装载，
+ * 指纹缓存与 configId::channel 隔离全部保留在原装载器内部，零回归。SDK 无状态：不持有台账、不判重、不做频率控制。</p>
  *
  * @author lianghang
  */
 public class NotificationGateway {
 
-    private final SmsBlendRegistry registry;
+    private final Map<String, NotificationChannel> channels;
     private final NotificationConfigProvider configProvider;
+    private final SmsBlendRegistry registry;
 
     private NotificationGateway(Builder builder) {
-        this.registry = builder.registry;
+        this.channels = builder.channels;
         this.configProvider = builder.configProvider;
+        this.registry = builder.registry;
     }
 
     /** 创建构建器。 */
@@ -46,27 +52,37 @@ public class NotificationGateway {
     }
 
     /**
-     * 声明渠道（与支付/发票 {@code registerChannel(provider)} 对齐）：登记渠道编码
-     * 的 sms4j 原生 Factory 实例。渠道实现仍全部来自 sms4j，本方法不含任何渠道逻辑。
+     * 声明自定义通知渠道（与登录域 {@code registerChannel(AuthChannel)} 对齐）。
+     * 内置渠道由 build() 自动注册，本方法仅供扩展新平台。
      */
-    public void registerChannel(SmsChannelProvider provider) {
-        registry.register(provider);
-    }
-
-    /** 已声明渠道编码集合（对齐支付/发票 registeredChannels）。 */
-    public Set<String> registeredChannels() {
-        return registry.registeredChannels();
+    public void registerChannel(NotificationChannel channel) {
+        requireValidChannel(channel);
+        channels.put(channel.channelCode(), channel);
     }
 
     /**
-     * 统一发送：按 configId + 渠道取出 sms4j SmsBlend 发送，并归一结果。
+     * 声明 sms4j 原生渠道工厂（兼容原有短信扩展口）：把 Factory 注册进 sms4j 原生注册表，
+     * 并登记一个短信渠道到统一渠道表。内置与自定义短信渠道走同一条路径。
+     */
+    public void registerChannel(SmsChannelProvider provider) {
+        registry.register(provider);
+        channels.put(provider.channelCode(), new Sms4jChannel(provider.channelCode(), registry));
+    }
+
+    /** 已装载渠道编码集合（对齐支付/发票 registeredChannels；短信侧沿用装载器已装载集合）。 */
+    public Set<String> registeredChannels() {
+        return Collections.unmodifiableSet(new LinkedHashSet<String>(registry.registeredChannels()));
+    }
+
+    /**
+     * 统一发送：按 configId + channelCode 读配置 → 找渠道 → 转发，归一结果。
      *
-     * <p>每次调用都从 {@link NotificationConfigProvider} 读取配置并确保装载
-     * （凭证变更可重建）。配置源由 {@link Builder#configProvider} 注入。</p>
+     * <p>每次调用都先从配置源读取配置（凭证变更可被感知），再按渠道编码路由。
+     * 短信渠道码由内置 Sms4jChannel 处理，IM 渠道码由对应 NotificationChannel 处理。</p>
      *
-     * @param configId       使用方应用标识
+     * @param configId   使用方应用标识
      * @param channelCode 渠道标识
-     * @param request     统一发送请求
+     * @param request    统一发送请求
      */
     public NotificationSendResult send(String configId, String channelCode, NotificationSendRequest request) {
         if (StringUtils.isBlank(configId) || StringUtils.isBlank(channelCode) || request == null
@@ -74,45 +90,53 @@ public class NotificationGateway {
             throw new GatewayException(NotificationErrorCode.BAD_REQUEST,
                     "发送参数不完整: configId/channelCode/request.phone 必填");
         }
+        // 先读配置（契约：每次 send 都读 provider；缺失即 fail-fast）
         NotificationConfig cfg = configProvider.getConfig(configId, channelCode);
-        registry.ensureLoaded(cfg);
-        SmsBlend blend = registry.smsBlend(configId, channelCode);
-        SmsResponse response = dispatch(blend, request);
-        boolean ok = response != null && response.isSuccess();
-        return new NotificationSendResult()
-                .setSuccess(ok)
-                .setBizId(request.getBizId())
-                .setChannel(channelCode)
-                .setConfigId(configId)
-                .setRaw(response == null ? null : response.getData())
-                .setError(ok ? null : (response == null ? "渠道返回空结果" : String.valueOf(response.getData())));
-    }
-
-    /** 请求参数 → sms4j 发送重载：有模板变量走 Map 重载，否则走文本重载。 */
-    private SmsResponse dispatch(SmsBlend blend, NotificationSendRequest request) {
-        if (request.getParams() != null && !request.getParams().isEmpty()) {
-            return blend.sendMessage(request.getPhone(),
-                    new LinkedHashMap<String, String>(request.getParams()));
+        if (cfg == null) {
+            throw new GatewayException(NotificationErrorCode.CONFIG_MISSING,
+                    "渠道配置缺失: configId={}, channelCode={}", configId, channelCode);
         }
-        return blend.sendMessage(request.getPhone(), request.getContent());
+        NotificationChannel channel = channels.get(channelCode);
+        if (channel == null) {
+            // 未在表中声明的渠道：若属 sms4j 内置供应商则懒装载短信渠道（配置驱动，兼容原有行为）；
+            // 否则交由装载器抛 CHANNEL_NOT_FOUND。
+            channel = new Sms4jChannel(channelCode, registry);
+            channels.put(channelCode, channel);
+        }
+        return channel.send(cfg, request);
     }
 
-    /** 网关构建器：持有装载器与配置提供者，零外部框架依赖。 */
+    private static void requireValidChannel(NotificationChannel channel) {
+        if (channel == null || StringUtils.isBlank(channel.channelCode())) {
+            throw new GatewayException(NotificationErrorCode.BAD_REQUEST, "渠道或 channelCode 不能为空");
+        }
+    }
+
+    /** 网关构建器：持有渠道表、装载器与配置源，零外部框架依赖。 */
     public static class Builder {
 
         private final SmsBlendRegistry registry = new SmsBlendRegistry();
+        private final Map<String, NotificationChannel> channels = new ConcurrentHashMap<String, NotificationChannel>();
         private NotificationConfigProvider configProvider;
 
-        /** 声明渠道（对齐支付/发票同名方法），可多次调用。 */
-        public Builder channel(SmsChannelProvider provider) {
-            registry.register(provider);
+        /** 声明自定义通知渠道（如未来的 IM 平台），可多次调用。 */
+        public Builder channel(NotificationChannel channel) {
+            requireValid(channel);
+            channels.put(channel.channelCode(), channel);
             return this;
         }
 
-        /**
-         * 渠道配置提供者（必填，对齐支付/发票同名方法）：发送链路每次从中读取配置。
-         * 若实现 {@link NotificationConfigProvider#allConfigs()}，构建时按全部配置预热装载、坏配置 fail-fast。
-         */
+        /** 声明 sms4j 原生渠道工厂（兼容原有短信扩展口），可多次调用。 */
+        public Builder channel(SmsChannelProvider provider) {
+            if (provider == null) {
+                throw new GatewayException(NotificationErrorCode.BAD_REQUEST, "渠道声明不能为空");
+            }
+            registry.register(provider);
+            channels.put(provider.channelCode(), new Sms4jChannel(provider.channelCode(), registry));
+            return this;
+        }
+
+        /** 渠道配置提供者（必填，对齐支付/发票同名方法）。 */
         public Builder configProvider(NotificationConfigProvider configProvider) {
             this.configProvider = configProvider;
             return this;
@@ -123,10 +147,21 @@ public class NotificationGateway {
             if (configProvider == null) {
                 throw new GatewayException(NotificationErrorCode.CONFIG_MISSING, "未设置渠道配置提供者");
             }
+            // 按全部配置预热装载短信渠道（坏配置 fail-fast），并把已配置渠道登记进统一渠道表
             for (NotificationConfig cfg : configProvider.allConfigs()) {
                 registry.ensureLoaded(cfg);
+                String code = cfg.getChannelCode();
+                if (!channels.containsKey(code)) {
+                    channels.put(code, new Sms4jChannel(code, registry));
+                }
             }
             return new NotificationGateway(this);
+        }
+
+        private static void requireValid(NotificationChannel channel) {
+            if (channel == null || StringUtils.isBlank(channel.channelCode())) {
+                throw new GatewayException(NotificationErrorCode.BAD_REQUEST, "渠道或 channelCode 不能为空");
+            }
         }
     }
 }
