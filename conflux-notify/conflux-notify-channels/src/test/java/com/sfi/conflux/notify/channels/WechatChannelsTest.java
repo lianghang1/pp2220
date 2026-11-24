@@ -6,10 +6,13 @@ import com.sfi.conflux.notify.api.NotificationSendResult;
 import com.sfi.conflux.notify.channels.message.mini.MiniSubscribeMsg;
 import com.sfi.conflux.notify.channels.message.mp.MpTemplateMsg;
 import com.sfi.conflux.notify.channels.message.wecom.WeComAppMsg;
+import com.sfi.conflux.notify.channels.message.wecom.robot.WeComRobotCardMsg;
+import com.sfi.conflux.notify.channels.message.wecom.robot.WeComRobotTextMsg;
 import com.sfi.conflux.notify.channels.mini.WechatMiniChannel;
 import com.sfi.conflux.notify.channels.mp.WechatMpChannel;
 import com.sfi.conflux.notify.channels.wecom.WeComChannel;
 import com.sfi.conflux.notify.config.NotificationConfig;
+import me.chanjar.weixin.cp.api.WxCpGroupRobotService;
 import me.chanjar.weixin.cp.api.WxCpMessageService;
 import me.chanjar.weixin.cp.api.WxCpService;
 import me.chanjar.weixin.mp.api.WxMpService;
@@ -80,6 +83,39 @@ class WechatChannelsTest {
         verify(msgService).send(msg);
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getChannel()).isEqualTo("wechat_wecom");
+    }
+
+    @Test
+    void wecomRobotTextMsgShouldBeUnpackedToStringArgs() throws Exception {
+        WxCpService cpService = mock(WxCpService.class);
+        WxCpGroupRobotService robot = mock(WxCpGroupRobotService.class);
+        when(cpService.getGroupRobotService()).thenReturn(robot);
+        WeComChannel channel = new WeComChannel(cpService);
+
+        WeComRobotTextMsg msg = new WeComRobotTextMsg()
+                .setWebhookKey("hook-1").setContent("部署完成")
+                .setMentionedList(java.util.Collections.singletonList("zhangsan"));
+        NotificationSendResult result = channel.send(cfg("app3", "wechat_wecom"), msg);
+
+        verify(robot).sendText("hook-1", "部署完成",
+                java.util.Collections.singletonList("zhangsan"), null);
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getChannel()).isEqualTo("wechat_wecom");
+    }
+
+    @Test
+    void wecomRobotCardMsgShouldPassNativeBeanDirectly() throws Exception {
+        WxCpService cpService = mock(WxCpService.class);
+        WxCpGroupRobotService robot = mock(WxCpGroupRobotService.class);
+        when(cpService.getGroupRobotService()).thenReturn(robot);
+        WeComChannel channel = new WeComChannel(cpService);
+
+        WeComRobotCardMsg msg = new WeComRobotCardMsg().setWebhookKey("hook-2");
+        msg.setCardType("text_notice");
+        NotificationSendResult result = channel.send(cfg("app3", "wechat_wecom"), msg);
+
+        verify(robot).sendTemplateCardMessage("hook-2", msg);
+        assertThat(result.isSuccess()).isTrue();
     }
 
     @Test

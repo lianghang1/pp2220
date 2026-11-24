@@ -245,6 +245,7 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `wechat_mp` | `MpTemplateMsg` / `MpKefuMsg` / `MpSubscribeMsg` / `MpMassTagMsg` / `MpMassOpenIdsMsg` / `MpMassPreviewMsg` | `WxMpTemplateMsgService.sendTemplateMsg` / `WxMpKefuService.sendKefuMessage` / `WxMpSubscribeMsgService.send` / `WxMpMassMessageService.massXxx` |
 | `wechat_mini` | `MiniSubscribeMsg` / `MiniKefuMsg` / `MiniUniformMsg` / `MiniUpdatableMsg` | `WxMaMsgService.sendSubscribeMsg` / `sendKefuMsg` / `sendUniformMsg` / `setUpdatableMsg` |
 | `wechat_wecom` | `WeComAppMsg` / `WeComAppChatMsg` / `WeComLinkedCorpMsg` | `WxCpMessageService.send` / `WxCpChatService.sendMsg` / `sendLinkedCorpMessage` |
+| `wechat_wecom`（群机器人） | `WeComRobotTextMsg` / `WeComRobotMarkdownMsg` / `WeComRobotImageMsg` / `WeComRobotFileMsg` / `WeComRobotVoiceMsg` / `WeComRobotNewsMsg` / `WeComRobotCardMsg` | `WxCpGroupRobotService.sendText/sendMarkdown/sendImage/sendFile/sendVoice/sendNews/sendTemplateCardMessage`；前五种收散装 String，由渠道拆参；后两种可继承原生 bean 直接传 |
 
 ```java
 // 小程序订阅消息：一份 wechat_mini 凭证，选 bean 决定消息类型

@@ -99,7 +99,8 @@ NotificationSendResult r2 = gateway.send("demo", msg);   // → wechat_mini 凭�
 ```
 
 - `NotificationMessage`：统一消息接口，仅 `channelCode()`；短信 `NotificationSendRequest` 与全部微信消息 bean 都实现它。
-- 微信消息 bean（`conflux-notify-channels`）继承 wxjava 原生参数类：`wechat_mp` 有 `MpTemplateMsg`/`MpKefuMsg`/`MpSubscribeMsg`/`MpMassTagMsg`/`MpMassOpenIdsMsg`/`MpMassPreviewMsg`；`wechat_mini` 有 `MiniSubscribeMsg`/`MiniKefuMsg`/`MiniUniformMsg`/`MiniUpdatableMsg`；`wechat_wecom` 有 `WeComAppMsg`/`WeComAppChatMsg`/`WeComLinkedCorpMsg`。
+- 微信消息 bean（`conflux-notify-channels`）：`wechat_mp` 有 `MpTemplateMsg`/`MpKefuMsg`/`MpSubscribeMsg`/`MpMassTagMsg`/`MpMassOpenIdsMsg`/`MpMassPreviewMsg`；`wechat_mini` 有 `MiniSubscribeMsg`/`MiniKefuMsg`/`MiniUniformMsg`/`MiniUpdatableMsg`；`wechat_wecom` 有 `WeComAppMsg`/`WeComAppChatMsg`/`WeComLinkedCorpMsg`，以及群机器人 `WeComRobotTextMsg`/`WeComRobotMarkdownMsg`/`WeComRobotImageMsg`/`WeComRobotFileMsg`/`WeComRobotVoiceMsg`/`WeComRobotNewsMsg`/`WeComRobotCardMsg`。
+- 能继承 wxjava 原生参数类的直接继承；群机器人文本/Markdown/图片/文件/语音的原生 API 收散装 String 参数（无 bean 可继承），用自定义 bean 承载字段、渠道内拆参，用户侧用法与其他消息一致。群机器人的 `webhookKey` 随消息 bean 携带，不进凭证配置。
 - `NotificationSendResult`：`success`、`bizId`（短信回填）、`channel`（渠道编码）、`configId`、`raw`（SDK 原始返回）、`error`。渠道调用异常归一为失败结果，不击穿调用方。
 - **发送即终态**，SDK 不持有台账、不判重、不做频率控制。
 
