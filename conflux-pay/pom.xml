@@ -31,6 +31,7 @@
              不受 dependencyManagement 管理，升版需与 BOM 同步。 -->
         <spring-boot.version>2.7.18</spring-boot.version>
         <conflux-common.version>1.0.0-SNAPSHOT</conflux-common.version>
+        <conflux-platform.version>1.0.0-SNAPSHOT</conflux-platform.version>
     </properties>
 
     <dependencyManagement>
@@ -49,6 +50,13 @@
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-common</artifactId>
                 <version>${conflux-common.version}</version>
+            </dependency>
+
+            <!-- 平台客户端层：支付宝 client 的构造/缓存下沉到薄门面，本域只做凭证映射 -->
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-platform-alipay</artifactId>
+                <version>${conflux-platform.version}</version>
             </dependency>
 
             <!-- 本域自产模块 -->

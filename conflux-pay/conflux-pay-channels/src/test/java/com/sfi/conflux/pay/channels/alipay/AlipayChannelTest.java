@@ -105,4 +105,35 @@ class AlipayChannelTest {
         assertThat(handler.successReply()).isEqualTo("success");
         assertThat(handler.failureReply()).isEqualTo("fail");
     }
+
+    private static AlipayParams newParams(String appId) {
+        Map<String, String> properties = new HashMap<String, String>();
+        properties.put("appId", appId);
+        properties.put("privateKey", "-----BEGIN RSA PRIVATE KEY-----\nMIIB\n-----END RSA PRIVATE KEY-----");
+        properties.put("alipayPublicKey", "MIIBIjANBgkq");
+        return AlipayParams.fromMap(properties);
+    }
+
+    @Test
+    void sandboxAndProdShouldProduceDifferentClients() {
+        // 沙箱与生产走不同生效网关，映射进 attrs.gateway 后应纳入平台层缓存指纹，产出不同实例
+        AlipayClientHolder holder = new AlipayClientHolder();
+        AlipayParams prod = newParams("2021000000000001");
+        AlipayParams sandbox = newParams("2021000000000001");
+        sandbox.setSandbox(true);
+        assertThat(prod.effectiveGateway(false)).isEqualTo(AlipayParams.DEFAULT_GATEWAY);
+        assertThat(sandbox.effectiveGateway(true)).isEqualTo(AlipayParams.SANDBOX_GATEWAY);
+        assertThat(holder.client(prod)).isNotSameAs(holder.client(sandbox));
+    }
+
+    @Test
+    void explicitGatewayShouldOverrideSandbox() {
+        AlipayClientHolder holder = new AlipayClientHolder();
+        AlipayParams custom = newParams("2021000000000001");
+        custom.setGateway("https://custom.gateway.example/do");
+        custom.setSandbox(true);
+        // 显式网关优先于沙箱开关（effectiveGateway 语义），映射到 attrs 后仍是同一生效网关
+        assertThat(custom.effectiveGateway(true)).isEqualTo("https://custom.gateway.example/do");
+        assertThat(holder.client(custom)).isNotNull();
+    }
 }

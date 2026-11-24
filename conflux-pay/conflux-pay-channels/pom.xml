@@ -25,6 +25,13 @@
             <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-pay-core</artifactId>
         </dependency>
+        <!-- 平台客户端层：支付宝 client 构造/缓存委托平台层薄门面；与 alipay-sdk 同为 optional，
+             使用方引入支付宝渠道时按需一并引入，不破坏"渠道 SDK 按需激活"的既有语义 -->
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-alipay</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

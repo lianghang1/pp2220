@@ -2,47 +2,53 @@ package com.sfi.conflux.pay.channels.alipay;
 
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
-import com.alipay.api.AlipayConfig;
 import com.alipay.api.AlipayResponse;
-import com.alipay.api.DefaultAlipayClient;
 import com.sfi.conflux.pay.channel.ChannelConfig;
 import com.sfi.conflux.pay.exception.GatewayErrorCode;
 import com.sfi.conflux.common.exception.GatewayException;
+import com.sfi.conflux.common.util.StringUtils;
+import com.sfi.conflux.platform.alipay.AlipayClients;
+import com.sfi.conflux.platform.core.PlatformCredential;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
- * 支付宝 SDK 客户端持有器：按应用凭证缓存 DefaultAlipayClient，统一异常包装。
+ * 支付宝 SDK 客户端持有器（支付域适配层）：把 {@link ChannelConfig} 映射为平台统一凭证，
+ * 取 client 的动作委托平台层 {@link AlipayClients}。
  *
- * <p>AlipayClient 实例线程安全可复用；支付宝接口失败（业务错误码在响应体中）
- * 经 {@link #wrap} 转换为网关渠道异常并保留支付宝原始错误码。</p>
+ * <p>官方 alipay-sdk-java 的签名脏活（RSA2、公钥/证书模式）由 SDK 负责，client 的构造与缓存下沉到
+ * 平台层门面；本类只做「ChannelConfig → PlatformCredential」字段映射：appId→appId、privateKey→secret，
+ * alipayPublicKey/gateway/effectiveGateway(沙箱)/signType 透传 attrs。保留原方法签名，渠道实现零改动。</p>
+ *
+ * <p>沙箱开关由 {@link ChannelConfig#isSandbox()} 承载，映射到 {@code attrs.gateway} 时取
+ * {@link AlipayParams#effectiveGateway(boolean)} 的结算结果，确保沙箱环境不会误走生产网关。</p>
+ *
+ * <p>调用职责仍留在域层：{@link #execute} 的 subCode 业务失败包装、ISV {@code appAuthToken} 透传——
+ * 平台层只返回原生 client，不接管这些语义。</p>
  *
  * @author lianghang
  */
 public class AlipayClientHolder {
 
-    private final ConcurrentHashMap<AlipayParams, AlipayClient> clients =
-            new ConcurrentHashMap<AlipayParams, AlipayClient>();
+    private final AlipayClients clients = new AlipayClients();
 
-    /** 取指定配置对应的客户端（按需构建并缓存）。 */
+    /** 取指定配置对应的客户端（平台层按凭证指纹构造并缓存）。 */
     public AlipayClient client(ChannelConfig config) {
+        return clients.client(credential(config));
+    }
+
+    /** ChannelConfig → 平台统一凭证：appId/私钥为主字段，其余平台参数透传 attrs（含沙箱生效网关）。 */
+    private static PlatformCredential credential(ChannelConfig config) {
         AlipayParams params = paramsOf(config);
-        return clients.computeIfAbsent(params, key -> {
-            try {
-                AlipayConfig alipayConfig = new AlipayConfig();
-                alipayConfig.setServerUrl(key.effectiveGateway(config.isSandbox()));
-                alipayConfig.setAppId(key.getAppId());
-                alipayConfig.setPrivateKey(key.getPrivateKey());
-                alipayConfig.setAlipayPublicKey(key.getAlipayPublicKey());
-                alipayConfig.setSignType(key.getSignType());
-                alipayConfig.setFormat("json");
-                alipayConfig.setCharset("UTF-8");
-                return new DefaultAlipayClient(alipayConfig);
-            } catch (AlipayApiException e) {
-                throw new GatewayException(GatewayErrorCode.CONFIG_MISSING,
-                        "支付宝客户端构建失败: {}", e.getMessage());
-            }
-        });
+        Map<String, String> attrs = new LinkedHashMap<String, String>();
+        attrs.put("alipayPublicKey", params.getAlipayPublicKey());
+        // 沙箱开关：显式 gateway 优先，否则按 sandbox 切到沙箱网关，结果作为统一 gateway 交给平台层
+        attrs.put("gateway", params.effectiveGateway(config.isSandbox()));
+        if (!StringUtils.isBlank(params.getSignType())) {
+            attrs.put("signType", params.getSignType());
+        }
+        return PlatformCredential.of(params.getAppId(), params.getPrivateKey(), attrs);
     }
 
     public static AlipayParams paramsOf(ChannelConfig config) {
@@ -58,7 +64,7 @@ public class AlipayClientHolder {
         try {
             T response = caller.call(client(config), authTokenOf(config));
             if (response != null && !response.isSuccess()
-                    && com.sfi.conflux.common.util.StringUtils.isNotBlank(response.getSubCode())) {
+                    && StringUtils.isNotBlank(response.getSubCode())) {
                 throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
                         "支付宝{}失败: subCode={}, subMsg={}", action, response.getSubCode(), response.getSubMsg());
             }
