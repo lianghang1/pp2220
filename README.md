@@ -1,28 +1,43 @@
 # Conflux
 
-可嵌入的**无状态渠道聚合 SDK**（**JDK 8+ / Spring Boot 2.7.x**），把支付、数电发票、短信、文件四域各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。
+可嵌入的**无状态渠道聚合 SDK**（**JDK 8+ / Spring Boot 2.7.x**），把支付、数电发票、通知、文件、登录五域各家渠道的**方法名、出入参、返回结果、回调验签**归一成统一 API。
 
 > **定位**：Conflux 不是独立运行的中间件，而是给成熟应用直接引入的 SDK。它只做一件事——统一渠道差异；**不持有台账、不做幂等/CAS、不维护状态机、不落库、不通知下游**。落库、判重、状态推进、下游通知、定时任务全部由使用方在自己的业务链里完成。
 
-## 四域速览
+## 五域速览
 
 | 能力域 | 门面 | 核心能力 | 使用指南 |
 |---|---|---|---|
 | 支付 `conflux-pay` | `PaymentGateway` | 下单/查单/关单、退款、转账、分账、账单、回调验签 | [guides/pay.md](docs/guides/pay.md) |
 | 数电发票 `conflux-invoice` | `InvoiceGateway` | 蓝字开票、授权、红冲、查单、交付、版式文件 | [guides/invoice.md](docs/guides/invoice.md) |
-| 通知 `conflux-notify` | `NotificationGateway` | 发送短信 + IM 推送（短信委托 sms4j，22 家厂商开箱即用） | [guides/notify.md](docs/guides/notify.md) |
+| 通知 `conflux-notify` | `NotificationGateway` | 短信 + IM 推送（微信/支付宝/飞书）：消息 bean 继承 SDK 原生参数类，统一 `send(configId, message)` 入口 | [guides/notify.md](docs/guides/notify.md) |
 | 文件 `conflux-file` | `FileGateway` | 上传/下载/删除/预签名（内部委托 x-file-storage，30+ 平台） | [guides/file.md](docs/guides/file.md) |
+| 登录 `conflux-auth` | `AuthGateway` | 微信/支付宝/钉钉/飞书 24 种登录形态，授权 + 回调换身份 | [guides/auth.md](docs/guides/auth.md) |
 
 ## 各域渠道与平台
 
-四域均以 `channelCode` 路由，内置项在 `builder().build()` 时自动注册、用户零 `.channel()`。渠道/平台的来源与支持清单各域不同，明细下沉到对应文档：
+五域均以 `channelCode` 路由，内置项在 `builder().build()` 时自动注册、用户零 `.channel()`。渠道/平台的来源与支持清单各域不同，明细下沉到对应文档：
 
 | 能力域 | 渠道/平台来源 | 支持清单与能力边界 |
 |---|---|---|
 | 支付 | 框架自研适配，6 个内置渠道 | [guides/pay.md § 内置渠道能力矩阵](docs/guides/pay.md#内置渠道能力矩阵) |
 | 发票 | 框架自研适配，5 个内置平台 | [reference/invoice-platforms.md](docs/reference/invoice-platforms.md) |
-| 通知 | sms4j 官方厂商（22 家，短信） | [guides/notify.md](docs/guides/notify.md) |
+| 通知 | 短信委托 sms4j（22 家厂商）+ IM 内置 6 渠道（微信公众号/小程序/企业微信、支付宝小程序/生活号、飞书） | [guides/notify.md](docs/guides/notify.md) |
 | 文件 | x-file-storage 官方平台（30+） | [guides/file.md](docs/guides/file.md) |
+| 登录 | 自研 channels：微信 7 / 支付宝 6 / 钉钉 6 / 飞书 5 形态 | [guides/auth.md](docs/guides/auth.md) |
+
+## 平台客户端层（conflux-platform）
+
+登录、通知、支付（支付宝）通过极简平台门面 `XxxClients.client(凭证)` 取原生 SDK client，统一凭证叫法（`appId` / `secret`）与 client 缓存；平台层不封能力、不作为第六个域。
+
+| 模块 | 门面 | 覆盖 |
+|---|---|---|
+| `conflux-platform-core` | `PlatformCredential` / `ClientCache` | 统一凭证与缓存工具 |
+| `conflux-platform-wechat` | `WechatClients`（ma/mp/cp） | 微信登录 + 通知 |
+| `conflux-platform-alipay` | `AlipayClients`（client 单方法） | 支付宝登录 + 通知 + 支付 |
+| `conflux-platform-feishu` | `FeishuClients`（client 单方法） | 飞书通知 |
+
+> 钉钉官方无对应 SDK 沉淀，登录走 HTTP/JSON 薄适配，未建平台门面。
 
 ## 五条核心约定
 
@@ -60,34 +75,36 @@ PaymentResult pay = paymentGateway.createPayment(new PaymentRequest()
         .setAmount(9900L).setSubject("订单支付"));
 ```
 
-内置渠道由 `builder().build()` 自动全量注册，用户零 `.channel()`；四域用同一套门面范式（`builder()` / `.configProvider(...)` / `registerChannel()` / `registeredChannels()`）。
+内置渠道由 `builder().build()` 自动全量注册，用户零 `.channel()`；五域用同一套门面范式（`builder()` / `.configProvider(...)` / `registerChannel()` / `registeredChannels()`）。
 
 ## 模块构成
 
 | 模块 | 说明 | Spring 依赖 |
 |---|---|---|
-| `conflux-common` | 公共工具 / 异常 / HTTP 传输 / 配置映射 | 无 |
+| `conflux-common` | 公共工具 / 异常 / HTTP 传输 / 配置映射 / 平台标识常量 | 无 |
+| `conflux-platform`（core / wechat / alipay / feishu） | 平台客户端层：凭证 → 原生 SDK client 的极简薄门面 | 无 |
 | `conflux-pay`（core / channels / starter / example） | 支付域 | core·channels 无；starter 需 Boot |
 | `conflux-invoice`（core / channels / starter / example） | 发票域 | core·channels 无；starter 需 Boot |
-| `conflux-notify`（core / starter） | 通知域，内部委托 sms4j 原始包 | core 无；starter 需 Boot |
+| `conflux-notify`（core / channels / starter / example） | 通知域：短信委托 sms4j，IM 委托平台层 | core·channels 无；starter 需 Boot |
 | `conflux-file`（core / starter） | 文件域，内部委托 x-file-storage 原始包 | core 无；starter 需 Boot |
+| `conflux-auth`（core / channels / starter / example） | 登录域：24 种第三方登录形态 | core·channels 无；starter 需 Boot |
 
 Spring Boot 用 starter 自动装配；Spring MVC / 传统 Spring / 纯 Java 引入对应 core（+ channels）手动 `builder()` 组装，配置来源不限配置文件。详见 [getting-started.md](docs/getting-started.md)。
 
 ## 文档索引
 
 **使用者入口**
-- [getting-started.md](docs/getting-started.md) — 通用入门：三种引入形态、配置模型、回调定位、四域共性
-- 四域使用指南：[支付](docs/guides/pay.md) · [发票](docs/guides/invoice.md) · [通知](docs/guides/notify.md) · [文件](docs/guides/file.md)
+- [getting-started.md](docs/getting-started.md) — 通用入门：三种引入形态、配置模型、回调定位、五域共性
+- 五域使用指南：[支付](docs/guides/pay.md) · [发票](docs/guides/invoice.md) · [通知](docs/guides/notify.md) · [文件](docs/guides/file.md) · [登录](docs/guides/auth.md)
 
 **参考手册**
-- [reference/api-reference.md](docs/reference/api-reference.md) — 四域 API 方法 / 出入参字段 / 枚举速查
+- [reference/api-reference.md](docs/reference/api-reference.md) — 五域 API 方法 / 出入参字段 / 枚举速查
 - [reference/config-keys.md](docs/reference/config-keys.md) — 支付渠道配置键对照表
 - [reference/invoice-platforms.md](docs/reference/invoice-platforms.md) — 发票平台文档核对与能力清单
 - [integration-checklist.md](docs/integration-checklist.md) — 真实渠道联调清单
 
 **维护者规范**
-- [framework-contract.md](docs/framework-contract.md) — 四域统一契约（图纸 / 规范 / 检查清单），新增能力或渠道必须严格执行
+- [framework-contract.md](docs/framework-contract.md) — 五域统一契约（图纸 / 规范 / 检查清单），新增能力或渠道必须严格执行
 
 ## 构建与测试
 
@@ -95,4 +112,4 @@ Spring Boot 用 starter 自动装配；Spring MVC / 传统 Spring / 纯 Java 引
 mvn -q -DfailIfNoTests=false test
 ```
 
-当前全量 **314 个用例全绿**。
+当前全量 **391 个用例全绿**。

@@ -72,7 +72,7 @@ public class AlipayPaymentHandler implements PaymentHandler {
         AlipayTradeQueryModel model = new AlipayTradeQueryModel();
         model.setOutTradeNo(payment.getBizOrderNo());
         request.setBizModel(model);
-        AlipayTradeQueryResponse response = holder.execute("查单", config, (client, authToken) -> {
+        AlipayTradeQueryResponse response = holder.executeRaw("查单", config, (client, authToken) -> {
             if (StringUtils.isNotBlank(authToken)) {
                 request.putOtherTextParam("app_auth_token", authToken);
             }

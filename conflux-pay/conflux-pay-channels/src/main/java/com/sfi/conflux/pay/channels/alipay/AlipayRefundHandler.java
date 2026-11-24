@@ -58,7 +58,7 @@ public class AlipayRefundHandler implements RefundHandler {
         model.setOutRequestNo(refund.getBizRefundNo());
         request.setBizModel(model);
         AlipayTradeFastpayRefundQueryResponse response =
-                holder.execute("退款查单", config, (client, authToken) -> {
+                holder.executeRaw("退款查单", config, (client, authToken) -> {
             if (StringUtils.isNotBlank(authToken)) {
                 request.putOtherTextParam("app_auth_token", authToken);
             }

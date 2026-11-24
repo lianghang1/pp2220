@@ -61,16 +61,25 @@ public class AlipayClientHolder {
 
     /** 统一接口调用包装：SDK 异常与业务失败（subCode 非空）收敛为网关渠道异常；ISV 授权令牌非空时自动携带。 */
     public <T extends AlipayResponse> T execute(String action, ChannelConfig config, RequestCaller<T> caller) {
+        T response = executeRaw(action, config, caller);
+        if (response != null && !response.isSuccess()
+                && StringUtils.isNotBlank(response.getSubCode())) {
+            throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
+                    "支付宝{}失败: subCode={}, subMsg={}", action, response.getSubCode(), response.getSubMsg());
+        }
+        return response;
+    }
+
+    /**
+     * 原始调用包装：仅收敛 SDK/系统异常，不把业务 subCode 失败转成异常。
+     *
+     * <p>供"查单/退款查单"这类需要读取 subCode 归一为业务状态（如交易不存在=支付中、
+     * 退款查无记录=处理中）的场景使用——若走 {@link #execute}，业务失败会先被抛成异常，
+     * 导致这些特判分支永不可达。</p>
+     */
+    public <T extends AlipayResponse> T executeRaw(String action, ChannelConfig config, RequestCaller<T> caller) {
         try {
-            T response = caller.call(client(config), authTokenOf(config));
-            if (response != null && !response.isSuccess()
-                    && StringUtils.isNotBlank(response.getSubCode())) {
-                throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
-                        "支付宝{}失败: subCode={}, subMsg={}", action, response.getSubCode(), response.getSubMsg());
-            }
-            return response;
-        } catch (GatewayException e) {
-            throw e;
+            return caller.call(client(config), authTokenOf(config));
         } catch (AlipayApiException e) {
             throw new GatewayException(GatewayErrorCode.CHANNEL_CALL_FAILED,
                     "支付宝{}失败: {}", action, e.getMessage(), e);
