@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-platform-alipay</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-platform-alipay</name>
+    <description>支付宝平台客户端薄门面：AlipayClients 以统一凭证换取支付宝官方原生 AlipayClient。
+        登录/通知/支付共用同一 client 类型，公钥模式与证书模式由凭证 attrs 驱动。
+        门面只返回原生 client、不封任何能力，用户可直接调用官方 SDK 全部接口。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-core</artifactId>
+        </dependency>
+        <!-- 支付宝官方 SDK：版本由 conflux-dependencies 单源管控，与支付/登录域同版本 -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
