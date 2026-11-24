@@ -26,6 +26,11 @@
             <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-auth-core</artifactId>
         </dependency>
+        <!-- 平台客户端层：微信 client 的构造/缓存/token 管理下沉到薄门面，本域只做凭证映射 -->
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-wechat</artifactId>
+        </dependency>
         <!-- wxjava 登录模块：版本由 conflux-dependencies 单源管控，与支付域 weixin-java-pay 同版本 -->
         <dependency>
             <groupId>com.github.binarywang</groupId>

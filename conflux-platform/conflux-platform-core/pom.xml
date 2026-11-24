@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-platform-core</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-platform-core</name>
+    <description>平台客户端层基座：统一凭证载体 PlatformCredential 与共用缓存工具 ClientCache。
+        纯 Java，零 Spring、零 SDK、零 Redis——只做「凭证指纹 → client 实例」缓存，各平台门面复用。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

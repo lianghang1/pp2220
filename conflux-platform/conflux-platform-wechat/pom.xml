@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-platform-wechat</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-platform-wechat</name>
+    <description>微信平台客户端薄门面：WechatClients 以统一凭证换取 wxjava 原生
+        WxMaService / WxMpService / WxCpService。不封装能力、不包装 client，调用方直接调 SDK 接口。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-core</artifactId>
+        </dependency>
+        <!-- wxjava 登录模块：版本由 conflux-dependencies 单源管控，与支付/登录域同版本 4.7.2.B -->
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-mp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-miniapp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-cp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

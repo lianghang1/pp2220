@@ -27,6 +27,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <conflux-common.version>1.0.0-SNAPSHOT</conflux-common.version>
+        <conflux-platform.version>1.0.0-SNAPSHOT</conflux-platform.version>
     </properties>
 
     <dependencyManagement>
@@ -42,6 +43,11 @@
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-common</artifactId>
                 <version>${conflux-common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-platform-wechat</artifactId>
+                <version>${conflux-platform.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.sfi.conflux</groupId>

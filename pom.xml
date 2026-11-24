@@ -20,5 +20,6 @@
         <module>conflux-notify</module>
         <module>conflux-file</module>
         <module>conflux-auth</module>
+        <module>conflux-platform</module>
     </modules>
 </project>
