@@ -204,20 +204,21 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 | `ChannelTier` | `DIRECT_TAX` `SERVICE_API` `WEB_PORTAL` |
 | `InvoiceFileType` | `XML` `OFD` `PDF` `IMAGE` |
 
-## 三、短信 API（NotificationGateway）
+## 三、通知 API（NotificationGateway）
 
-短信渠道实现全量委托 sms4j 原始包（api/core/provider），门面只做配置装载与出口归一。`channelCode` 直接用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码自动发现。
+通知域门面只做路由：内部一张 `Map<channelCode, NotificationChannel>` 统一渠道表，一条 code 只对应一个渠道。当前短信渠道 `Sms4jChannel` 委托 sms4j 原始包（api/core/provider），`channelCode` 用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码自动发现；未来 IM 推送渠道实现 `NotificationChannel` 即接入同一张表，门面 API 不变。
 
 ### 3.1 方法清单
 
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
 | `send` | `String configId, String channelCode, NotificationSendRequest` | `NotificationSendResult` | 发送短信，内部从 NotificationConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义渠道（与支付/发票同构），把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder` |
-| `registeredChannels` | — | `Set<String>` | 已注册渠道编码集合 |
+| `registerChannel` | `NotificationChannel` | `void` | 声明自定义通知渠道（如 IM 平台），加入统一渠道表 |
+| `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义短信渠道：把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder`，并包装为 `Sms4jChannel` 加入统一渠道表 |
+| `registeredChannels` | — | `Set<String>` | 已装载渠道编码集合 |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`NotificationGateway.Builder` 方法：`.configProvider(NotificationConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(SmsChannelProvider)`（仅声明自定义渠道，可多次调用；内置渠道由 sms4j 自动发现，无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`）。
+`NotificationGateway.Builder` 方法：`.configProvider(NotificationConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(NotificationChannel)`（声明自定义通知渠道）与 `.channel(SmsChannelProvider)`（声明自定义短信渠道 Factory，可多次调用；内置渠道自动发现无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`，并按全部配置预热装载）。
 
 `SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
 
