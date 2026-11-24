@@ -1,6 +1,9 @@
 # 通知域使用指南
 
-通知域内部**全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter），我们只保留两层：配置装载与出口门面。**不含任何渠道实现代码**。通用契约见 [getting-started.md](../getting-started.md)。
+通知域是统一消息发送门面（当前已支持短信，IM 推送渠道可经统一渠道 SPI 扩展）。门面内部一张
+`Map<channelCode, NotificationChannel>` 渠道表，一条 code 只对应一个渠道、路由无歧义。
+
+当前短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部，我们只做薄包装与出口门面。自定义新平台（微信/飞书等）实现 `NotificationChannel` 即可，新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
 
 ## 1. 引入
 

@@ -1,6 +1,6 @@
 # 五域框架统一契约（图纸 / 规范 / 检查清单）
 
-支付、发票、短信、文件、登录五个能力域共用**同一套框架范式**。本文是这套范式的唯一权威定义：
+支付、发票、通知、文件、登录五个能力域共用**同一套框架范式**。本文是这套范式的唯一权威定义：
 既是当前结构的图纸，也是**以后新增能力或渠道必须严格执行的规范**。任何新增内容
 若不符合本契约，视为未对齐，不予合并。
 
@@ -18,13 +18,13 @@
 
 ### 1.1 门面（Gateway）
 
-| 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
+| 契约 | 支付 | 发票 | 通知 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
 | 门面类名 | `PaymentGateway` | `InvoiceGateway` | `NotificationGateway` | `FileGateway` | `AuthGateway` | 一律 `XxxGateway` |
 | 创建 | `builder()` | `builder()` | `builder()` | `builder()` | `builder()` | 一律静态 `builder()` |
 | 配置源注入 | `.configProvider(cp)` | 同 | 同 | 同 | 同 | 同名，且**必填** |
 | 构建校验 | 缺 `configProvider` 抛 `CONFIG_MISSING` | 同 | 同 | 同 | 同 | `build()` 必须校验非空 |
-| 内置渠道 | `builder().build()` 自动全量注册 | 同 | SDK/classpath 自动发现 | 配置驱动自动构建 | `builder().build()` 经 SPI 全量注册 | 用户零 `.channel()` 即可用内置渠道 |
+| 内置渠道 | `builder().build()` 自动全量注册 | 同 | SPI 全量注册 + 配置驱动装载 | 配置驱动自动构建 | `builder().build()` 经 SPI 全量注册 | 用户零 `.channel()` 即可用内置渠道 |
 | 声明自定义渠道 | `.channel(provider)` | 同 | 同 | 同 | 同 | **仅自定义渠道扩展口**，同编码覆盖内置 |
 | 注册渠道 | `registerChannel(provider)` | 同 | 同 | 同 | 同 | 同名，入参为各域 Provider，运行期增补 |
 | 查看渠道 | `registeredChannels()` | 同 | 同 | 同 | 同 | 同名，返回渠道编码集合 |
@@ -32,7 +32,7 @@
 
 ### 1.2 配置源 SPI（ConfigProvider）
 
-| 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
+| 契约 | 支付 | 发票 | 通知 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
 | SPI 命名 | `ChannelConfigProvider` | `InvoiceConfigProvider` | `NotificationConfigProvider` | `FileConfigProvider` | `AuthConfigProvider` | 一律 `XxxConfigProvider` |
 | 正向取配置 | `getConfig(configId, channelCode, …)` | 同（多 `sellerTaxNo`） | 同 | 同 | 同 | 一律按 configId 定位，方法名一律 `getConfig`；维度差异见白名单 |
@@ -43,13 +43,13 @@
 
 ### 1.3 渠道声明（Provider）
 
-| 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
+| 契约 | 支付 | 发票 | 通知 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
-| SPI 命名 | `ChannelProvider` | `InvoiceChannelProvider` | `SmsChannelProvider` | `FileChannelProvider` | `AuthChannel` | 一律 `XxxChannel(Provider)` |
+| SPI 命名 | `ChannelProvider` | `InvoiceChannelProvider` | `NotificationChannel` | `FileChannelProvider` | `AuthChannel` | 一律 `XxxChannel(Provider)` |
 | 渠道编码 | `channelCode()` | 同 | 同 | 同 | 同 | 一律 `channelCode()` |
-| 注册表 | `ChannelRegistry` | `InvoiceChannelRegistry` | sms4j `ProviderFactoryHolder` | x-file-storage `FileStorageService`（内部 new） | `AuthGateway` 内部 Map（不暴露） | 均提供 `register(provider)` + `registeredChannels()` |
-| 扩展自接渠道 | 实现 Provider + handler | 同 | 按 sms4j 官方三接口做 Factory | 按 x-file-storage 官方 `FileStorage`(+`FileStorageClientFactory`) | 实现 `AuthChannel`（继承 `AbstractAuthChannel`） | 内置与自定义走同一注册路径 |
-| 渠道实现归属 | 自研 channels 模块 | 自研 channels 模块 | sms4j 原始包 | x-file-storage 原始包 | 自研 channels 模块（委托 wxjava/官方 SDK/标准 OAuth2） | 短信/文件不重复实现渠道逻辑 |
+| 注册表 | `ChannelRegistry` | `InvoiceChannelRegistry` | `NotificationGateway` 内部 Map（不暴露） | x-file-storage `FileStorageService`（内部 new） | `AuthGateway` 内部 Map（不暴露） | 均提供 `register(provider)` + `registeredChannels()` |
+| 扩展自接渠道 | 实现 Provider + handler | 同 | 实现 `NotificationChannel`（继承 `AbstractNotificationChannel`）；短信渠道按 sms4j 三接口做 Factory 经 `SmsChannelProvider` 声明 | 按 x-file-storage 官方 `FileStorage`(+`FileStorageClientFactory`) | 实现 `AuthChannel`（继承 `AbstractAuthChannel`） | 内置与自定义走同一注册路径 |
+| 渠道实现归属 | 自研 channels 模块 | 自研 channels 模块 | 统一渠道 SPI（短信现委托 sms4j，IM 平台自研 channels） | x-file-storage 原始包 | 自研 channels 模块（委托 wxjava/官方 SDK/标准 OAuth2） | 委托第三方 SDK 的渠道不重复实现其逻辑 |
 
 > 文件域 Provider 是 final 声明类：承载一个 x-file-storage `FileStorage` 实例（或构建所需信息），
 > `channelCode()` 取该实例的 `getPlatform()`；内置平台由配置驱动构建，自定义平台由使用方按
@@ -75,7 +75,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 |---|---|---|---|
 | 支付 | `ChannelConfig` ← 各渠道 `XxxParams extends` | configId / channelCode / notifyUrl / sandbox | 渠道凭证（merchantId、渠道 appId、apiV3Key、下沉的 subMchNo…） |
 | 发票 | `ChannelConfig` ← 各渠道 Params extends | configId / channelCode / sellerTaxNo / notifyUrl / sandbox / tier / priority / enabled | 渠道凭证（appKey、drawer、销方名称/电话/地址/银行账号…） |
-| 短信 | `NotificationConfig`（自有，不含官方类） | configId / channelCode / accessKeyId / accessKeySecret / signature / templateId（= sms4j BaseConfig 公共凭证） | 厂商特有字段（regionId/sdkAppId/sender…） |
+| 通知（短信） | `NotificationConfig`（自有，不含官方类） | configId / channelCode / accessKeyId / accessKeySecret / signature / templateId（= sms4j BaseConfig 公共凭证） | 厂商特有字段（regionId/sdkAppId/sender…） |
 | 文件 | `FileChannelConfig`（自有） | configId / channelCode（内部映射官方 platform） | 官方平台配置字段（承载于官方 `FileStorageProperties`，整体交官方 builder） |
 | 登录 | `AuthConfig`（自有，不含官方类） | configId / channelCode / clientId / clientSecret / redirectUri / scope（OAuth 公共字段） | 平台特有字段（私钥/证书/corpId/端点版本等，参数名不写死） |
 
@@ -134,7 +134,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 |---|---|---|---|
 | 支付 | `ChannelConfig` ← `XxxParams extends` | `XxxParams.fromMap` + starter 公共字段 | configId/channelCode/notifyUrl/sandbox |
 | 发票 | `ChannelConfig` ← 渠道 Params extends | 渠道 fromMap + starter 公共字段 | configId/channelCode/sellerTaxNo/notifyUrl/sandbox/tier/priority |
-| 短信 | `NotificationConfig`（自有） | `mergedAttr()` → sms4j 官方 Factory | configId/channelCode/accessKeyId/accessKeySecret/signature/templateId |
+| 通知（短信） | `NotificationConfig`（自有） | `Sms4jChannel` → `mergedAttr()` → sms4j 官方 Factory | configId/channelCode/accessKeyId/accessKeySecret/signature/templateId |
 | 文件 | `FileChannelConfig`（自有） | 官方 `FileStorageServiceBuilder` | configId/channelCode（→ 官方 platform） |
 | 登录 | `AuthConfig`（自有） | starter `PropertiesAuthConfigProvider` / 纯 Java 直接构造 | configId/channelCode/clientId/clientSecret/redirectUri/scope |
 
@@ -142,19 +142,19 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 | 契约 | 约束 |
 |---|---|
-| 模块划分 | `Xxx-core`（纯 Java，零 Spring）+ `Xxx-channels`（渠道实现，短信/文件无此模块）+ `Xxx-spring-boot-starter` |
+| 模块划分 | `Xxx-core`（纯 Java，零 Spring）+ `Xxx-channels`（自研渠道实现；委托第三方 SDK 的渠道无此模块）+ `Xxx-spring-boot-starter` |
 | 核心依赖 | core 零 Spring；Spring 只出现在 starter 与测试范围 |
 | 运行形态 | 纯 Java jar 手动 `builder()`；Boot 由 starter 自动装配为单例 Bean |
 | 版本管理 | 第三方 SDK 版本在 BOM 单源管理 |
 | JDK / Boot | 当前工程 JDK8 + Boot2.7.18；SDK 需 JDK8 兼容 |
 
-> 文件/短信无 channels 模块：渠道实现全在第三方原始包（x-file-storage / sms4j），
+> 文件域无 channels 模块（渠道实现全在 x-file-storage 原始包）；通知域短信渠道委托 sms4j 原始包、
 > 由 BOM 单源管理其版本；各存储平台 SDK（阿里云 OSS、MinIO 等）官方按使用方需要按需引入，
 > 我们不在自身 POM 里聚合所有平台 SDK。
 
 ### 1.6 starter 装配（自动装配层）
 
-| 契约 | 支付 | 发票 | 短信 | 文件 | 登录 | 约束 |
+| 契约 | 支付 | 发票 | 通知 | 文件 | 登录 | 约束 |
 |---|---|---|---|---|---|---|
 | 装配类命名 | `PayGatewayAutoConfiguration` | `InvoiceAutoConfiguration` | `NotificationAutoConfiguration` | `FileAutoConfiguration` | `AuthAutoConfiguration` | 一律 `XxxAutoConfiguration`（支付历史名保留） |
 | 配置源 Bean | `@ConditionalOnMissingBean` 默认 Properties 实现 | 同 | 同 | 同 | 同 | 可被同类型 Bean 覆盖 |
@@ -172,7 +172,8 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 > 提供内置渠道实现（带可选 SDK 缺失容错），`builder().build()` 加载并注册；同编码时自定义渠道
 > （`.channel()` 先注册）覆盖内置。starter 不再逐个声明内置渠道 Bean，也不循环注册内置渠道。
 
-> 说明：starter 层已完全对齐（上表五域框架项逐项一致）。短信/文件的"无自有 Registry / 无 Clock
+> 说明：通知域已引入统一渠道表（同登录域），短信渠道经 `Sms4jChannel` 委托 sms4j、
+> 与未来 IM 渠道在门面层完全同构。starter 层已完全对齐（上表五域框架项逐项一致）。通知（短信）/文件的"无自有 Registry / 无 Clock
 > / 无 mock（文件）"源于渠道实现委托第三方原始包，登录的"无 Clock / 可选 StateCache"源于其业务特性，
 > 均属能力差异（见第二章白名单），不是框架装配不统一。
 
@@ -209,14 +210,14 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 以下差异源于业务本质，**不得为了"形式统一"而强行拉平**（拉平会造空参数、丢能力）：
 
-| 差异 | 支付 | 发票 | 短信 | 文件 | 登录 | 为什么允许 |
+| 差异 | 支付 | 发票 | 通知 | 文件 | 登录 | 为什么允许 |
 |---|---|---|---|---|---|---|
 | `getConfig` 维度 | 2 参 `configId+channelCode` | 3 参多 `sellerTaxNo` | 2 参 | 2 参 | 2 参 | 发票一家企业多销方，销方税号是必需定位维度 |
 | 配置 SPI 其他方法 | — | `instances` | `allConfigs` | `allConfigs` | `allConfigs`（Map） | 通道路由 / 启动预热是各域能力差异；accountKey 反查整套已删除 |
-| Provider 形态 | interface + 多 handler | interface + 多 handler | final 类承载 sms4j Factory | final 类承载 x-file-storage `FileStorage` | interface `AuthChannel` + 模板基类 `AbstractAuthChannel` | 短信/文件渠道实现全在第三方，Provider 只做声明；登录 24 形态自研 |
+| Provider 形态 | interface + 多 handler | interface + 多 handler | interface `NotificationChannel` + 模板基类 `AbstractNotificationChannel`（短信实现委托 sms4j） | final 类承载 x-file-storage `FileStorage` | interface `AuthChannel` + 模板基类 `AbstractAuthChannel` | 短信/文件渠道实现全在第三方，Provider 只做声明；登录 24 形态自研 |
 | Builder 专属项 | `clock()` | `clock()` + `fileOptions()` | 无 | 无 | `stateCache()` | 版式文件、时间窗口、登录 state 缓存是域专属能力 |
 | starter 渠道装配 | SPI 内置全量注册 + 自定义渠道 Bean | 同 | 无渠道 Bean | `List<FileChannelProvider>` 收集自定义平台 | SPI 内置全量注册 + `List<AuthChannel>` 自定义 | 短信/文件渠道实现全在第三方，配置驱动、无自有 Registry/Clock/mock |
-| 业务方法名 | `createPayment` 等 | `issue` / `applyRed` 等 | `send` | `upload` / `download` 等 | `authorize` / `parseCallback` | 按域语义命名；登录回调是"换身份"而非"验签归一" |
+| 业务方法名 | `createPayment` 等 | `issue` / `applyRed` 等 | `send`（短信/推送共用） | `upload` / `download` 等 | `authorize` / `parseCallback` | 按域语义命名；登录回调是"换身份"而非"验签归一" |
 | 错误码表达 | 框架抛 2xxx + 结果字符串码 | 3xxx | 4xxx | 5xxx | 框架抛 6xxx + 结果字符串码 | 五域结果对象的 `errorCode` 均为字符串，渠道侧语义由各域表达 |
 | 记录能力 | 无状态 | 无状态 | 无 | 委托 x-file-storage `DefaultFileRecorder`（空实现），不托管 DB | 无状态（state 短时缓存走 SPI，不入业务库） | 文件域 FileInfo 由调用方持有，url 反查依赖使用方自实现 recorder，属能力差异 |
 
@@ -243,9 +244,9 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - [ ] Boot 与纯 Java 两形态共用同一自有配置对象与映射模型（C4）
 - [ ] 配置源每次读取、凭证变更可重建；查无配置抛 `CONFIG_MISSING`
 - [ ] starter：`XxxAutoConfiguration` 仅收集自定义 `List<XxxChannelProvider>`、内置渠道由 builder SPI 自动注册、默认配置源可覆盖、缺失 fail-fast
-- [ ] 错误码独占号段（支付 2xxx / 发票 3xxx / 短信 4xxx / 文件 5xxx / 登录 6xxx）
+- [ ] 错误码独占号段（支付 2xxx / 发票 3xxx / 通知 4xxx / 文件 5xxx / 登录 6xxx）
 - [ ] 纯 Java + Boot 双形态均验证；BOM 单源管理版本
-- [ ] 委托第三方 SDK 的域（短信/文件）：内部全用原始包，不引对方 starter，不重做对方已有能力，门面只给原生出口
+- [ ] 委托第三方 SDK 的渠道（通知域短信渠道 / 文件域）：内部全用原始包，不引对方 starter，不重做对方已有能力
 
 ### 3.2 新增一个支付 / 发票渠道
 
@@ -258,14 +259,26 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - [ ] 渠道单测：签名向量、回调验签、关键能力 happy path（不触发真实网络）
 - [ ] 接入真实账号后按 `docs/integration-checklist.md` 联调
 
-### 3.3 新增一个短信渠道
+### 3.3 新增一个通知渠道（短信 / IM 推送）
+
+通知域统一渠道表 `Map<channelCode, NotificationChannel>`，一条 code 只对应一个渠道，无归属歧义。按渠道类型二选一：
+
+**A. 短信渠道（委托 sms4j，不写自有实现）**
 
 - [ ] 优先确认 sms4j 是否已内置；内置则仅加配置即可，零框架代码
 - [ ] sms4j 清单外渠道：按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现 `SmsBlend` / `SupplierConfig` / `BaseProviderFactory`
-- [ ] 用 `SmsChannelProvider.of(factory)` 声明，**不写我们自己的渠道实现**
+- [ ] 用 `SmsChannelProvider.of(factory)` 声明，由 `Sms4jChannel` 统一委托，**不写我们自己的渠道实现**
 - [ ] 自有 `NotificationConfig` 一等凭证字段（accessKeyId/accessKeySecret/signature/templateId），厂商特有字段放 `attr`（C2）
 - [ ] 公共字段与 `attr` 经 `mergedAttr()` 合并，由 sms4j 官方 Factory 构建厂商 Config（内部用官方包）
 - [ ] 内置与自定义走同一 `ProviderFactoryHolder` 原生注册路径
+
+**B. IM 推送渠道（自研，放 `conflux-notify-channels`）**
+
+- [ ] 实现 `NotificationChannel`（建议继承 `AbstractNotificationChannel` 复用上下文回填与异常归一）
+- [ ] `channelCode()` 全局唯一（如 `wechat_subscribe`），不与短信供应商码冲突；SDK/协议/参数名封闭在渠道包内
+- [ ] 凭证与平台参数从 `NotificationConfig` 的一等公共字段 + `attr` 读取（C1/C2），不新增配置 SPI
+- [ ] 客户端/token 由渠道内部按凭证指纹缓存、凭证变更重建；不引 Redis，不建跨域公共层
+- [ ] 在 channels 模块的 SPI 清单登记为内置渠道，构建期自动注册；单测用 mock SDK，不触发真实网络
 
 ### 3.4 新增一个文件平台 / 文件能力
 
@@ -291,7 +304,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 ## 四、相关文档
 
 - 通用入门：[getting-started.md](getting-started.md)
-- 使用指南：[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)
+- 使用指南：[支付](guides/pay.md) · [发票](guides/invoice.md) · [通知](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)
 - API 参考：[reference/api-reference.md](reference/api-reference.md)
 - 配置键：[reference/config-keys.md](reference/config-keys.md)（支付）、[reference/invoice-platforms.md](reference/invoice-platforms.md)（发票）
 - 联调清单：[integration-checklist.md](integration-checklist.md)

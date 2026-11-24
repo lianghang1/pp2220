@@ -1,6 +1,6 @@
 # 通用入门
 
-本文讲五域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [使用指南](guides/pay.md)（[支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)）。
+本文讲五域共通的引入形态、配置模型与回调定位。具体到某个域的调用与配置键，见 [使用指南](guides/pay.md)（[支付](guides/pay.md) · [发票](guides/invoice.md) · [通知](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md)）。
 
 ## 1. 核心约定（先读）
 
@@ -83,4 +83,4 @@ SDK 不介入业务链路，不判重、不推进状态、不通知下游。
 
 ---
 
-**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [短信](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。
+**下一步**：按你的能力域阅读 [支付](guides/pay.md) · [发票](guides/invoice.md) · [通知](guides/notify.md) · [文件](guides/file.md) · [登录](guides/auth.md) 指南；字段级细节查 [API 参考](reference/api-reference.md)。
