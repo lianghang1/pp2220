@@ -1,9 +1,10 @@
 # 通知域使用指南
 
-通知域是统一消息发送门面（当前已支持短信，IM 推送渠道可经统一渠道 SPI 扩展）。门面内部一张
-`Map<channelCode, NotificationChannel>` 渠道表，一条 code 只对应一个渠道、路由无歧义。
+通知域是统一消息发送门面（已支持短信 + 微信公众号/小程序/企业微信消息全家桶）。门面内部一张
+`Map<channelCode, NotificationChannel>` 渠道表，一条 code 只对应一个渠道、路由无歧义；所有消息以统一
+`NotificationMessage` 入参、由消息自带 channelCode，门面只有唯一入口 `send(configId, message)`。
 
-当前短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部，我们只做薄包装与出口门面。自定义新平台（微信/飞书等）实现 `NotificationChannel` 即可，新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
+短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部。微信渠道（`conflux-notify-channels`）消息 bean 继承 wxjava 原生参数类、委托平台层 `WechatClients` 换取原生 service，不重做 SDK 能力。内置渠道经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用；新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
 
 ## 1. 引入
 
@@ -39,10 +40,10 @@ NotificationGateway gateway = NotificationGateway.builder()
 
 ```yaml
 conflux:
-  sms:
+  notify:
     configs:
       demo:
-        alibaba:                   # sms4j 供应商标识
+        alibaba:                   # 短信：sms4j 供应商标识
           # 公共凭证四件套（NotificationConfig 一等字段，跨渠道同名）
           access-key-id: xxx
           access-key-secret: xxx
@@ -51,10 +52,24 @@ conflux:
           attr:                   # 厂商特有键，键名与 sms4j Config 字段一致
             template-name: code
             region-id: cn-hangzhou
+        wechat_mini:               # 微信小程序：一份 appId 覆盖订阅/客服/统一/动态消息
+          attr:
+            appId: wx...
+            secret: ...
+        wechat_mp:                 # 微信公众号：模板/客服/订阅/群发
+          attr:
+            appId: wx...
+            secret: ...
+        wechat_wecom:              # 企业微信：应用/群聊/互联企业消息
+          attr:
+            corpId: ww...
+            corpSecret: ...
+            agentId: "1000002"
 ```
 
-- **公共凭证四件套**：`accessKeyId` / `accessKeySecret` / `signature` / `templateId` 是自有 `NotificationConfig` 的一等字段。装载期由 `mergedAttr()` 合并（公共字段优先、attr 兜底），再由 sms4j 官方 Factory 按字段名构建厂商 Config。**不暴露 sms4j 官方配置类**。
-- **`channelCode`** 直接采用 sms4j 的供应商标识（`alibaba` / `tencent` / `huawei` …）；厂商特有键（腾讯 `sdkAppId`、华为 `sender`、极光 `signId` 等）放 `attr`，键名用 sms4j Config 的字段名即可。
+- **公共凭证四件套**：`accessKeyId` / `accessKeySecret` / `signature` / `templateId` 是短信的一等字段。装载期由 `mergedAttr()` 合并（公共字段优先、attr 兜底），再由 sms4j 官方 Factory 按字段名构建厂商 Config。**不暴露 sms4j 官方配置类**。
+- **`channelCode`**：短信直接采用 sms4j 供应商标识（`alibaba` / `tencent` …）；微信按应用形态用 `wechat_mp` / `wechat_mini` / `wechat_wecom`（一套编码与登录域复用，见框架契约 C5）。一份凭证覆盖该应用全部消息类型，消息类型由入参 bean 区分。
+- **微信凭证**放 `attr`（appId/secret/corpId/corpSecret/agentId，键名对齐 wxjava），由渠道映射为平台层 `PlatformCredential`；不复用短信四件套。
 - 配置源每次读取，凭证变更可重建客户端；接 DB / 配置中心只需自定义 `NotificationConfigProvider`：
 
 ```java
@@ -66,14 +81,26 @@ NotificationGateway gateway = NotificationGateway.builder().configProvider(dbPro
 
 ## 3. 发送
 
+唯一入口 `send(configId, message)`，channelCode 由消息自带：
+
 ```java
-NotificationSendResult r = smsGateway.send("demo", "alibaba",
-        new NotificationSendRequest().setBizId("B-1").setPhone("18888888888")
-                .setParams(Collections.singletonMap("code", "123456")));
+// 短信：channelCode 写在请求里
+NotificationSendRequest sms = new NotificationSendRequest()
+        .setChannelCode("alibaba")
+        .setBizId("B-1").setPhone("18888888888")
+        .setParams(Collections.singletonMap("code", "123456"));
+NotificationSendResult r = gateway.send("demo", sms);
+
+// 微信小程序订阅消息：选 bean 决定消息类型，字段用 wxjava 原生 setter
+MiniSubscribeMsg msg = new MiniSubscribeMsg();
+msg.setToUser("openid");
+msg.setTemplateId("tpl_xxx");
+NotificationSendResult r2 = gateway.send("demo", msg);   // → wechat_mini 凭证
 ```
 
-- `NotificationSendRequest`：`bizId`（业务标识）、`phone`、`content`、`params`（模板变量；非空走 Map 重载，否则走文本重载）。
-- `NotificationSendResult`：`success`、`bizId`、`channel`（渠道编码）、`configId`、`raw`（sms4j 原始返回）、`error`。
+- `NotificationMessage`：统一消息接口，仅 `channelCode()`；短信 `NotificationSendRequest` 与全部微信消息 bean 都实现它。
+- 微信消息 bean（`conflux-notify-channels`）继承 wxjava 原生参数类：`wechat_mp` 有 `MpTemplateMsg`/`MpKefuMsg`/`MpSubscribeMsg`/`MpMassTagMsg`/`MpMassOpenIdsMsg`/`MpMassPreviewMsg`；`wechat_mini` 有 `MiniSubscribeMsg`/`MiniKefuMsg`/`MiniUniformMsg`/`MiniUpdatableMsg`；`wechat_wecom` 有 `WeComAppMsg`/`WeComAppChatMsg`/`WeComLinkedCorpMsg`。
+- `NotificationSendResult`：`success`、`bizId`（短信回填）、`channel`（渠道编码）、`configId`、`raw`（SDK 原始返回）、`error`。渠道调用异常归一为失败结果，不击穿调用方。
 - **发送即终态**，SDK 不持有台账、不判重、不做频率控制。
 
 ## 4. 自定义厂商（sms4j 官方扩展）

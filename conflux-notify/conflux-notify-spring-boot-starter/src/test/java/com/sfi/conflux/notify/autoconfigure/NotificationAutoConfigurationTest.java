@@ -79,8 +79,9 @@ class NotificationAutoConfigurationTest {
     }
 
     @Test
-    void emptyPropertiesShouldProduceEmptyGateway() {
+    void builtinWechatChannelsShouldBeRegisteredViaSpi() {
+        // 内置 IM 渠道经 SPI 清单在 build 期自动注册，无需任何配置、无需 .channel()
         NotificationGateway gw = gateway(new NotificationProperties());
-        assertThat(gw.registeredChannels()).isEmpty();
+        assertThat(gw.registeredChannels()).contains("wechat_mp", "wechat_mini", "wechat_wecom");
     }
 }

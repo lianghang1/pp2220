@@ -57,6 +57,9 @@ public abstract class AbstractNotificationChannel implements NotificationChannel
         }
     }
 
-    /** 渠道实现：完成真正的配置装载 + SDK 调用 + 成功/失败归一。 */
-    protected abstract NotificationSendResult doSend(NotificationConfig config, NotificationMessage message);
+    /**
+     * 渠道实现：完成真正的配置装载 + SDK 调用 + 成功/失败归一。
+     * 允许抛受检异常（如 wxjava 的 WxErrorException），由 {@link #send} 统一归一为失败结果。
+     */
+    protected abstract NotificationSendResult doSend(NotificationConfig config, NotificationMessage message) throws Exception;
 }

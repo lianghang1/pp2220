@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sfi.conflux</groupId>
+        <artifactId>conflux-notify</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>conflux-notify-channels</artifactId>
+    <packaging>jar</packaging>
+    <name>conflux-notify-channels</name>
+    <description>IM 通知渠道实现：微信公众号/小程序/企业微信消息全家桶。消息 bean 继承 wxjava 原生参数类，
+        渠道委托平台层 WechatClients 换取原生 service，不封装 SDK 能力、不重复实现其逻辑。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-notify-core</artifactId>
+        </dependency>
+        <!-- 平台客户端层：微信 client 构造/缓存由薄门面负责，本域只做凭证映射 -->
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-wechat</artifactId>
+        </dependency>
+        <!-- wxjava 消息 bean + service：版本由 conflux-dependencies 单源管控（4.7.2.B） -->
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-mp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-miniapp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-cp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

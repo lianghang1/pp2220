@@ -9,6 +9,7 @@ import com.sfi.conflux.notify.channel.SmsChannelProvider;
 import com.sfi.conflux.notify.config.NotificationConfig;
 import com.sfi.conflux.notify.config.NotificationConfigProvider;
 import com.sfi.conflux.notify.exception.NotificationErrorCode;
+import com.sfi.conflux.notify.spi.BuiltinNotificationChannels;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -69,9 +70,9 @@ public class NotificationGateway {
         channels.put(provider.channelCode(), new Sms4jChannel(provider.channelCode(), registry));
     }
 
-    /** 已装载渠道编码集合（对齐支付/发票 registeredChannels；短信侧沿用装载器已装载集合）。 */
+    /** 已装载渠道编码集合（统一渠道表：短信 + 内置 IM + 自定义）。 */
     public Set<String> registeredChannels() {
-        return Collections.unmodifiableSet(new LinkedHashSet<String>(registry.registeredChannels()));
+        return Collections.unmodifiableSet(new LinkedHashSet<String>(channels.keySet()));
     }
 
     /**
@@ -146,6 +147,10 @@ public class NotificationGateway {
         public NotificationGateway build() {
             if (configProvider == null) {
                 throw new GatewayException(NotificationErrorCode.CONFIG_MISSING, "未设置渠道配置提供者");
+            }
+            // SPI 自动注册内置 IM 渠道（微信等）；同编码时自定义渠道（.channel() 先注册）优先，不覆盖
+            for (NotificationChannel builtin : BuiltinNotificationChannels.all()) {
+                channels.putIfAbsent(builtin.channelCode(), builtin);
             }
             // 按全部配置预热装载短信渠道（坏配置 fail-fast），并把已配置渠道登记进统一渠道表
             for (NotificationConfig cfg : configProvider.allConfigs()) {

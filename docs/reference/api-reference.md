@@ -206,33 +206,55 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 ## 三、通知 API（NotificationGateway）
 
-通知域门面只做路由：内部一张 `Map<channelCode, NotificationChannel>` 统一渠道表，一条 code 只对应一个渠道。当前短信渠道 `Sms4jChannel` 委托 sms4j 原始包（api/core/provider），`channelCode` 用 sms4j 供应商标识（`alibaba`/`tencent`/`huawei`…），内置 22 家零代码自动发现；未来 IM 推送渠道实现 `NotificationChannel` 即接入同一张表，门面 API 不变。
+通知域门面只做路由：内部一张 `Map<channelCode, NotificationChannel>` 统一渠道表，一条 code 只对应一个渠道。所有消息形态（短信、微信全家桶、未来 IM）以统一 `NotificationMessage` 入参，`channelCode` 由消息自带；门面只有唯一发送入口 `send(configId, message)`。内置渠道（短信 sms4j + 微信三大平台）经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用。
 
 ### 3.1 方法清单
 
 | 方法 | 入参 | 返回 | 说明 |
 |---|---|---|---|
-| `send` | `String configId, String channelCode, NotificationSendRequest` | `NotificationSendResult` | 发送短信，内部从 NotificationConfigProvider 读配置并确保装载后发送 |
-| `registerChannel` | `NotificationChannel` | `void` | 声明自定义通知渠道（如 IM 平台），加入统一渠道表 |
-| `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义短信渠道：把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder`，并包装为 `Sms4jChannel` 加入统一渠道表 |
-| `registeredChannels` | — | `Set<String>` | 已装载渠道编码集合 |
+| `send` | `String configId, NotificationMessage` | `NotificationSendResult` | 唯一发送入口：按 configId + 消息自带 channelCode 读配置 → 找渠道 → 转发 |
+| `registerChannel` | `NotificationChannel` | `void` | 声明自定义通知渠道，加入统一渠道表（同编码覆盖内置） |
+| `registerChannel` | `SmsChannelProvider` | `void` | 声明自定义短信渠道：把 sms4j 原生 Factory 注册进 `ProviderFactoryHolder`，包装为 `Sms4jChannel` 加入统一渠道表 |
+| `registeredChannels` | — | `Set<String>` | 统一渠道表已装载编码集合（短信 + 内置 IM + 自定义） |
 | `builder` | — | `Builder` | 创建构建器 |
 
-`NotificationGateway.Builder` 方法：`.configProvider(NotificationConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(NotificationChannel)`（声明自定义通知渠道）与 `.channel(SmsChannelProvider)`（声明自定义短信渠道 Factory，可多次调用；内置渠道自动发现无需声明）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`，并按全部配置预热装载）。
+`NotificationGateway.Builder` 方法：`.configProvider(NotificationConfigProvider)`（**必填**，与支付/发票一致；send 每次读配置，实现 `allConfigs()` 时构建期预热）、`.channel(NotificationChannel)`（声明自定义通知渠道）与 `.channel(SmsChannelProvider)`（声明自定义短信渠道 Factory，可多次调用）、`.build()`（缺 configProvider 抛 `CONFIG_MISSING`；SPI 自动注册内置 IM 渠道 + 按配置预热短信渠道）。
 
-`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。Provider 只承载 sms4j 原生 Factory 并注册进 `ProviderFactoryHolder`，不含任何渠道实现；内置与自定义渠道走同一注册路径。
+`SmsChannelProvider.of(BaseProviderFactory factory)` 接入清单外厂商——按 [sms4j 官方自定义扩展](https://sms4j.com/doc3/custom.html) 实现的 Factory 实例直接传入。
 
-### 3.2 请求/结果与配置
+### 3.2 消息 / 结果与配置
 
-| 类型 | 字段 |
+| 类型 | 字段 / 说明 |
 |---|---|
-| `NotificationSendRequest` | `bizId` `phone` `content` `params`（模板变量，非空时走 Map 重载，否则走文本重载） |
-| `NotificationSendResult` | `success` `bizId` `configId` `channel`（sms4j supplier 标识） `raw`（sms4j 原始返回） `error` |
-| `NotificationConfig` | `configId` `channelCode` `accessKeyId` `accessKeySecret` `signature` `templateId` `attr`（厂商特有键，键名对齐 sms4j Config 字段） |
+| `NotificationMessage` | 统一消息接口，仅 `channelCode()`；所有消息实现它，编码 = 凭证/应用形态（C5） |
+| `NotificationSendRequest` | 短信消息（实现 `NotificationMessage`）：`channelCode`(sms4j 供应商码) `bizId` `phone` `content` `params` |
+| 微信消息 bean | 见 3.3，继承 wxjava 原生参数类并实现 `NotificationMessage` |
+| `NotificationSendResult` | `success` `bizId` `configId` `channel` `raw`（SDK 原始返回） `error` |
+| `NotificationConfig` | `configId` `channelCode` `accessKeyId` `accessKeySecret` `signature` `templateId` `attr`（厂商/平台特有键） |
 
-`NotificationConfig` 是通知域自有配置对象，**不暴露 sms4j 官方配置类**：公共凭证四件套（accessKeyId/accessKeySecret/signature/templateId）为一等字段，厂商特有键放 `attr`，装载期由 `mergedAttr()` 合并（公共字段优先）后交给 sms4j 官方 Factory 构建厂商 Config。
+`NotificationConfig` 是通知域自有配置对象，**不暴露任何第三方官方配置类**。短信用公共凭证四件套一等字段 + `mergedAttr()` 交 sms4j 官方 Factory；微信凭证（appId/secret/corpId 等）按 C2 放 `attr`，由渠道映射为平台层 `PlatformCredential`，不复用短信四件套。
 
 配置源 SPI：`NotificationConfigProvider.getConfig(configId, channelCode)` 返回 `NotificationConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemoryNotificationConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesNotificationConfigProvider`（读 `conflux.notify.configs.<configId>.<channelCode>`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
+
+### 3.3 微信消息全家桶（conflux-notify-channels）
+
+消息 bean **继承 wxjava 原生参数类**（字段用原生 setter 填充、直接传 SDK），仅额外实现 `NotificationMessage.channelCode()`；渠道按 bean 类型分发到对应 SDK 方法，一份平台凭证覆盖该应用全部消息类型。
+
+| channelCode | 消息 bean（继承原生类） | SDK 调用 |
+|---|---|---|
+| `wechat_mp` | `MpTemplateMsg` / `MpKefuMsg` / `MpSubscribeMsg` / `MpMassTagMsg` / `MpMassOpenIdsMsg` / `MpMassPreviewMsg` | `WxMpTemplateMsgService.sendTemplateMsg` / `WxMpKefuService.sendKefuMessage` / `WxMpSubscribeMsgService.send` / `WxMpMassMessageService.massXxx` |
+| `wechat_mini` | `MiniSubscribeMsg` / `MiniKefuMsg` / `MiniUniformMsg` / `MiniUpdatableMsg` | `WxMaMsgService.sendSubscribeMsg` / `sendKefuMsg` / `sendUniformMsg` / `setUpdatableMsg` |
+| `wechat_wecom` | `WeComAppMsg` / `WeComAppChatMsg` / `WeComLinkedCorpMsg` | `WxCpMessageService.send` / `WxCpChatService.sendMsg` / `sendLinkedCorpMessage` |
+
+```java
+// 小程序订阅消息：一份 wechat_mini 凭证，选 bean 决定消息类型
+MiniSubscribeMsg msg = new MiniSubscribeMsg();
+msg.setToUser("openid");
+msg.setTemplateId("tpl_xxx");
+NotificationSendResult r = gateway.send("app1", msg);   // → wechat_mini 凭证 + 订阅消息
+```
+
+> 编码粒度 = 一份凭证/应用形态，不是消息类型：同一小程序 appId 的订阅/客服/统一消息共用 `wechat_mini`，由 bean 类型区分。企业微信归 `wechat_wecom`（不单列 wecom）。编码口径见框架契约 C5。
 
 ## 四、文件 API（FileGateway）
 

@@ -181,7 +181,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 > （`.channel()` 先注册）覆盖内置。starter 不再逐个声明内置渠道 Bean，也不循环注册内置渠道。
 
 > 说明：通知域已引入统一渠道表（同登录域），短信渠道经 `Sms4jChannel` 委托 sms4j、
-> 与未来 IM 渠道在门面层完全同构。starter 层已完全对齐（上表五域框架项逐项一致）。通知（短信）/文件的"无自有 Registry / 无 Clock
+> 与已落地的微信 IM 渠道在门面层完全同构。starter 层已完全对齐（上表五域框架项逐项一致）。通知（短信）/文件的"无自有 Registry / 无 Clock
 > / 无 mock（文件）"源于渠道实现委托第三方原始包，登录的"无 Clock / 可选 StateCache"源于其业务特性，
 > 均属能力差异（见第二章白名单），不是框架装配不统一。
 
