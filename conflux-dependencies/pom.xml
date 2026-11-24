@@ -30,6 +30,8 @@
         <!-- wxjava 各模块版本必须一致（pay/mp/miniapp/cp/open 同属 4.x），统一单源管控 -->
         <weixin-java.version>4.7.2.B</weixin-java.version>
         <alipay-sdk.version>4.40.1067.ALL</alipay-sdk.version>
+        <!-- 飞书官方 SDK（lark-oapi）：Maven Central 最新版本，JDK 8 兼容 -->
+        <feishu-sdk.version>2.4.19</feishu-sdk.version>
         <!-- 百望云 BOPSDK：中央仓库不发布，需 install:install-file 到私服/本地仓库 -->
         <baiwang-bopsdk.version>3.4.871</baiwang-bopsdk.version>
         <!-- 诺诺开放平台 SDK：Maven Central 可获取，JDK 8 兼容 -->
@@ -88,6 +90,11 @@
                 <groupId>com.alipay.sdk</groupId>
                 <artifactId>alipay-sdk-java</artifactId>
                 <version>${alipay-sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.larksuite.oapi</groupId>
+                <artifactId>oapi-sdk</artifactId>
+                <version>${feishu-sdk.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baiwang.bop</groupId>

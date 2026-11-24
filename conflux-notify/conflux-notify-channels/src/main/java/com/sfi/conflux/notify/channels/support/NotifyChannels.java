@@ -22,6 +22,8 @@ public final class NotifyChannels {
     public static final String ALIPAY_MINI = Platforms.ALIPAY + "_mini";
     /** 支付宝生活号（appId + 私钥，公众号形态） */
     public static final String ALIPAY_PUBLIC = Platforms.ALIPAY + "_public";
+    /** 飞书（appId + appSecret，一份凭证覆盖该应用全部消息类型） */
+    public static final String FEISHU = Platforms.FEISHU;
 
     private NotifyChannels() {
     }

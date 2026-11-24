@@ -71,6 +71,11 @@
                 <artifactId>conflux-platform-alipay</artifactId>
                 <version>${conflux-platform.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-platform-feishu</artifactId>
+                <version>${conflux-platform.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

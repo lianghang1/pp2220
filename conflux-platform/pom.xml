@@ -12,12 +12,14 @@
     <description>Conflux 平台客户端层父 pom：极简薄门面（门面+凭证→原生 SDK client），
         统一平台命名与凭证叫法。定位等同 SDK 公共层，不是第六个域（无 Gateway/configId/ConfigProvider）。
         按平台拆子模块，按需引入；一期含 core（凭证+缓存工具）与 wechat（wxjava mp/miniapp/cp），
-        二期-A 增 alipay（官方 SDK DefaultAlipayClient，登录/通知/支付共用同一 client 类型）。</description>
+        二期-A 增 alipay（官方 SDK DefaultAlipayClient，登录/通知/支付共用同一 client 类型），
+        二期-B 增 feishu（官方 SDK oapi-sdk Client，token 由 SDK 自管）。</description>
 
     <modules>
         <module>conflux-platform-core</module>
         <module>conflux-platform-wechat</module>
         <module>conflux-platform-alipay</module>
+        <module>conflux-platform-feishu</module>
     </modules>
 
     <properties>
@@ -57,6 +59,11 @@
             <dependency>
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-platform-alipay</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-platform-feishu</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

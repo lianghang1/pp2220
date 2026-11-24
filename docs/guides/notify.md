@@ -1,10 +1,10 @@
 # 通知域使用指南
 
-通知域是统一消息发送门面（已支持短信 + 微信公众号/小程序/企业微信 + 支付宝小程序/生活号消息）。门面内部一张
+通知域是统一消息发送门面（已支持短信 + 微信公众号/小程序/企业微信 + 支付宝小程序/生活号 + 飞书消息）。门面内部一张
 `Map<channelCode, NotificationChannel>` 渠道表，一条 code 只对应一个渠道、路由无歧义；所有消息以统一
 `NotificationMessage` 入参、由消息自带 channelCode，门面只有唯一入口 `send(configId, message)`。
 
-短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部。微信/支付宝渠道（`conflux-notify-channels`）消息 bean 继承 SDK 原生参数类、委托平台层 `WechatClients` / `AlipayClients` 换取原生 client，不重做 SDK 能力。内置渠道经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用；新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
+短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部。微信/支付宝渠道（`conflux-notify-channels`）消息 bean 继承 SDK 原生参数类、委托平台层 `WechatClients` / `AlipayClients` 换取原生 client，不重做 SDK 能力。飞书渠道委托 `FeishuClients` 换取官方 `Client`——其 SDK 的 content 是 JSON 字符串、无强类型入参 bean，故消息 bean 承载结构化字段、渠道内用 common `JsonUtils` 序列化成 content，access_token 由 SDK 自管。内置渠道经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用；新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
 
 ## 1. 引入
 
@@ -114,6 +114,7 @@ NotificationSendResult r2 = gateway.send("demo", msg);   // → wechat_mini 凭�
 - 微信消息 bean（`conflux-notify-channels`）：`wechat_mp` 有 `MpTemplateMsg`/`MpKefuMsg`/`MpSubscribeMsg`/`MpMassTagMsg`/`MpMassOpenIdsMsg`/`MpMassPreviewMsg`；`wechat_mini` 有 `MiniSubscribeMsg`/`MiniKefuMsg`/`MiniUniformMsg`/`MiniUpdatableMsg`；`wechat_wecom` 有 `WeComAppMsg`/`WeComAppChatMsg`/`WeComLinkedCorpMsg`，以及群机器人 `WeComRobotTextMsg`/`WeComRobotMarkdownMsg`/`WeComRobotImageMsg`/`WeComRobotFileMsg`/`WeComRobotVoiceMsg`/`WeComRobotNewsMsg`/`WeComRobotCardMsg`。
 - 能继承 SDK 原生参数类的直接继承；群机器人文本/Markdown/图片/文件/语音的原生 API 收散装 String 参数（无 bean 可继承），用自定义 bean 承载字段、渠道内拆参，用户侧用法与其他消息一致。群机器人的 `webhookKey` 随消息 bean 携带，不进凭证配置。
 - 支付宝消息 bean：`alipay_mini` 有 `AliMiniSubscribeMsg`/`AliMiniBatchSubscribeMsg`（订阅消息单发/批量）；`alipay_public` 有 `AliPublicSingleMsg`/`AliPublicLabelMsg`/`AliPublicGroupMsg`/`AliPublicPreviewMsg`（生活号单发/标签群发/分组群发/预览）。全部继承支付宝 SDK 原生 Model（`AlipayObject` 子类），渠道内 `setBizModel` 包装后 `execute`；公钥模式走 `execute`、证书模式（`attr.signMode=cert`）走 `certificateExecute`。支付宝凭证 `attr.appId` + `attr.privateKey`，与登录域 `alipay_mini` 复用同一份配置。
+- 飞书消息 bean（`channelCode=feishu`）：`FeishuTextMsg`（文本）/`FeishuPostMsg`（富文本，`addTextLine` 拼纯文本行）/`FeishuCardMsg`（卡片）/`FeishuImageMsg`（图片）/`FeishuFileMsg`（文件）。均继承 `AbstractFeishuMsg`（持有 receiveId/receiveIdType，默认 open_id）；渠道内用 common `JsonUtils` 把 bean 字段序列化成飞书 content JSON，再调官方 `client.im().message().create(req)`。飞书凭证 `attr.appId` + `attr.appSecret`（可选 `attr.domain=lark`、`attr.appType=marketplace`）。
 - `NotificationSendResult`：`success`、`bizId`（短信回填）、`channel`（渠道编码）、`configId`、`raw`（SDK 原始返回）、`error`。渠道调用异常归一为失败结果，不击穿调用方。
 - **发送即终态**，SDK 不持有台账、不判重、不做频率控制。
 

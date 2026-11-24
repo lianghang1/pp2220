@@ -35,6 +35,10 @@
             <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-platform-alipay</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-feishu</artifactId>
+        </dependency>
         <!-- wxjava 消息 bean + service：版本由 conflux-dependencies 单源管控（4.7.2.B） -->
         <dependency>
             <groupId>com.github.binarywang</groupId>
@@ -52,6 +56,11 @@
         <dependency>
             <groupId>com.alipay.sdk</groupId>
             <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+        <!-- 飞书官方 SDK：CreateMessageReq/Resp，版本由 conflux-dependencies 单源管控 -->
+        <dependency>
+            <groupId>com.larksuite.oapi</groupId>
+            <artifactId>oapi-sdk</artifactId>
         </dependency>
 
         <dependency>
