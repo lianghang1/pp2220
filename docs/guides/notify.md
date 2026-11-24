@@ -1,10 +1,10 @@
 # 通知域使用指南
 
-通知域是统一消息发送门面（已支持短信 + 微信公众号/小程序/企业微信消息全家桶）。门面内部一张
+通知域是统一消息发送门面（已支持短信 + 微信公众号/小程序/企业微信 + 支付宝小程序/生活号消息）。门面内部一张
 `Map<channelCode, NotificationChannel>` 渠道表，一条 code 只对应一个渠道、路由无歧义；所有消息以统一
 `NotificationMessage` 入参、由消息自带 channelCode，门面只有唯一入口 `send(configId, message)`。
 
-短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部。微信渠道（`conflux-notify-channels`）消息 bean 继承 wxjava 原生参数类、委托平台层 `WechatClients` 换取原生 service，不重做 SDK 能力。内置渠道经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用；新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
+短信渠道 `Sms4jChannel` **全量委托 [sms4j](https://github.com/dromara/SMS4J) 原始包**（api/core/provider，不用它的 starter）：配置装载、指纹缓存、线程池与 Factory 注册仍在 `SmsBlendRegistry` 内部。微信/支付宝渠道（`conflux-notify-channels`）消息 bean 继承 SDK 原生参数类、委托平台层 `WechatClients` / `AlipayClients` 换取原生 client，不重做 SDK 能力。内置渠道经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用；新增渠道不改门面 API。通用契约见 [getting-started.md](../getting-started.md)。
 
 ## 1. 引入
 
@@ -65,11 +65,23 @@ conflux:
             corpId: ww...
             corpSecret: ...
             agentId: "1000002"
+        alipay_mini:               # 支付宝小程序：订阅消息（与登录域复用凭证）
+          attr:
+            appId: "2021000000"
+            privateKey: MIIEv...
+            alipayPublicKey: MIIBI...
+        alipay_public:             # 支付宝生活号：单发/群发/预览
+          attr:
+            appId: "2021000000"
+            privateKey: MIIEv...
+            alipayPublicKey: MIIBI...
+            signMode: cert          # 可选：cert/certificate 证书模式走 certificateExecute
 ```
 
 - **公共凭证四件套**：`accessKeyId` / `accessKeySecret` / `signature` / `templateId` 是短信的一等字段。装载期由 `mergedAttr()` 合并（公共字段优先、attr 兜底），再由 sms4j 官方 Factory 按字段名构建厂商 Config。**不暴露 sms4j 官方配置类**。
 - **`channelCode`**：短信直接采用 sms4j 供应商标识（`alibaba` / `tencent` …）；微信按应用形态用 `wechat_mp` / `wechat_mini` / `wechat_wecom`（一套编码与登录域复用，见框架契约 C5）。一份凭证覆盖该应用全部消息类型，消息类型由入参 bean 区分。
 - **微信凭证**放 `attr`（appId/secret/corpId/corpSecret/agentId，键名对齐 wxjava），由渠道映射为平台层 `PlatformCredential`；不复用短信四件套。
+- **支付宝凭证**同样放 `attr`：`appId`（应用ID）+ `privateKey`（应用私钥）+ 公钥/证书/网关/签名类型，键名对齐支付宝 SDK；`alipay_mini` 与登录域复用同一份配置。
 - 配置源每次读取，凭证变更可重建客户端；接 DB / 配置中心只需自定义 `NotificationConfigProvider`：
 
 ```java
@@ -98,9 +110,10 @@ msg.setTemplateId("tpl_xxx");
 NotificationSendResult r2 = gateway.send("demo", msg);   // → wechat_mini 凭证
 ```
 
-- `NotificationMessage`：统一消息接口，仅 `channelCode()`；短信 `NotificationSendRequest` 与全部微信消息 bean 都实现它。
+- `NotificationMessage`：统一消息接口，仅 `channelCode()`；短信 `NotificationSendRequest` 与全部微信/支付宝消息 bean 都实现它。
 - 微信消息 bean（`conflux-notify-channels`）：`wechat_mp` 有 `MpTemplateMsg`/`MpKefuMsg`/`MpSubscribeMsg`/`MpMassTagMsg`/`MpMassOpenIdsMsg`/`MpMassPreviewMsg`；`wechat_mini` 有 `MiniSubscribeMsg`/`MiniKefuMsg`/`MiniUniformMsg`/`MiniUpdatableMsg`；`wechat_wecom` 有 `WeComAppMsg`/`WeComAppChatMsg`/`WeComLinkedCorpMsg`，以及群机器人 `WeComRobotTextMsg`/`WeComRobotMarkdownMsg`/`WeComRobotImageMsg`/`WeComRobotFileMsg`/`WeComRobotVoiceMsg`/`WeComRobotNewsMsg`/`WeComRobotCardMsg`。
-- 能继承 wxjava 原生参数类的直接继承；群机器人文本/Markdown/图片/文件/语音的原生 API 收散装 String 参数（无 bean 可继承），用自定义 bean 承载字段、渠道内拆参，用户侧用法与其他消息一致。群机器人的 `webhookKey` 随消息 bean 携带，不进凭证配置。
+- 能继承 SDK 原生参数类的直接继承；群机器人文本/Markdown/图片/文件/语音的原生 API 收散装 String 参数（无 bean 可继承），用自定义 bean 承载字段、渠道内拆参，用户侧用法与其他消息一致。群机器人的 `webhookKey` 随消息 bean 携带，不进凭证配置。
+- 支付宝消息 bean：`alipay_mini` 有 `AliMiniSubscribeMsg`/`AliMiniBatchSubscribeMsg`（订阅消息单发/批量）；`alipay_public` 有 `AliPublicSingleMsg`/`AliPublicLabelMsg`/`AliPublicGroupMsg`/`AliPublicPreviewMsg`（生活号单发/标签群发/分组群发/预览）。全部继承支付宝 SDK 原生 Model（`AlipayObject` 子类），渠道内 `setBizModel` 包装后 `execute`；公钥模式走 `execute`、证书模式（`attr.signMode=cert`）走 `certificateExecute`。支付宝凭证 `attr.appId` + `attr.privateKey`，与登录域 `alipay_mini` 复用同一份配置。
 - `NotificationSendResult`：`success`、`bizId`（短信回填）、`channel`（渠道编码）、`configId`、`raw`（SDK 原始返回）、`error`。渠道调用异常归一为失败结果，不击穿调用方。
 - **发送即终态**，SDK 不持有台账、不判重、不做频率控制。
 

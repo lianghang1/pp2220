@@ -206,7 +206,7 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 ## 三、通知 API（NotificationGateway）
 
-通知域门面只做路由：内部一张 `Map<channelCode, NotificationChannel>` 统一渠道表，一条 code 只对应一个渠道。所有消息形态（短信、微信全家桶、未来 IM）以统一 `NotificationMessage` 入参，`channelCode` 由消息自带；门面只有唯一发送入口 `send(configId, message)`。内置渠道（短信 sms4j + 微信三大平台）经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用。
+通知域门面只做路由：内部一张 `Map<channelCode, NotificationChannel>` 统一渠道表，一条 code 只对应一个渠道。所有消息形态（短信、微信全家桶、支付宝、未来 IM）以统一 `NotificationMessage` 入参，`channelCode` 由消息自带；门面只有唯一发送入口 `send(configId, message)`。内置渠道（短信 sms4j + 微信三大平台 + 支付宝小程序/生活号）经 SPI 清单在 build 期自动注册，用户零 `.channel()` 即可用。
 
 ### 3.1 方法清单
 
@@ -236,9 +236,9 @@ if (result.getState() == PaymentState.SUCCEEDED) {
 
 配置源 SPI：`NotificationConfigProvider.getConfig(configId, channelCode)` 返回 `NotificationConfig`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemoryNotificationConfigProvider`（纯 Java/测试）与 starter 的 `PropertiesNotificationConfigProvider`（读 `conflux.notify.configs.<configId>.<channelCode>`）。发送即终态，SDK 不持有台账、不判重、不做频率控制。
 
-### 3.3 微信消息全家桶（conflux-notify-channels）
+### 3.3 微信 / 支付宝消息全家桶（conflux-notify-channels）
 
-消息 bean **继承 wxjava 原生参数类**（字段用原生 setter 填充、直接传 SDK），仅额外实现 `NotificationMessage.channelCode()`；渠道按 bean 类型分发到对应 SDK 方法，一份平台凭证覆盖该应用全部消息类型。
+消息 bean **继承 SDK 原生参数类**（字段用原生 setter 填充、直接传 SDK），仅额外实现 `NotificationMessage.channelCode()`；渠道按 bean 类型分发到对应 SDK 方法，一份平台凭证覆盖该应用全部消息类型。微信可直接把 bean 传 service；支付宝 Request 是执行壳、bean 继承原生 Model（`AlipayObject`），渠道内 `setBizModel` 包装后 `execute`。
 
 | channelCode | 消息 bean（继承原生类） | SDK 调用 |
 |---|---|---|
@@ -255,7 +255,22 @@ msg.setTemplateId("tpl_xxx");
 NotificationSendResult r = gateway.send("app1", msg);   // → wechat_mini 凭证 + 订阅消息
 ```
 
-> 编码粒度 = 一份凭证/应用形态，不是消息类型：同一小程序 appId 的订阅/客服/统一消息共用 `wechat_mini`，由 bean 类型区分。企业微信归 `wechat_wecom`（不单列 wecom）。编码口径见框架契约 C5。
+支付宝消息（继承原生 Model，渠道内 setBizModel + execute）：
+
+| channelCode | 消息 bean（继承原生 Model） | SDK 调用 |
+|---|---|---|
+| `alipay_mini` | `AliMiniSubscribeMsg` / `AliMiniBatchSubscribeMsg` | `AlipayOpenAppMiniTemplatemessageSendRequest` / `...BatchsendRequest` |
+| `alipay_public` | `AliPublicSingleMsg` / `AliPublicLabelMsg` / `AliPublicGroupMsg` / `AliPublicPreviewMsg` | `AlipayOpenPublicMessageSingleSendRequest` / `...LabelSendRequest` / `...GroupSendRequest` / `...PreviewSendRequest` |
+
+```java
+// 支付宝小程序订阅消息：与登录域复用 alipay_mini 凭证
+AliMiniSubscribeMsg msg = new AliMiniSubscribeMsg();
+msg.setToOpenId("openid-1");
+msg.setUserTemplateId("TPL_1");
+NotificationSendResult r = gateway.send("app1", msg);   // → alipay_mini 凭证 + 订阅消息
+```
+
+> 编码粒度 = 一份凭证/应用形态，不是消息类型：同一小程序 appId 的订阅/客服/统一消息共用 `wechat_mini`，由 bean 类型区分。企业微信归 `wechat_wecom`（不单列 wecom）。支付宝 `alipay_mini` 与登录域复用同一份凭证。编码口径见框架契约 C5。
 
 ## 四、文件 API（FileGateway）
 

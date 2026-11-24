@@ -14,8 +14,8 @@
     <artifactId>conflux-notify-channels</artifactId>
     <packaging>jar</packaging>
     <name>conflux-notify-channels</name>
-    <description>IM 通知渠道实现：微信公众号/小程序/企业微信消息全家桶。消息 bean 继承 wxjava 原生参数类，
-        渠道委托平台层 WechatClients 换取原生 service，不封装 SDK 能力、不重复实现其逻辑。</description>
+    <description>IM 通知渠道实现：微信公众号/小程序/企业微信 + 支付宝消息。消息 bean 继承 SDK 原生参数类，
+        渠道委托平台层 WechatClients / AlipayClients 换取原生 client，不封装 SDK 能力、不重复实现其逻辑。</description>
 
     <dependencies>
         <dependency>
@@ -26,10 +26,14 @@
             <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-notify-core</artifactId>
         </dependency>
-        <!-- 平台客户端层：微信 client 构造/缓存由薄门面负责，本域只做凭证映射 -->
+        <!-- 平台客户端层：client 构造/缓存由薄门面负责，本域只做凭证映射 -->
         <dependency>
             <groupId>com.sfi.conflux</groupId>
             <artifactId>conflux-platform-wechat</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.sfi.conflux</groupId>
+            <artifactId>conflux-platform-alipay</artifactId>
         </dependency>
         <!-- wxjava 消息 bean + service：版本由 conflux-dependencies 单源管控（4.7.2.B） -->
         <dependency>
@@ -43,6 +47,11 @@
         <dependency>
             <groupId>com.github.binarywang</groupId>
             <artifactId>weixin-java-cp</artifactId>
+        </dependency>
+        <!-- 支付宝消息 Request/Model：版本由 conflux-dependencies 单源管控 -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
         </dependency>
 
         <dependency>

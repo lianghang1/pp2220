@@ -18,6 +18,10 @@ public final class NotifyChannels {
     public static final String WECHAT_MINI = Platforms.WECHAT + "_mini";
     /** 企业微信（corpId + corpSecret + agentId） */
     public static final String WECHAT_WECOM = Platforms.WECHAT + "_wecom";
+    /** 支付宝小程序（appId + 私钥，与登录域 alipay_mini 复用同一份凭证） */
+    public static final String ALIPAY_MINI = Platforms.ALIPAY + "_mini";
+    /** 支付宝生活号（appId + 私钥，公众号形态） */
+    public static final String ALIPAY_PUBLIC = Platforms.ALIPAY + "_public";
 
     private NotifyChannels() {
     }

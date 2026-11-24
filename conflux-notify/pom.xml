@@ -60,10 +60,15 @@
                 <artifactId>conflux-notify-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- 平台客户端层：微信 client 构造/缓存下沉到薄门面，版本单源管控（对齐 auth 域） -->
+            <!-- 平台客户端层：client 构造/缓存下沉到薄门面，版本单源管控（对齐 auth 域） -->
             <dependency>
                 <groupId>com.sfi.conflux</groupId>
                 <artifactId>conflux-platform-wechat</artifactId>
+                <version>${conflux-platform.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sfi.conflux</groupId>
+                <artifactId>conflux-platform-alipay</artifactId>
                 <version>${conflux-platform.version}</version>
             </dependency>
         </dependencies>
