@@ -18,7 +18,11 @@ import com.sfi.conflux.notify.config.NotificationConfig;
  */
 public interface NotificationChannel {
 
-    /** 该渠道负责的形态编码，如 alibaba（短信）/ wechat_subscribe（微信订阅消息）。全局唯一。 */
+    /**
+     * 渠道编码：标识一份凭证 / 应用形态，如 alibaba（短信供应商）/ wechat_mini（微信小程序）。
+     * 同一应用下多种消息类型（订阅/客服/统一）共用一个 code，消息类型由入参 bean 区分、不进 code。
+     * 编码命名遵循契约文档 C5；全局唯一。
+     */
     String channelCode();
 
     /** 执行一次发送：渠道内部自行完成配置装载、SDK 调用与结果归一。 */

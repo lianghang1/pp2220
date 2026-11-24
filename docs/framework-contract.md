@@ -122,6 +122,14 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - 文件域 `<channelCode>` 即平台实例标识（如 `aliyun-oss-1`，实例名不是类型名），内部映射官方 platform。
 - 禁止 `attrs`（复数）与框架层 `appId`/`apps`；getter/setter 一律 `getAttr`/`setAttr`。
 
+**渠道编码（channelCode）命名口径（五域通用，登录域已是事实标准）**：
+
+- 平台前缀用全称 `wechat` / `alipay` / `feishu` / `dingtalk`（见 common 的 `Platforms`），禁止 `wx` / `weixin` / `ali` / `ding` 缩写。
+- 企业微信**不单列平台**，归属微信生态、统一用 `wechat_wecom_*` 前缀（如 `wechat_wecom_web`），不写 `wecom` / `wxwork` / `qywx`。
+- 后缀按**应用形态 / 凭证归属**取 `mini`（小程序）/ `mp`（公众号）/ `open`（开放平台）/ `app` / `web` / `h5` / `qr` 等；同形态不同端再细分（如 `alipay_h5_jsapi`）。
+- **编码粒度 = 一份凭证 / 一个应用形态，不是消息类型或业务动作**：同一份凭证能干的事共用一个 code，靠不同参数对象区分具体动作。例：微信小程序订阅/客服/统一消息共用 `wechat_mini`，由入参 bean（如 `MiniSubscribeMsg`）区分消息类型；不可拆成 `wechat_mini_subscribe`、`wechat_mini_custom`。
+- 因此各域**复用同一套编码**：`wechat_mp` 这份公众号凭证在登录域做网页授权、在通知域发模板消息，编码相同，动作由业务方法（`authorize` / `send`）与参数对象区分。登录域既有 24 形态编码即此口径的事实标准，新增渠道不得另起命名体系。
+
 #### C6 委托 SDK 域的对齐方式
 
 - **自有配置，不含官方类**：短信用 `NotificationConfig`、文件用 `FileChannelConfig`，用户不接触官方 Config 类。
@@ -275,7 +283,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 **B. IM 推送渠道（自研，放 `conflux-notify-channels`）**
 
 - [ ] 实现 `NotificationChannel`（建议继承 `AbstractNotificationChannel` 复用上下文回填与异常归一）
-- [ ] `channelCode()` 全局唯一（如 `wechat_subscribe`），不与短信供应商码冲突；SDK/协议/参数名封闭在渠道包内
+- [ ] `channelCode()` 标识平台/应用形态（如 `wechat_mini`），一份凭证一个 code；消息类型由入参 bean 区分、不进 code（C5）；全局唯一、不与短信供应商码冲突；SDK/协议/参数名封闭在渠道包内
 - [ ] 凭证与平台参数从 `NotificationConfig` 的一等公共字段 + `attr` 读取（C1/C2），不新增配置 SPI
 - [ ] 客户端/token 由渠道内部按凭证指纹缓存、凭证变更重建；不引 Redis，不建跨域公共层
 - [ ] 在 channels 模块的 SPI 清单登记为内置渠道，构建期自动注册；单测用 mock SDK，不触发真实网络
