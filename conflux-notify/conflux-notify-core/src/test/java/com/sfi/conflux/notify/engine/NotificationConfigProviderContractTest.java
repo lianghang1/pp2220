@@ -20,8 +20,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class NotificationConfigProviderContractTest {
 
-    private static NotificationSendRequest req() {
-        return new NotificationSendRequest().setPhone("18888888888").setContent("hi");
+    private static NotificationSendRequest req(String channelCode) {
+        return new NotificationSendRequest().setChannelCode(channelCode).setPhone("18888888888").setContent("hi");
     }
 
     @Test
@@ -37,9 +37,9 @@ class NotificationConfigProviderContractTest {
         };
         NotificationGateway gateway = NotificationGateway.builder().configProvider(provider).build();
 
-        assertThatThrownBy(() -> gateway.send("dbapp", "no-such-channel", req()))
+        assertThatThrownBy(() -> gateway.send("dbapp", req("no-such-channel")))
                 .isInstanceOf(GatewayException.class);
-        assertThatThrownBy(() -> gateway.send("dbapp", "no-such-channel", req()))
+        assertThatThrownBy(() -> gateway.send("dbapp", req("no-such-channel")))
                 .isInstanceOf(GatewayException.class);
 
         assertThat(calls[0]).isEqualTo(2); // 每次 send 都读 provider（对齐支付/发票）
@@ -49,7 +49,7 @@ class NotificationConfigProviderContractTest {
     void missingConfigFromProviderShouldFailFast() {
         NotificationConfigProvider provider = new InMemoryNotificationConfigProvider(); // 空 provider
         NotificationGateway gateway = NotificationGateway.builder().configProvider(provider).build();
-        assertThatThrownBy(() -> gateway.send("nope", "alibaba", req()))
+        assertThatThrownBy(() -> gateway.send("nope", req("alibaba")))
                 .isInstanceOf(GatewayException.class)
                 .satisfies(e -> assertThat(((GatewayException) e).getErrorCode().getCode()).isEqualTo(4103));
     }

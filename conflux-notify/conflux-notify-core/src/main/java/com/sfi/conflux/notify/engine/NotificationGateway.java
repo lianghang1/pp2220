@@ -2,7 +2,7 @@ package com.sfi.conflux.notify.engine;
 
 import com.sfi.conflux.common.exception.GatewayException;
 import com.sfi.conflux.common.util.StringUtils;
-import com.sfi.conflux.notify.api.NotificationSendRequest;
+import com.sfi.conflux.notify.api.NotificationMessage;
 import com.sfi.conflux.notify.api.NotificationSendResult;
 import com.sfi.conflux.notify.channel.NotificationChannel;
 import com.sfi.conflux.notify.channel.SmsChannelProvider;
@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>与登录域 {@code AuthGateway} 同构的「门面只路由」范式：内部一张
  * {@code Map<channelCode, NotificationChannel>} 渠道表，{@link #send} 只做三件事——
- * 按 configId+channelCode 读配置、找到渠道、转发。渠道实现（短信 sms4j / 未来的微信、飞书等）
- * 各自封装 SDK 调用与结果归一，新增渠道不改门面 API。</p>
+ * 按 configId + 消息自带 channelCode 读配置、找到渠道、转发。渠道实现（短信 sms4j / 微信等）
+ * 各自封装 SDK 调用、参数校验与结果归一，新增渠道不改门面 API。</p>
  *
  * <p>与支付/发票门面对齐的对外契约：{@link Builder#configProvider(NotificationConfigProvider)}
  * 注入配置源，{@link #registerChannel(NotificationChannel)} 声明渠道，
@@ -75,21 +75,21 @@ public class NotificationGateway {
     }
 
     /**
-     * 统一发送：按 configId + channelCode 读配置 → 找渠道 → 转发，归一结果。
+     * 统一发送（唯一入口）：按 configId + 消息自带 channelCode 读配置 → 找渠道 → 转发，归一结果。
      *
-     * <p>每次调用都先从配置源读取配置（凭证变更可被感知），再按渠道编码路由。
-     * 短信渠道码由内置 Sms4jChannel 处理，IM 渠道码由对应 NotificationChannel 处理。</p>
+     * <p>所有消息形态（短信、微信全家桶、未来 IM）一律以 {@link NotificationMessage} 入参，
+     * 渠道编码由消息自带——消息决定「用哪个平台凭证」，configId 决定「用该平台哪份配置」。
+     * 门面只做路由：参数校验下沉到各渠道（如短信校验 phone），门面只守 configId / message / channelCode 非空。</p>
      *
-     * @param configId   使用方应用标识
-     * @param channelCode 渠道标识
-     * @param request    统一发送请求
+     * @param configId 使用方应用标识
+     * @param message  统一通知消息（自带 channelCode）
      */
-    public NotificationSendResult send(String configId, String channelCode, NotificationSendRequest request) {
-        if (StringUtils.isBlank(configId) || StringUtils.isBlank(channelCode) || request == null
-                || StringUtils.isBlank(request.getPhone())) {
+    public NotificationSendResult send(String configId, NotificationMessage message) {
+        if (StringUtils.isBlank(configId) || message == null || StringUtils.isBlank(message.channelCode())) {
             throw new GatewayException(NotificationErrorCode.BAD_REQUEST,
-                    "发送参数不完整: configId/channelCode/request.phone 必填");
+                    "发送参数不完整: configId/message/message.channelCode 必填");
         }
+        String channelCode = message.channelCode();
         // 先读配置（契约：每次 send 都读 provider；缺失即 fail-fast）
         NotificationConfig cfg = configProvider.getConfig(configId, channelCode);
         if (cfg == null) {
@@ -103,7 +103,7 @@ public class NotificationGateway {
             channel = new Sms4jChannel(channelCode, registry);
             channels.put(channelCode, channel);
         }
-        return channel.send(cfg, request);
+        return channel.send(cfg, message);
     }
 
     private static void requireValidChannel(NotificationChannel channel) {
