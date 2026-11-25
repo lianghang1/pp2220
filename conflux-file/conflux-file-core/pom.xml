@@ -27,6 +27,14 @@
             <groupId>org.dromara.x-file-storage</groupId>
             <artifactId>x-file-storage-core</artifactId>
         </dependency>
+        <!-- x-file-storage 把 commons-pool2 声明为 provided+optional 不传递，
+             但 Jackson 反序列化 FileStorageProperties 时内省 CommonClientPoolConfig 的
+             getDeclaredMethods() 会触发 GenericObjectPoolConfig，缺它则 NoClassDefFoundError。
+             由本模块（引入 x-file 的一层）统一补齐，使用方不必各自声明。 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
