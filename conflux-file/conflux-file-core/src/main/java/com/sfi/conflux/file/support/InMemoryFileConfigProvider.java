@@ -4,9 +4,9 @@ import com.sfi.conflux.common.exception.GatewayException;
 import com.sfi.conflux.file.config.FileChannelConfig;
 import com.sfi.conflux.file.config.FileConfigProvider;
 import com.sfi.conflux.file.exception.FileErrorCode;
-import org.dromara.x.file.storage.core.FileStorageProperties;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,9 +31,9 @@ public class InMemoryFileConfigProvider implements FileConfigProvider {
         return this;
     }
 
-    /** 按 configId + 平台标识注册一份官方平台配置。 */
-    public InMemoryFileConfigProvider register(String configId, String channelCode, FileStorageProperties properties) {
-        return register(new FileChannelConfig(configId, channelCode, properties));
+    /** 按 configId + 渠道编码(平台类型) + 扁平凭证注册一份配置。 */
+    public InMemoryFileConfigProvider register(String configId, String channelCode, Map<String, String> attr) {
+        return register(new FileChannelConfig(configId, channelCode, attr));
     }
 
     @Override

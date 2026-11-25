@@ -1,6 +1,5 @@
 package com.sfi.conflux.file.autoconfigure;
 
-import org.dromara.x.file.storage.core.FileStorageProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.LinkedHashMap;
@@ -9,11 +8,12 @@ import java.util.Map;
 /**
  * 文件网关 starter 配置（{@code conflux.file.*}）。
  *
- * <p>与支付/发票/短信 starter 同构的「应用 → 平台实例 → 配置」结构。第一层 key 为
- * configId，第二层 key 为平台实例标识（{@code platform}，如 aliyun-oss-1）；value 直接是
- * x-file-storage 官方 {@link FileStorageProperties}，其嵌套的各平台 List 段
- * （{@code aliyunOss} / {@code minio} / {@code local} …）由 Spring Boot 原生绑定，
- * 我们不做任何「平台类型 → Config 类」映射，完全复用官方配置结构。</p>
+ * <p>与支付/发票/通知/登录 starter 完全同构的「configId → channelCode → 配置」结构：
+ * 第一层 key 为 configId，第二层 key 为 channelCode（= x-file-storage 平台类型段名，
+ * 如 {@code local}/{@code aliyunOss}/{@code minio}），value 是自有扁平
+ * {@link ChannelProperties}——只有 {@code attr} 一个键值包，不含任何第三方官方类型。
+ * 平台个性字段（accessKey/basePath 等）放 attr，键名对齐官方 Config 字段；
+ * 装载层反射映射成官方 Config，不硬编码平台清单。</p>
  *
  * <p>示例：</p>
  * <pre>{@code
@@ -21,14 +21,13 @@ import java.util.Map;
  *   file:
  *     configs:
  *       app1:
- *         aliyun-oss-1:
- *           aliyunOss:
- *             - platform: aliyun-oss-1
- *               access-key: xx
- *               secret-key: xx
- *               end-point: xx
- *               bucket-name: xx
- *               domain: https://xx/
+ *         aliyunOss:
+ *           attr:
+ *             access-key: xx
+ *             secret-key: xx
+ *             end-point: xx
+ *             bucket-name: xx
+ *             domain: https://xx/
  * }</pre>
  *
  * @author lianghang
@@ -36,15 +35,33 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "conflux.file")
 public class FileProperties {
 
-    /** 应用 → 平台实例 → 官方平台配置。 */
-    private Map<String, Map<String, FileStorageProperties>> configs =
-            new LinkedHashMap<String, Map<String, FileStorageProperties>>();
+    /** 应用 → 渠道编码(平台类型) → 渠道配置。 */
+    private Map<String, Map<String, ChannelProperties>> configs =
+            new LinkedHashMap<String, Map<String, ChannelProperties>>();
 
-    public Map<String, Map<String, FileStorageProperties>> getConfigs() {
+    public Map<String, Map<String, ChannelProperties>> getConfigs() {
         return configs;
     }
 
-    public void setConfigs(Map<String, Map<String, FileStorageProperties>> configs) {
+    public void setConfigs(Map<String, Map<String, ChannelProperties>> configs) {
         this.configs = configs;
+    }
+
+    /** 单渠道配置：扁平键值包，与其余四域的 ChannelProperties 同构。 */
+    public static class ChannelProperties {
+
+        /**
+         * 平台个性键值包（键名对齐官方 Config 字段，支持 kebab-case 与 camelCase）。
+         * 由装载层经 JsonUtils.convertValue 转成对应的官方 XxxConfig。
+         */
+        private Map<String, String> attr = new LinkedHashMap<String, String>();
+
+        public Map<String, String> getAttr() {
+            return attr;
+        }
+
+        public void setAttr(Map<String, String> attr) {
+            this.attr = attr;
+        }
     }
 }

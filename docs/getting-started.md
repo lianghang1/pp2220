@@ -48,7 +48,7 @@ gateway.registeredChannels();        // 查看已注册渠道编码
 配置路径统一为 `conflux.<域>.configs.<configId>.<channelCode>`：
 
 - **configId**：框架侧配置定位键（**不是**渠道真实 appId，避免与微信/支付宝的 `appId` 混淆）。
-- **channelCode**：对外渠道编码；短信/文件内部再映射为第三方 SDK 的供应商标识 / 平台实例名。
+- **channelCode**：对外渠道编码；短信内部映射为 sms4j 供应商标识，文件即平台类型段名（`local`/`aliyunOss`…）。
 - **公共字段一等化 + `attr`**：跨渠道同名的公共字段（如 `notifyUrl`、`sandbox`，短信的凭证四件套）为配置对象一等字段；渠道个性键统一放 `attr`（**单数**）。
 - 配置对象：支付/发票为 `ChannelConfig` 基类 + 各渠道 `XxxParams extends ChannelConfig`；短信为 `NotificationConfig`；文件为 `FileChannelConfig`。
 

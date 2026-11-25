@@ -1,22 +1,21 @@
 package com.sfi.conflux.file.config;
 
-import org.dromara.x.file.storage.core.FileStorageProperties;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
- * 文件渠道配置值对象：承载「configId + 渠道编码 + x-file-storage 官方平台配置」。
+ * 文件渠道配置值对象：承载「configId + 渠道编码 + 扁平凭证」。
  *
  * <p>与支付域 {@code ChannelConfig}、发票域 {@code ChannelConfig}、通知域
- * {@code NotificationConfig} 同层次，由 {@link FileConfigProvider} 产出，交给装载器
- * 构建官方 {@code FileStorageService}。</p>
+ * {@code NotificationConfig}、登录域 {@code AuthConfig} 完全同构：公共维度（configId /
+ * channelCode）为一等字段，平台个性凭证放 {@code attr: Map}，不含任何第三方官方类型。</p>
  *
- * <p><b>为什么不照搬 {@code attr: Map&lt;String,String&gt;}：</b> x-file-storage 没有像
- * sms4j {@code getConfigClass()} 那样的 Config 类自描述入口——它的平台配置按类型分组
- * （{@code FileStorageProperties} 内含 local/aliyunOss/minio 等 20 个 {@code List<XxxConfig>}
- * 段）。若用扁平 attr 反推具体 Config 类，就必须由我们维护一份「平台类型 → Config 类」
- * 清单并逐字段映射，这既重做了官方 builder 的构建逻辑，又会随官方升级而漂移。
- * 因此本配置直接承载官方 {@link FileStorageProperties}，平台 Config 的字段解析、
- * 客户端构建、平台实例创建<b>全部交给官方 {@code FileStorageServiceBuilder}</b>，
- * 我们只做装载编排——这是「不重做对方已有能力」约束下的最薄形态。</p>
+ * <p><b>channelCode 语义</b>：即 x-file-storage 的<b>平台类型段名</b>（{@code local} /
+ * {@code aliyunOss} / {@code minio} …），与支付域的 {@code wechat} / {@code alipay} 同为
+ * "类型编码"。装载器据此反射 {@code FileStorageProperties} 的同名 List 段、取官方 Config 类、
+ * 把 attr 转成该 Config 并注入平台实例名——不硬编码平台清单，官方新增平台自动适配。
+ * 同一类型多实例按 configId 区分（与支付域服务商模式多个 configId 一致）。</p>
  *
  * @author lianghang
  */
@@ -24,28 +23,28 @@ public final class FileChannelConfig {
 
     private final String configId;
     private final String channelCode;
-    private final FileStorageProperties properties;
+    private final Map<String, String> attr;
 
-    public FileChannelConfig(String configId, String channelCode, FileStorageProperties properties) {
+    public FileChannelConfig(String configId, String channelCode, Map<String, String> attr) {
         this.configId = configId;
         this.channelCode = channelCode;
-        if (properties == null) {
-            throw new IllegalArgumentException("FileStorageProperties 不能为空");
-        }
-        this.properties = properties;
+        this.attr = attr == null
+                ? Collections.<String, String>emptyMap()
+                : Collections.unmodifiableMap(new LinkedHashMap<String, String>(attr));
     }
 
     public String getConfigId() {
         return configId;
     }
 
-    /** 渠道编码（等价于 x-file-storage 的 platform 实例名；对外统一叫 channelCode）。 */
+    /** 渠道编码 = x-file-storage 平台类型段名（local/aliyunOss/minio...）。 */
     public String getChannelCode() {
         return channelCode;
     }
 
-    public FileStorageProperties getProperties() {
-        return properties;
+    /** 平台个性凭证（键名对齐官方 Config 字段，如 accessKey/basePath）。 */
+    public Map<String, String> getAttr() {
+        return attr;
     }
 
     @Override

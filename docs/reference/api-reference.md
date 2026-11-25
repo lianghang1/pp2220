@@ -288,7 +288,7 @@ NotificationSendResult r = gateway.send("app1", msg);   // → feishu 凭证
 
 ## 四、文件 API（FileGateway）
 
-文件域平台实现与 `FileStorageService` 构建全量委托 x-file-storage 原始包（`x-file-storage-core`，非其 starter），门面只做配置装载 + 出口委托，返回官方原始类型，不另造结果对象、不重做对方能力。`<channelCode>` 对外统一命名，内部映射为 x-file-storage 的平台实例标识（`platform`）。
+文件域平台实现与 `FileStorageService` 构建全量委托 x-file-storage 原始包（`x-file-storage-core`，非其 starter），门面只做配置装载 + 出口委托，返回官方原始类型，不另造结果对象、不重做对方能力。`<channelCode>` 即 x-file-storage 平台类型段名（`local`/`aliyunOss`/`minio`…），与其余域同为类型编码；多实例用不同 `configId` 区分。
 
 ### 4.1 方法清单
 
@@ -312,10 +312,10 @@ NotificationSendResult r = gateway.send("app1", msg);   // → feishu 凭证
 
 | 类型 | 说明 |
 |---|---|
-| `FileChannelConfig` | `configId` `channelCode` `properties`（官方 `FileStorageProperties`，含各平台 List 段） |
+| `FileChannelConfig` | 自有扁平 bean：`configId` `channelCode`（平台类型） `attr`（平台凭证，不含官方类） |
 | 配置源 SPI | `FileConfigProvider.getConfig(configId, channelCode)`，查不到抛 `GatewayException(CONFIG_MISSING)`；内置 `InMemoryFileConfigProvider`（纯 Java/测试）、starter 的 `PropertiesFileConfigProvider`（读 `conflux.file.configs.<configId>.<channelCode>`） |
 
-平台配置 value 直接是官方 `FileStorageProperties`，各平台段由 Spring Boot 原生绑定，内核整体交给官方 builder，**不逐平台解析字段**。文件域**不实现、不托管** `FileRecorder`、不落库：门面一律以 `FileInfo` 为入参/返回，不暴露 `getFileInfoByUrl` 及一切 `url → 元信息` 反查方法（这些方法依赖 DB 记录，官方默认 `DefaultFileRecorder` 下抛明确异常）。需要按 url 查询请自实现 `FileRecorder`，再走 `nativeService()` 原生能力。
+平台配置 value 是自有扁平 `attr`，装载层按 channelCode 反射官方 Config 类、`convertValue(attr)` 映射后交官方 builder，**不硬编码平台清单**；同一类型多实例用不同 `configId`。文件域**不实现、不托管** `FileRecorder`、不落库：门面一律以 `FileInfo` 为入参/返回，不暴露 `getFileInfoByUrl` 及一切 `url → 元信息` 反查方法（这些方法依赖 DB 记录，官方默认 `DefaultFileRecorder` 下抛明确异常）。需要按 url 查询请自实现 `FileRecorder`，再走 `nativeService()` 原生能力。
 
 ## 五、登录 API（AuthGateway）
 

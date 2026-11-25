@@ -2,11 +2,12 @@ package com.sfi.conflux.file.autoconfigure;
 
 import com.sfi.conflux.file.config.FileConfigProvider;
 import com.sfi.conflux.file.engine.FileGateway;
-import org.dromara.x.file.storage.core.FileStorageProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,8 +15,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 验证 conflux.file.configs.<configId>.<channelCode> 配置被 starter 装载进官方 FileStorageService，
- * 即「配置规则是我们的、平台能力来自 x-file-storage」。用 local 平台，不触发网络。
+ * 验证 conflux.file.configs.<configId>.<channelCode> 扁平配置被 starter 装载进官方
+ * FileStorageService，即「配置规则是我们的、平台能力来自 x-file-storage」。用 local 平台，不触发网络。
  *
  * @author lianghang
  */
@@ -31,13 +32,13 @@ class FileAutoConfigurationTest {
                 Collections.<com.sfi.conflux.file.channel.FileChannelProvider>emptyList());
     }
 
-    private FileStorageProperties localProps(String channelCode) {
-        FileStorageProperties props = new FileStorageProperties();
-        FileStorageProperties.LocalConfig local = new FileStorageProperties.LocalConfig();
-        local.setPlatform(channelCode);
-        local.setBasePath(System.getProperty("java.io.tmpdir"));
-        local.setDomain("http://localhost/");
-        props.setLocal(Collections.singletonList(local));
+    /** 扁平 local 配置：basePath 指向临时目录，attr 键名对齐官方 LocalConfig 字段。 */
+    private FileProperties.ChannelProperties localProps() {
+        Map<String, String> attr = new HashMap<String, String>();
+        attr.put("basePath", System.getProperty("java.io.tmpdir"));
+        attr.put("domain", "http://localhost/");
+        FileProperties.ChannelProperties props = new FileProperties.ChannelProperties();
+        props.setAttr(attr);
         return props;
     }
 
@@ -45,20 +46,21 @@ class FileAutoConfigurationTest {
     void shouldLoadOurAppsStructureIntoGateway() {
         FileProperties props = new FileProperties();
         props.getConfigs().put("demo-boot",
-                Collections.singletonMap("local-1", localProps("local-1")));
+                Collections.singletonMap("local", localProps()));
 
         FileGateway gw = gateway(props);
 
-        assertThat(gw.registeredChannels()).contains("local-1");
+        assertThat(gw.registeredChannels()).contains("local");
     }
 
     @Test
-    void propertiesProviderShouldReadConfigByAppAndPlatform() {
+    void propertiesProviderShouldReadConfigByAppAndChannelCode() {
         FileProperties props = new FileProperties();
         props.getConfigs().put("demo-boot",
-                Collections.singletonMap("local-1", localProps("local-1")));
+                Collections.singletonMap("local", localProps()));
         FileConfigProvider provider = new PropertiesFileConfigProvider(props);
-        assertThat(provider.getConfig("demo-boot", "local-1").getChannelCode()).isEqualTo("local-1");
+        assertThat(provider.getConfig("demo-boot", "local").getChannelCode()).isEqualTo("local");
+        assertThat(provider.getConfig("demo-boot", "local").getAttr()).containsKey("basePath");
         assertThat(provider.allConfigs()).hasSize(1);
         assertThatThrownBy(() -> provider.getConfig("demo-boot", "missing"))
                 .isInstanceOf(RuntimeException.class);

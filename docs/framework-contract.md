@@ -76,12 +76,12 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 | 支付 | `ChannelConfig` ← 各渠道 `XxxParams extends` | configId / channelCode / notifyUrl / sandbox | 渠道凭证（merchantId、渠道 appId、apiV3Key、下沉的 subMchNo…） |
 | 发票 | `ChannelConfig` ← 各渠道 Params extends | configId / channelCode / sellerTaxNo / notifyUrl / sandbox / tier / priority / enabled | 渠道凭证（appKey、drawer、销方名称/电话/地址/银行账号…） |
 | 通知（短信） | `NotificationConfig`（自有，不含官方类） | configId / channelCode / accessKeyId / accessKeySecret / signature / templateId（= sms4j BaseConfig 公共凭证） | 厂商特有字段（regionId/sdkAppId/sender…） |
-| 文件 | `FileChannelConfig`（自有） | configId / channelCode（内部映射官方 platform） | 官方平台配置字段（承载于官方 `FileStorageProperties`，整体交官方 builder） |
+| 文件 | `FileChannelConfig`（自有，不含官方类） | configId / channelCode（= 平台类型段名） | 平台凭证字段（放 `attr`，装载时反射映射为官方 Config） |
 | 登录 | `AuthConfig`（自有，不含官方类） | configId / channelCode / clientId / clientSecret / redirectUri / scope（OAuth 公共字段） | 平台特有字段（私钥/证书/corpId/端点版本等，参数名不写死） |
 
 - 支付/发票：各渠道 `XxxParams extends ChannelConfig`，公共字段在基类、渠道字段在子类。
 - 短信：自有 `NotificationConfig`，公共凭证四件套一等化，`mergedAttr()` 合并后由装载器填充官方 Config，**不含 sms4j 官方类**。
-- 文件：`FileChannelConfig` 暴露自有 `channelCode`，内部映射官方 platform；平台配置整体交给官方 `FileStorageServiceBuilder`，不逐字段解析。
+- 文件：`FileChannelConfig` 是自有扁平 bean（configId/channelCode/attr），不含官方类；channelCode 即平台类型段名，装载层反射映射 attr→官方 Config 后交官方 builder，不硬编码平台清单。
 - **禁止**：外壳对象 + 强类型 `params` 两层模型已拆除；渠道真实 appId 等 SDK 字段保留原样，不受 configId 改名影响。
 
 #### C2 公共字段 vs `attr` 的唯一判定规则
@@ -90,7 +90,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 |---|---|---|
 | 判定 | 框架/门面需要读取做路由、通知覆盖、生命周期控制，或跨渠道同名同义且发调用必需 | 只有渠道 SDK/handler 认识、框架不解释其语义 |
 | 键名 | 框架定义的固定字段名 | 对齐渠道/SDK 官方字段名 |
-| 例 | configId / channelCode / notifyUrl / sandbox / sellerTaxNo / 短信凭证四件套 | 支付 apiV3Key/privateKey；发票 appKey/drawer；短信厂商特有；文件平台配置 |
+| 例 | configId / channelCode / notifyUrl / sandbox / sellerTaxNo / 短信凭证四件套 | 支付 apiV3Key/privateKey；发票 appKey/drawer；短信厂商特有；文件 accessKey/basePath |
 
 - 短信公共字段取 sms4j `BaseConfig` 中跨渠道同名同义的凭证四件套（accessKeyId/accessKeySecret/signature/templateId），一等化声明。
 - 同一语义字段只存一处：公共字段一等化，禁止在 `attr`、外壳、`params` 里复制副本。
@@ -101,7 +101,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - 公共基建：`ConfigMapper`（common 层，基于已有 Jackson `ObjectMapper`）提供 `fill/fromMap/normalize`；**不引入 hutool**。
 - 支付/发票：各渠道 `XxxParams.fromMap(attr)` 负责把 attr 映射为强类型配置并做必填校验（渠道自有逻辑，含 equals 供客户端缓存复用）；starter 的 `Properties*` 把公共字段与 attr 一并装入。
 - 短信：自有 `NotificationConfig` 一等字段 + `mergedAttr()`，装载器用官方 Factory 构建厂商 Config。
-- 文件：`FileProperties` 由 Spring Boot 原生绑定到官方 `FileStorageProperties`，整体交官方 builder。
+- 文件：`FileProperties`（自有扁平 value，仅 attr）由 Spring Boot 绑定；装载层按 channelCode 反射官方 Config 类，`convertValue(attr)` 映射后交官方 builder。
 - 委托 SDK 域内部用官方原始包构建配置对象（sms4j 官方 Factory / x-file-storage 官方 builder），不重做对方能力。
 
 #### C4 两种运行形态共用同一配置模型
@@ -118,8 +118,8 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 
 - 路径一律 `conflux.<域>.configs.<configId>.<channelCode>`，个性键值一律装进 **`attr`（单数）**。
 - 框架配置定位键一律 `configId`（复数路径 `configs`）；**渠道真实 appId（微信/支付宝/attr.appId）原样保留**，不受影响。
-- 渠道字段对外名一律 `channelCode`，内部映射到短信 `factory` / 文件 `platform`。
-- 文件域 `<channelCode>` 即平台实例标识（如 `aliyun-oss-1`，实例名不是类型名），内部映射官方 platform。
+- 渠道字段对外名一律 `channelCode`，内部映射到短信 `factory`；文件的 channelCode 本身就是平台类型段名。
+- 文件域 `<channelCode>` 即平台类型段名（如 `local` / `aliyunOss` / `minio`，与支付 `wechat`/`alipay` 同为类型编码）；多实例用不同 `configId` 区分，实例名由装载层自动注入为 channelCode。
 - 禁止 `attrs`（复数）与框架层 `appId`/`apps`；getter/setter 一律 `getAttr`/`setAttr`。
 
 **渠道编码（channelCode）命名口径（五域通用，登录域已是事实标准）**：
@@ -133,7 +133,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 #### C6 委托 SDK 域的对齐方式
 
 - **自有配置，不含官方类**：短信用 `NotificationConfig`、文件用 `FileChannelConfig`，用户不接触官方 Config 类。
-- **装载对齐**：短信把一等凭证 + attr 合并后由官方 Factory 构建厂商 Config；文件把官方 `FileStorageProperties` 整体交官方 builder。
+- **装载对齐**：短信把一等凭证 + attr 合并后由官方 Factory 构建厂商 Config；文件按 channelCode 反射官方 Config 类、把 attr 转成该 Config 后交官方 builder（不硬编码平台清单）。
 - **门面/SPI 对齐**：与五域共用 1.1/1.2 的门面与配置源契约。
 
 #### 五域落地对照（已落地）
