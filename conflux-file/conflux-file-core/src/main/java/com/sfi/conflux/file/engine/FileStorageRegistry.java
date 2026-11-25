@@ -26,10 +26,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>只做「配置装载 + 路由」两件事，不含任何平台实现：</p>
  * <ul>
- *   <li>内置平台：对每个 channelCode（= 官方平台段名，如 aliyunOss/minio/local），反射取
- *       {@link FileStorageProperties} 的同名 {@code List<XxxConfig>} 段及泛型 Config 类，
- *       用 {@link JsonUtils#convertValue} 把扁平 attr 转成该官方 Config，注入
- *       {@code platform=channelCode}，加入段后整体交给官方 builder。不硬编码平台清单，
+ *   <li>内置平台：对每个 channelCode（= 官方平台段名，如 aliyun-oss/minio/local，兼容驼峰
+ *       aliyunOss），归一化后反射取 {@link FileStorageProperties} 的同名 {@code List<XxxConfig>}
+ *       段及泛型 Config 类，用 {@link JsonUtils#convertValue} 把扁平 attr 转成该官方 Config，
+ *       注入 {@code platform=channelCode}（原值），加入段后整体交给官方 builder。不硬编码平台清单，
  *       官方新增平台段自动适配；只映射用户实际配置的段，不扫全部平台类（规避 optional SDK）。</li>
  *   <li>自定义平台：{@link FileChannelProvider} 承载的官方 {@code FileStorage} 实例经官方
  *       {@code addFileStorage(...)} 注入，与内置平台同一个 service 管理。</li>
@@ -128,10 +128,12 @@ public class FileStorageRegistry {
         String platformType = cfg.getChannelCode();
         Field field;
         try {
-            field = FileStorageProperties.class.getDeclaredField(platformType);
+            // channelCode 支持官方 yml 的 kebab-case（aliyun-oss）与 Java 字段名（aliyunOss）两种写法：
+            // 归一化成字段名后再反射；注意 platform 实例名仍用原值（见下方 setPlatform），与门面路由一致。
+            field = FileStorageProperties.class.getDeclaredField(kebabToCamel(platformType));
         } catch (NoSuchFieldException e) {
             throw new GatewayException(FileErrorCode.CONFIG_CONFLICT,
-                    "未知文件平台类型: channelCode={}（须为 x-file-storage 平台段名，如 local/aliyunOss/minio）",
+                    "未知文件平台类型: channelCode={}（须为 x-file-storage 平台段名，如 local/aliyun-oss/minio）",
                     platformType, e);
         }
         if (!List.class.isAssignableFrom(field.getType())) {
@@ -166,23 +168,31 @@ public class FileStorageRegistry {
     private static java.util.Map<String, Object> normalizeKeys(java.util.Map<String, String> attr) {
         java.util.Map<String, Object> normalized = new java.util.LinkedHashMap<String, Object>();
         for (java.util.Map.Entry<String, String> e : attr.entrySet()) {
-            String key = e.getKey();
-            if (key != null && key.indexOf('-') >= 0) {
-                StringBuilder sb = new StringBuilder();
-                boolean upperNext = false;
-                for (char c : key.toCharArray()) {
-                    if (c == '-') {
-                        upperNext = true;
-                    } else {
-                        sb.append(upperNext ? Character.toUpperCase(c) : c);
-                        upperNext = false;
-                    }
-                }
-                key = sb.toString();
-            }
-            normalized.put(key, e.getValue());
+            normalized.put(kebabToCamel(e.getKey()), e.getValue());
         }
         return normalized;
+    }
+
+    /**
+     * kebab-case → camelCase：{@code aliyun-oss→aliyunOss}、{@code access-key→accessKey}。
+     * 无 '-' 时原样返回（已为驼峰或纯小写段名，如 {@code local}/{@code aliyunOss}/{@code webdav}）。
+     * channelCode 反射字段名与 attr 键名共用同一套规则。
+     */
+    private static String kebabToCamel(String s) {
+        if (s == null || s.indexOf('-') < 0) {
+            return s;
+        }
+        StringBuilder sb = new StringBuilder(s.length());
+        boolean upperNext = false;
+        for (char c : s.toCharArray()) {
+            if (c == '-') {
+                upperNext = true;
+            } else {
+                sb.append(upperNext ? Character.toUpperCase(c) : c);
+                upperNext = false;
+            }
+        }
+        return sb.toString();
     }
 
     /** 从 {@code List<XxxConfig>} 字段的泛型签名取出官方 Config 类。 */

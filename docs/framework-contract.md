@@ -119,7 +119,7 @@ XxxChannelConfig / XxxConfig        ← 框架自有，公共字段为一等字�
 - 路径一律 `conflux.<域>.configs.<configId>.<channelCode>`，个性键值一律装进 **`attr`（单数）**。
 - 框架配置定位键一律 `configId`（复数路径 `configs`）；**渠道真实 appId（微信/支付宝/attr.appId）原样保留**，不受影响。
 - 渠道字段对外名一律 `channelCode`，内部映射到短信 `factory`；文件的 channelCode 本身就是平台类型段名。
-- 文件域 `<channelCode>` 即平台类型段名（如 `local` / `aliyunOss` / `minio`，与支付 `wechat`/`alipay` 同为类型编码）；多实例用不同 `configId` 区分，实例名由装载层自动注入为 channelCode。
+- 文件域 `<channelCode>` 即平台类型段名（如 `local` / `aliyun-oss` / `minio`，与支付 `wechat`/`alipay` 同为类型编码；官方 yml 的 kebab-case 与 Java 字段名 camelCase 均支持，装载层统一归一化）；多实例用不同 `configId` 区分，实例名取传入的 channelCode 原值。
 - 禁止 `attrs`（复数）与框架层 `appId`/`apps`；getter/setter 一律 `getAttr`/`setAttr`。
 
 **渠道编码（channelCode）命名口径（五域通用，登录域已是事实标准）**：

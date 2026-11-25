@@ -288,7 +288,7 @@ NotificationSendResult r = gateway.send("app1", msg);   // → feishu 凭证
 
 ## 四、文件 API（FileGateway）
 
-文件域平台实现与 `FileStorageService` 构建全量委托 x-file-storage 原始包（`x-file-storage-core`，非其 starter），门面只做配置装载 + 出口委托，返回官方原始类型，不另造结果对象、不重做对方能力。`<channelCode>` 即 x-file-storage 平台类型段名（`local`/`aliyunOss`/`minio`…），与其余域同为类型编码；多实例用不同 `configId` 区分。
+文件域平台实现与 `FileStorageService` 构建全量委托 x-file-storage 原始包（`x-file-storage-core`，非其 starter），门面只做配置装载 + 出口委托，返回官方原始类型，不另造结果对象、不重做对方能力。`<channelCode>` 即 x-file-storage 平台类型段名（`local`/`aliyun-oss`/`minio`…，官方 kebab-case 与 camelCase 均支持，装载层统一归一化），与其余域同为类型编码；多实例用不同 `configId` 区分。
 
 ### 4.1 方法清单
 

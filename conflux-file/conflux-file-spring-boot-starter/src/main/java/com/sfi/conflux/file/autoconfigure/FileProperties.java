@@ -21,7 +21,7 @@ import java.util.Map;
  *   file:
  *     configs:
  *       app1:
- *         aliyunOss:
+ *         aliyun-oss:            # 官方 yml 平台段名（kebab-case），也兼容 aliyunOss
  *           attr:
  *             access-key: xx
  *             secret-key: xx

@@ -42,7 +42,7 @@ conflux:
           attr:                    # 扁平凭证，键名对齐官方 Config 字段(支持 kebab/camel)
             base-path: /data/files
             domain: http://localhost/file/
-        aliyunOss:                 # 另一平台类型，同一结构
+        aliyun-oss:                # 另一平台类型，官方 yml 写法（kebab-case）
           attr:
             access-key: xxx
             secret-key: xxx
@@ -50,9 +50,9 @@ conflux:
             end-point: https://oss-cn-hangzhou.aliyuncs.com
 ```
 
-- **`channelCode`** = x-file-storage 的**平台类型段名**（`local` / `aliyunOss` / `minio` …），与支付域的 `wechat` / `alipay` 语义一致（都是类型编码，不是实例名）。装载层反射 `FileStorageProperties` 的同名 List 段、取官方 Config 类，把 `attr` 转成该 Config 并注入实例名——**不硬编码平台清单**，官方新增平台段自动适配。
+- **`channelCode`** = x-file-storage 的**平台类型段名**（`local` / `aliyun-oss` / `minio` …），与支付域的 `wechat` / `alipay` 语义一致（都是类型编码，不是实例名）。支持两种写法：**官方 yml 的 kebab-case**（`aliyun-oss`，推荐，与官方文档一致）和 **Java 字段名 camelCase**（`aliyunOss`，兼容旧配置）；装载层统一归一化为字段名后反射 `FileStorageProperties` 的同名 List 段、取官方 Config 类，把 `attr` 转成该 Config。**注意**：`platform` 实例名取你传入的原值，调用门面时的 `channelCode` 必须与配置里写的一致。
 - **value 是自有扁平配置**（`attr` 键值包），**不含任何第三方官方类型**，与其余四域的 `ChannelProperties` 同构。平台 SDK（阿里云 OSS、MinIO 等）由使用方按需引入。
-- **多实例**：同一平台类型下多个账号/实例用不同 `configId` 区分（与支付域服务商模式一致），如 `configs.prod-oss.aliyunOss` 与 `configs.bak-oss.aliyunOss`。
+- **多实例**：同一平台类型下多个账号/实例用不同 `configId` 区分（与支付域服务商模式一致），如 `configs.prod-oss.aliyun-oss` 与 `configs.bak-oss.aliyun-oss`。
 - 配置源每次读取，配置变更可重建 service；自定义 `FileConfigProvider` 可接 DB / 配置中心。
 
 ## 3. 文件操作
@@ -89,7 +89,7 @@ FileStorageService nativeSvc = gateway.nativeService("demo", "local");
 ## 6. 排错
 
 - `CONFIG_MISSING`：确认 `configId` + `channelCode` 与配置一致（内存实现按 `configId#channelCode` 索引）。
-- 平台初始化失败：检查 channelCode 是否为合法平台类型段名、`attr` 键名是否对齐官方 Config 字段、平台 SDK 依赖是否引入。
+- 平台初始化失败：检查 channelCode 是否为合法平台类型段名（`aliyun-oss` / `aliyunOss` 均可，其余按官方 yml 段名）、`attr` 键名是否对齐官方 Config 字段、平台 SDK 依赖是否引入。
 - 调用 `url → 元信息` 抛异常：这是预期的（不托管 FileRecorder），改为保存 `FileInfo` 或自行实现 `FileRecorder`。
 - 进阶能力缺失：用 `nativeService()` 走官方 API，不在门面层找。
 
